@@ -127,7 +127,8 @@ begin
             sync_state        => sync_state,
             sync_loss_count   => sync_loss_count,
             phase_fault_count => phase_fault_count,
-            phase_fault       => phase_fault
+            phase_fault       => phase_fault,
+            ab_count_out      => open
         );
 
     -- -------------------------------------------------------------------------

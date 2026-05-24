@@ -48,7 +48,10 @@ entity sync is
         sync_state        : out std_logic_vector(2 downto 0);
         sync_loss_count   : out unsigned(15 downto 0);
         phase_fault_count : out unsigned(15 downto 0);
-        phase_fault       : out std_logic
+        phase_fault       : out std_logic;
+
+        -- Debug output
+        ab_count_out      : out unsigned(7 downto 0)   -- teeth counted this revolution
     );
 end entity sync;
 
@@ -235,5 +238,6 @@ begin
     sync_loss_count   <= sync_loss_cnt;
     phase_fault_count <= phase_flt_cnt;
     phase_fault       <= phase_flt;
+    ab_count_out      <= ab_count;
 
 end architecture rtl;
