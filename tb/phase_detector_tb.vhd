@@ -94,7 +94,9 @@ begin
             expected_phase_angle => expected_phase_angle,
             phase_tolerance      => phase_tolerance,
             ref_detected         => ref_detected,
-            sync_offset          => sync_offset
+            sync_offset          => sync_offset,
+            cam_edge_pulse       => open,
+            cam_angle            => open
         );
 
     -- -------------------------------------------------------------------------

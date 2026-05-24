@@ -37,7 +37,11 @@ entity phase_detector is
 
         -- Outputs
         ref_detected         : out std_logic;
-        sync_offset          : out std_logic   -- '0' = no offset, '1' = add 3600
+        sync_offset          : out std_logic;   -- '0' = no offset, '1' = add 3600
+
+        -- Debug outputs
+        cam_edge_pulse       : out std_logic;            -- pulse on every cam rising edge
+        cam_angle            : out unsigned(15 downto 0) -- raw_angle latched at cam edge
     );
 end entity phase_detector;
 
@@ -49,6 +53,8 @@ architecture rtl of phase_detector is
     signal ref_prev       : std_logic := '0';
     signal sync_offset_r  : std_logic := '0';
     signal ref_det        : std_logic := '0';
+    signal cam_edge_int   : std_logic := '0';
+    signal cam_angle_int  : unsigned(15 downto 0) := (others => '0');
 
     -- Band centre for band B = (expected + 3600) mod 7200
     signal band_b_centre  : unsigned(15 downto 0) := (others => '0');
@@ -97,12 +103,18 @@ begin
                 ref_prev      <= '0';
                 ref_det       <= '0';
                 sync_offset_r <= '0';
+                cam_edge_int  <= '0';
+                cam_angle_int <= (others => '0');
             else
-                ref_prev <= phase_ref;
-                ref_det  <= '0';
+                ref_prev     <= phase_ref;
+                ref_det      <= '0';
+                cam_edge_int <= '0';
 
                 -- Rising edge of phase_ref
                 if phase_ref = '1' and ref_prev = '0' then
+                    -- Latch angle and pulse cam_edge on every cam edge (before band check)
+                    cam_edge_int  <= '1';
+                    cam_angle_int <= raw_angle;
 
                     if in_band(raw_angle, expected_phase_angle,
                                phase_tolerance) then
@@ -123,7 +135,9 @@ begin
         end if;
     end process p_detect;
 
-    ref_detected <= ref_det;
-    sync_offset  <= sync_offset_r;
+    ref_detected   <= ref_det;
+    sync_offset    <= sync_offset_r;
+    cam_edge_pulse <= cam_edge_int;
+    cam_angle      <= cam_angle_int;
 
 end architecture rtl;
