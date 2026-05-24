@@ -71,10 +71,11 @@ architecture sim of integration_top_tb is
     signal digital_inputs    : std_logic_vector(7 downto 0) := (others => '0');
 
     -- xADC (simulated)
-    signal xadc_drdy         : std_logic := '0';
     signal xadc_do           : std_logic_vector(15 downto 0) := (others => '0');
     signal xadc_channel      : std_logic_vector(4 downto 0) := (others => '0');
     signal xadc_eoc          : std_logic := '0';
+    signal xadc_eos          : std_logic := '0';
+    signal xadc_busy         : std_logic := '0';
     signal xadc_dclk         : std_logic;
     signal xadc_den          : std_logic;
     signal xadc_dwe          : std_logic;
@@ -214,10 +215,12 @@ begin
             crank_raw        => crank_raw,
             cam_raw          => cam_raw,
             digital_inputs   => digital_inputs,
-            xadc_drdy        => xadc_drdy,
             xadc_do          => xadc_do,
             xadc_channel     => xadc_channel,
             xadc_eoc         => xadc_eoc,
+            xadc_eos         => xadc_eos,
+            xadc_busy        => xadc_busy,
+            xadc_convst      => open,
             xadc_dclk        => xadc_dclk,
             xadc_den         => xadc_den,
             xadc_dwe         => xadc_dwe,
@@ -317,14 +320,16 @@ begin
         loop
             wait for 1_000 ns;   -- 1us conversion period = 1MSPS
             if rst_n = '1' then
+                xadc_busy    <= '1';
                 xadc_channel <= std_logic_vector(to_unsigned(16#10#, 5));
                 xadc_do      <= x"1234";   -- known pressure value
                 xadc_eoc     <= '1';
                 wait for CLK_PERIOD;
                 xadc_eoc     <= '0';
-                xadc_drdy    <= '1';
+                xadc_eos     <= '1';
                 wait for CLK_PERIOD;
-                xadc_drdy    <= '0';
+                xadc_eos     <= '0';
+                xadc_busy    <= '0';
             end if;
         end loop;
     end process p_xadc;
