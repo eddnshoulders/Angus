@@ -80,7 +80,10 @@ entity top is
         m_axis_tdata       : out std_logic_vector(31 downto 0);
         m_axis_tvalid      : out std_logic;
         m_axis_tready      : in  std_logic;
-        m_axis_tlast       : out std_logic
+        m_axis_tlast       : out std_logic;
+
+        -- Debug outputs routed to Pi header pins
+        debug_out          : out std_logic_vector(11 downto 0)
     );
 end entity top;
 
@@ -101,19 +104,29 @@ architecture rtl of top is
     signal tooth_count          : unsigned(7 downto 0);
     signal gap_detected         : std_logic;
     signal signal_present       : std_logic;
+    signal edge_pulse_out       : std_logic;
+    signal gap_period           : unsigned(31 downto 0);
 
     -- angle_engine output
     signal raw_angle            : unsigned(15 downto 0);
+    signal div_valid            : std_logic;
+    signal synced               : std_logic;
+    signal nco_inc              : unsigned(31 downto 0);
+    signal phase_error          : signed(31 downto 0);
+    signal correction           : signed(31 downto 0);
 
     -- sync outputs
     signal sync_state           : std_logic_vector(2 downto 0);
     signal sync_loss_count      : unsigned(15 downto 0);
     signal phase_fault          : std_logic;
     signal phase_fault_count    : unsigned(15 downto 0);
+    signal ab_count             : unsigned(7 downto 0);
 
     -- phase_detector outputs
     signal ref_detected         : std_logic;
     signal sync_offset          : std_logic;
+    signal cam_edge_pulse       : std_logic;
+    signal cam_angle            : unsigned(15 downto 0);
 
     -- angle_offset outputs
     signal crank_angle          : unsigned(15 downto 0);
@@ -193,7 +206,9 @@ begin
             tooth_period   => tooth_period,
             tooth_count    => tooth_count,
             gap_detected   => gap_detected,
-            signal_present => signal_present
+            signal_present => signal_present,
+            edge_pulse_out => edge_pulse_out,
+            gap_period     => gap_period
         );
 
     -- =========================================================================
@@ -214,7 +229,12 @@ begin
             kp             => kp,
             ki             => ki,
             max_correction => max_correction,
-            raw_angle      => raw_angle
+            raw_angle      => raw_angle,
+            div_valid_out   => div_valid,
+            synced_out      => synced,
+            nco_inc_out     => nco_inc,
+            phase_error_out => phase_error,
+            correction_out  => correction
         );
 
     -- =========================================================================
@@ -237,7 +257,8 @@ begin
             sync_state        => sync_state,
             sync_loss_count   => sync_loss_count,
             phase_fault_count => phase_fault_count,
-            phase_fault       => phase_fault
+            phase_fault       => phase_fault,
+            ab_count_out      => ab_count
         );
 
     -- =========================================================================
@@ -254,7 +275,9 @@ begin
             expected_phase_angle => expected_phase_angle,
             phase_tolerance      => phase_tolerance,
             ref_detected         => ref_detected,
-            sync_offset          => sync_offset
+            sync_offset          => sync_offset,
+            cam_edge_pulse       => cam_edge_pulse,
+            cam_angle            => cam_angle
         );
 
     -- =========================================================================
@@ -376,7 +399,43 @@ begin
             overflow_count       => overflow_count,
             raw_angle            => raw_angle,
             crank_angle          => crank_angle,
-            engine_angle         => engine_angle
+            engine_angle         => engine_angle,
+            synced               => synced,
+            ab_count             => ab_count,
+            tooth_period         => tooth_period,
+            gap_period           => gap_period,
+            nco_inc              => nco_inc,
+            phase_error          => phase_error,
+            correction           => correction,
+            cam_angle            => cam_angle
         );
+
+    -- =========================================================================
+    -- Debug outputs → Pi header
+    -- debug_out[0]  crank_clean     Pi pin 3   W18
+    -- debug_out[1]  cam_clean       Pi pin 5   W19
+    -- debug_out[2]  edge_pulse_out  Pi pin 7   Y18
+    -- debug_out[3]  cam_edge_pulse  Pi pin 29  Y19
+    -- debug_out[4]  ab              Pi pin 31  U18
+    -- debug_out[5]  z               Pi pin 26  U19
+    -- debug_out[6]  gap_detected    Pi pin 32  B20
+    -- debug_out[7]  ref_detected    Pi pin 33  B19
+    -- debug_out[8]  sample_pulse    Pi pin 22  W10
+    -- debug_out[9]  div_valid       Pi pin 36  V6
+    -- debug_out[10] signal_present  Pi pin 11  Y6
+    -- debug_out[11] synced          Pi pin 12  C20
+    -- =========================================================================
+    debug_out(0)  <= crank_clean;
+    debug_out(1)  <= cam_clean;
+    debug_out(2)  <= edge_pulse_out;
+    debug_out(3)  <= cam_edge_pulse;
+    debug_out(4)  <= ab;
+    debug_out(5)  <= z;
+    debug_out(6)  <= gap_detected;
+    debug_out(7)  <= ref_detected;
+    debug_out(8)  <= sample_pulse;
+    debug_out(9)  <= div_valid;
+    debug_out(10) <= signal_present;
+    debug_out(11) <= synced;
 
 end architecture rtl;

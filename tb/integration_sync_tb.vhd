@@ -261,7 +261,9 @@ begin
             tooth_period   => tooth_period,
             tooth_count    => tooth_count,
             gap_detected   => gap_detected,
-            signal_present => signal_present
+            signal_present => signal_present,
+            edge_pulse_out => open,
+            gap_period     => open
         );
 
     -- -------------------------------------------------------------------------
@@ -282,7 +284,12 @@ begin
             kp             => kp,
             ki             => ki,
             max_correction => max_correction,
-            raw_angle      => raw_angle
+            raw_angle      => raw_angle,
+            div_valid_out   => open,
+            synced_out      => open,
+            nco_inc_out     => open,
+            phase_error_out => open,
+            correction_out  => open
         );
 
     -- -------------------------------------------------------------------------
@@ -305,7 +312,8 @@ begin
             sync_state        => sync_state,
             sync_loss_count   => sync_loss_count,
             phase_fault_count => phase_fault_count,
-            phase_fault       => phase_fault
+            phase_fault       => phase_fault,
+            ab_count_out      => open
         );
 
     -- -------------------------------------------------------------------------
@@ -320,7 +328,9 @@ begin
             expected_phase_angle => expected_phase_angle,
             phase_tolerance      => phase_tolerance_sig,
             ref_detected         => ref_detected,
-            sync_offset          => sync_offset
+            sync_offset          => sync_offset,
+            cam_edge_pulse       => open,
+            cam_angle            => open
         );
 
     -- =========================================================================

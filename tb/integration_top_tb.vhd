@@ -248,7 +248,8 @@ begin
             m_axis_tdata     => m_axis_tdata,
             m_axis_tvalid    => m_axis_tvalid,
             m_axis_tready    => m_axis_tready,
-            m_axis_tlast     => m_axis_tlast
+            m_axis_tlast     => m_axis_tlast,
+            debug_out        => open
         );
 
     -- -------------------------------------------------------------------------
