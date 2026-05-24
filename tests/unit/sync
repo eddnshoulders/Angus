@@ -1,0 +1,4 @@
+ghdl -a --std=08 ../../hdl/sync.vhd
+ghdl -a --std=08 ../../tb/sync_tb.vhd
+ghdl -e --std=08 sync_tb
+ghdl -r --std=08 sync_tb --vcd=../../sim/sync.vcd --stop-time=1000ms --assert-level=error

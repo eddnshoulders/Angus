@@ -1,0 +1,5 @@
+ghdl -a --std=08 ../../hdl/angle_offset.vhd
+ghdl -a --std=08 ../../tb/angle_offset_tb.vhd
+ghdl -e --std=08 angle_offset_tb
+ghdl -r --std=08 angle_offset_tb --vcd=../../sim/angle_offset.vcd --stop-time=1000ms --assert-level=error
+

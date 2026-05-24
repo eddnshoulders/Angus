@@ -1,0 +1,3 @@
+scp angus.bit xilinx@pynq.clients.buggins.haus:/home/xilinx/angus.bit
+scp angus.hwh xilinx@pynq.clients.buggins.haus:/home/xilinx/angus.hwh
+

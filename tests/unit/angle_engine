@@ -1,0 +1,8 @@
+ghdl -a --std=08 ../../hdl/divider.vhd
+ghdl -a --std=08 ../../hdl/angle_engine.vhd
+ghdl -a --std=08 ../../tb/angle_engine_tb.vhd
+ghdl -e --std=08 angle_engine_tb
+ghdl -r --std=08 angle_engine_tb \
+     --vcd=../../sim/angle_engine.vcd \
+     --stop-time=5000ms \
+     --assert-level=error

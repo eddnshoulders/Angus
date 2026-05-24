@@ -1,0 +1,31 @@
+# Vivado build outputs - everything generated during synthesis/implementation
+vivado/*.cache/
+vivado/*.hw/
+vivado/*.ip_user_files/
+vivado/*.runs/
+vivado/*.sim/
+vivado/.Xil/
+vivado/NA/
+
+# Vivado log and journal files
+vivado/*.log
+vivado/*.jou
+
+# Vivado backup files
+vivado/*.backup.jou
+vivado/*.backup.log
+
+# Bitstream and implementation outputs
+*.bit
+*.ltx
+*.mcs
+*.prm
+
+# GHDL simulation outputs
+sim/*.vcd
+*.o
+*.cf
+e~*.lst
+
+# IP generated files (can be regenerated)
+vivado/*.srcs/sources_1/ip/*/

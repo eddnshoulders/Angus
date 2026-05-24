@@ -1,0 +1,4 @@
+ghdl -a --std=08 ../../hdl/xadc_buffer.vhd
+ghdl -a --std=08 ../../tb/xadc_buffer_tb.vhd
+ghdl -e --std=08 xadc_buffer_tb
+ghdl -r --std=08 xadc_buffer_tb --vcd=../../sim/xadc_buffer.vcd --stop-time=1000ms --assert-level=error

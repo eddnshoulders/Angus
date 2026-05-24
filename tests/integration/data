@@ -1,0 +1,9 @@
+ghdl -a --std=08 ../../hdl/angle_offset.vhd
+ghdl -a --std=08 ../../hdl/sample_trigger.vhd
+ghdl -a --std=08 ../../hdl/sample_packer.vhd
+ghdl -a --std=08 ../../tb/integration_data_tb.vhd
+ghdl -e --std=08 integration_data_tb
+ghdl -r --std=08 integration_data_tb \
+     --vcd=../../sim/integration_data_tb.vcd \
+     --stop-time=2000ms \
+     --assert-level=error

@@ -1,0 +1,73 @@
+- name: Install GHDL
+  run: |
+    wget https://github.com/ghdl/ghdl/releases/download/v4.1.0/ghdl-ubuntu22-llvm-4.1.0.tgz
+    tar -xzf ghdl-ubuntu22-llvm-4.1.0.tgz
+    sudo mv ghdl /usr/local/bin/
+
+*******************************************************************************************************
+
+# .github/workflows/sim.yml
+name: VHDL Simulation
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  simulate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install GHDL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ghdl
+
+      - name: Simulate signal_conditioner
+        run: |
+          cd hdl
+          ghdl -a signal_conditioner.vhd
+          ghdl -a ../tb/signal_conditioner_tb.vhd
+          ghdl -e signal_conditioner_tb
+          ghdl -r signal_conditioner_tb \
+               --stop-time=5ms \
+               --assert-level=error
+
+      - name: Simulate crank_input
+        run: |
+          cd hdl
+          ghdl -a crank_input.vhd
+          ghdl -a ../tb/crank_input_tb.vhd
+          ghdl -e crank_input_tb
+          ghdl -r crank_input_tb \
+               --stop-time=200ms \
+               --assert-level=error
+
+      - name: Simulate crank_input continuous
+        run: |
+          cd hdl
+          ghdl -a ../tb/crank_input_tb2.vhd
+          ghdl -e crank_input_tb2
+          ghdl -r crank_input_tb2 \
+               --stop-time=500ms \
+               --assert-level=error
+
+*******************************************************************************************************
+
+- name: Simulate crank_input
+  run: |
+    ghdl -r crank_input_tb \
+         --stop-time=200ms \
+         --assert-level=error \
+         2>&1 | tee ../logs/crank_input_tb.log
+
+- name: Upload simulation logs
+  uses: actions/upload-artifact@v4
+  with:
+    name: simulation-logs
+    path: logs/
+    retention-days: 90

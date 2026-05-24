@@ -1,0 +1,4 @@
+ghdl -a --std=08 ../../hdl/sample_trigger.vhd
+ghdl -a --std=08 ../../tb/sample_trigger_tb.vhd
+ghdl -e --std=08 sample_trigger_tb
+ghdl -r --std=08 sample_trigger_tb --vcd=../../sim/sample_trigger.vcd --stop-time=1000ms --assert-level=error

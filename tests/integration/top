@@ -1,0 +1,9 @@
+ghdl -a --std=08 ../../hdl/xadc_buffer.vhd
+ghdl -a --std=08 ../../hdl/axi_lite_regs.vhd
+ghdl -a --std=08 ../../hdl/top.vhd
+ghdl -a --std=08 ../../tb/integration_top_tb.vhd
+ghdl -e --std=08 integration_top_tb
+ghdl -r --std=08 integration_top_tb \
+     --vcd=../../sim/integration_top_tb.vcd \
+     --stop-time=2000ms \
+     --assert-level=error

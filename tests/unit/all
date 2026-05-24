@@ -1,0 +1,12 @@
+./signal_conditioner
+./crank_input
+./crank_input2
+./divider
+./sync
+./angle_engine
+./angle_offset
+./phase_detector
+./sample_trigger
+./sample_packer
+./xadc_buffer
+./axi_lite_regs

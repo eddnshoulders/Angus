@@ -1,0 +1,4 @@
+ghdl -a --std=08 ../../hdl/sample_packer.vhd
+ghdl -a --std=08 ../../tb/sample_packer_tb.vhd
+ghdl -e --std=08 sample_packer_tb
+ghdl -r --std=08 sample_packer_tb --vcd=../../sim/sample_packer.vcd --stop-time=1000ms --assert-level=error

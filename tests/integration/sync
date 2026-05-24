@@ -1,0 +1,12 @@
+ghdl -a --std=08 ../../hdl/signal_conditioner.vhd
+ghdl -a --std=08 ../../hdl/crank_input.vhd
+ghdl -a --std=08 ../../hdl/divider.vhd
+ghdl -a --std=08 ../../hdl/angle_engine.vhd
+ghdl -a --std=08 ../../hdl/sync.vhd
+ghdl -a --std=08 ../../hdl/phase_detector.vhd
+ghdl -a --std=08 ../../tb/integration_sync_tb.vhd
+ghdl -e --std=08 integration_sync_tb
+ghdl -r --std=08 integration_sync_tb \
+     --vcd=../../sim/integration_sync_tb.vcd \
+     --stop-time=2000ms \
+     --assert-level=error

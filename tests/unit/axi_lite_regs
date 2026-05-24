@@ -1,0 +1,4 @@
+ghdl -a --std=08 ../../hdl/axi_lite_regs.vhd
+ghdl -a --std=08 ../../tb/axi_lite_regs_tb.vhd
+ghdl -e --std=08 axi_lite_regs_tb
+ghdl -r --std=08 axi_lite_regs_tb --vcd=../../sim/axi_lite_regs.vcd --stop-time=1000ms --assert-level=error

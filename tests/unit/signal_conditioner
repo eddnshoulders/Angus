@@ -1,0 +1,4 @@
+ghdl -a --std=08 ../../hdl/signal_conditioner.vhd
+ghdl -a --std=08 ../../tb/signal_conditioner_tb.vhd
+ghdl -e --std=08 signal_conditioner_tb
+ghdl -r --std=08 signal_conditioner_tb --vcd=../../sim/signal_conditioner.vcd --stop-time=1000ms --assert-level=error

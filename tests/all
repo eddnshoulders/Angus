@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+# record start time
+start_time=$(date +%s)
+
+print_elapsed() {
+    local label="$1"
+    local now
+    local elapsed
+
+    now=$(date +%s)
+    elapsed=$((now - start_time))
+
+    printf '%s %s: %02d:%02d:%02d elapsed\n' \
+        "$(date)" \
+	"$label" \
+        $((elapsed / 3600)) \
+        $(((elapsed % 3600) / 60)) \
+        $((elapsed % 60))
+}
+
+printf '%s - Test process started\n' "$(date)"
+# run all the unit and integration tests
+cd unit
+
+./all
+print_elapsed "- Finished unit tests"
+cd ../integration
+./all
+print_elapsed "- Finished integration tests"
+cd ..
+

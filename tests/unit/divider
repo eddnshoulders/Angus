@@ -1,0 +1,4 @@
+ghdl -a --std=08 ../../hdl/divider.vhd
+ghdl -a --std=08 ../../tb/divider_tb.vhd
+ghdl -e --std=08 divider_tb
+ghdl -r --std=08 divider_tb --vcd=../../sim/divider.vcd --stop-time=1000ms --assert-level=error

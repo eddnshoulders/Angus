@@ -1,0 +1,4 @@
+ghdl -a --std=08 ../../hdl/phase_detector.vhd
+ghdl -a --std=08 ../../tb/phase_detector_tb.vhd
+ghdl -e --std=08 phase_detector_tb
+ghdl -r --std=08 phase_detector_tb --vcd=../../sim/phase_detector.vcd --stop-time=1000ms --assert-level=error
