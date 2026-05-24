@@ -19,7 +19,7 @@ use ieee.numeric_std.all;
 --   0x20 DECIMATION: [7:0]  decimation
 --
 -- Read registers (PL → PS):
---   0x24 STATUS:     [4] signal_present, [3] phase_fault, [2:0] sync_state
+--   0x24 STATUS:     [5] synced, [4] signal_present, [3] phase_fault, [2:0] sync_state
 --   0x28 SYNC_LOSS:  [15:0] sync_loss_count
 --   0x2C PHASE_FLT:  [15:0] phase_fault_count
 --   0x30 PKT_COUNT:  [31:0] packet_count
@@ -27,6 +27,13 @@ use ieee.numeric_std.all;
 --   0x38 RAW_ANGLE:  [15:0] raw_angle
 --   0x3C CRANK_ANG:  [15:0] crank_angle
 --   0x40 ENG_ANG:    [15:0] engine_angle
+--   0x44 AB_COUNT:   [7:0]  ab_count (teeth counted this revolution)
+--   0x48 TOOTH_PER:  [31:0] tooth_period (clock cycles)
+--   0x4C GAP_PER:    [31:0] gap_period (clock cycles)
+--   0x50 NCO_INC:    [31:0] NCO frequency word
+--   0x54 PHASE_ERR:  [31:0] signed phase error
+--   0x58 CORRECTION: [31:0] signed PI correction
+--   0x5C CAM_ANGLE:  [15:0] detected cam edge angle
 -- =============================================================================
 
 entity axi_lite_regs is
@@ -78,7 +85,17 @@ entity axi_lite_regs is
         overflow_count       : in  unsigned(15 downto 0);
         raw_angle            : in  unsigned(15 downto 0);
         crank_angle          : in  unsigned(15 downto 0);
-        engine_angle         : in  unsigned(15 downto 0)
+        engine_angle         : in  unsigned(15 downto 0);
+
+        -- Debug inputs from PL
+        synced               : in  std_logic;
+        ab_count             : in  unsigned(7 downto 0);
+        tooth_period         : in  unsigned(31 downto 0);
+        gap_period           : in  unsigned(31 downto 0);
+        nco_inc              : in  unsigned(31 downto 0);
+        phase_error          : in  signed(31 downto 0);
+        correction           : in  signed(31 downto 0);
+        cam_angle            : in  unsigned(15 downto 0)
     );
 end entity axi_lite_regs;
 
@@ -102,6 +119,13 @@ architecture rtl of axi_lite_regs is
     constant ADDR_RAW_ANGLE : integer := 16#38# / 4;
     constant ADDR_CRANK_ANG : integer := 16#3C# / 4;
     constant ADDR_ENG_ANG   : integer := 16#40# / 4;
+    constant ADDR_AB_COUNT  : integer := 16#44# / 4;
+    constant ADDR_TOOTH_PER : integer := 16#48# / 4;
+    constant ADDR_GAP_PER   : integer := 16#4C# / 4;
+    constant ADDR_NCO_INC   : integer := 16#50# / 4;
+    constant ADDR_PHASE_ERR : integer := 16#54# / 4;
+    constant ADDR_CORR      : integer := 16#58# / 4;
+    constant ADDR_CAM_ANGLE : integer := 16#5C# / 4;
 
     -- Write registers
     signal reg_control      : std_logic_vector(31 downto 0) := x"00000000";
@@ -307,6 +331,7 @@ begin
                         -- Status registers
                         when ADDR_STATUS =>
                             axi_rdata <= (others => '0');
+                            axi_rdata(5) <= synced;
                             axi_rdata(4) <= signal_present;
                             axi_rdata(3) <= phase_fault;
                             axi_rdata(2 downto 0) <= sync_state;
@@ -337,6 +362,29 @@ begin
                         when ADDR_ENG_ANG =>
                             axi_rdata <= x"0000" &
                                          std_logic_vector(engine_angle);
+
+                        when ADDR_AB_COUNT =>
+                            axi_rdata <= x"000000" &
+                                         std_logic_vector(ab_count);
+
+                        when ADDR_TOOTH_PER =>
+                            axi_rdata <= std_logic_vector(tooth_period);
+
+                        when ADDR_GAP_PER =>
+                            axi_rdata <= std_logic_vector(gap_period);
+
+                        when ADDR_NCO_INC =>
+                            axi_rdata <= std_logic_vector(nco_inc);
+
+                        when ADDR_PHASE_ERR =>
+                            axi_rdata <= std_logic_vector(phase_error);
+
+                        when ADDR_CORR =>
+                            axi_rdata <= std_logic_vector(correction);
+
+                        when ADDR_CAM_ANGLE =>
+                            axi_rdata <= x"0000" &
+                                         std_logic_vector(cam_angle);
 
                         when others =>
                             axi_rdata <= (others => '0');

@@ -166,7 +166,15 @@ begin
             overflow_count       => overflow_count,
             raw_angle            => raw_angle,
             crank_angle          => crank_angle,
-            engine_angle         => engine_angle
+            engine_angle         => engine_angle,
+            synced               => '0',
+            ab_count             => (others => '0'),
+            tooth_period         => (others => '0'),
+            gap_period           => (others => '0'),
+            nco_inc              => (others => '0'),
+            phase_error          => (others => '0'),
+            correction           => (others => '0'),
+            cam_angle            => (others => '0')
         );
 
     p_stim : process
