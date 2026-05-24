@@ -62,7 +62,14 @@ entity angle_engine is
         max_correction : in  unsigned(15 downto 0);
 
         -- Output: 0-7199, units of 0.1 degrees
-        raw_angle      : out unsigned(15 downto 0)
+        raw_angle      : out unsigned(15 downto 0);
+
+        -- Debug outputs
+        div_valid_out   : out std_logic;
+        synced_out      : out std_logic;
+        nco_inc_out     : out unsigned(31 downto 0);
+        phase_error_out : out signed(31 downto 0);
+        correction_out  : out signed(31 downto 0)
     );
 end entity angle_engine;
 
@@ -376,6 +383,11 @@ begin
         end if;
     end process p_nco;
 
-    raw_angle <= raw_angle_int;
+    raw_angle       <= raw_angle_int;
+    div_valid_out   <= div_valid;
+    synced_out      <= synced;
+    nco_inc_out     <= nco_inc;
+    phase_error_out <= phase_error;
+    correction_out  <= correction;
 
 end architecture rtl;

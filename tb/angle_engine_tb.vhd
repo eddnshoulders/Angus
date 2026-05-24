@@ -98,7 +98,12 @@ begin
             kp             => kp,
             ki             => ki,
             max_correction => max_correction,
-            raw_angle      => raw_angle
+            raw_angle      => raw_angle,
+            div_valid_out   => open,
+            synced_out      => open,
+            nco_inc_out     => open,
+            phase_error_out => open,
+            correction_out  => open
         );
 
     -- -------------------------------------------------------------------------
