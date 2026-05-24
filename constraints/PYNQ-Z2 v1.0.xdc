@@ -268,3 +268,32 @@ set_property IOSTANDARD LVCMOS33 [get_ports CAN0_PHY_RX_0]
 #set_property C_USER_SCAN_CHAIN 1 [get_debug_cores dbg_hub]
 
 
+
+## Debug outputs - Pi header
+## debug_out[0]  crank_clean     Pi pin 3   rpio_02_r
+## debug_out[1]  cam_clean       Pi pin 5   rpio_03_r
+## debug_out[2]  edge_pulse_out  Pi pin 7   rpio_04_r
+## debug_out[3]  cam_edge_pulse  Pi pin 29  rpio_05_r
+## debug_out[4]  ab              Pi pin 31  rpio_06_r
+## debug_out[5]  z               Pi pin 26  rpio_07_r
+## debug_out[6]  gap_detected    Pi pin 32  rpio_12_r
+## debug_out[7]  ref_detected    Pi pin 33  rpio_16_r
+## debug_out[8]  sample_pulse    Pi pin 22  rpio_11_r
+## debug_out[9]  div_valid       Pi pin 36  rpio_14_r
+## debug_out[10] signal_present  Pi pin 11  rpio_15_r
+## debug_out[11] synced          Pi pin 12  rpio_18_r
+
+set_property PACKAGE_PIN W18 [get_ports {debug_out_0[0]}]
+set_property PACKAGE_PIN W19 [get_ports {debug_out_0[1]}]
+set_property PACKAGE_PIN Y18 [get_ports {debug_out_0[2]}]
+set_property PACKAGE_PIN Y19 [get_ports {debug_out_0[3]}]
+set_property PACKAGE_PIN U18 [get_ports {debug_out_0[4]}]
+set_property PACKAGE_PIN U19 [get_ports {debug_out_0[5]}]
+set_property PACKAGE_PIN B20 [get_ports {debug_out_0[6]}]
+set_property PACKAGE_PIN B19 [get_ports {debug_out_0[7]}]
+set_property PACKAGE_PIN W10 [get_ports {debug_out_0[8]}]
+set_property PACKAGE_PIN V6  [get_ports {debug_out_0[9]}]
+set_property PACKAGE_PIN Y6  [get_ports {debug_out_0[10]}]
+set_property PACKAGE_PIN C20 [get_ports {debug_out_0[11]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {debug_out_0[*]}]
+set_false_path -to [get_ports {debug_out_0[*]}]
