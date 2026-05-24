@@ -44,7 +44,11 @@ entity crank_input is
         tooth_period      : out unsigned(31 downto 0);  -- last measured tooth period
         tooth_count       : out unsigned(7 downto 0);   -- 0 to N_TEETH-N_MISSING-1
         gap_detected      : out std_logic;              -- high during gap, for crank_sync
-        signal_present    : out std_logic
+        signal_present    : out std_logic;
+
+        -- Debug outputs
+        edge_pulse_out    : out std_logic;              -- one pulse per detected tooth edge
+        gap_period        : out unsigned(31 downto 0)   -- gap width latched at gap detection
     );
 end entity crank_input;
 
@@ -69,6 +73,7 @@ architecture rtl of crank_input is
     -- Gap detection and Z arming (p_gap owns z_armed)
     signal gap_det        : std_logic := '0';
     signal gap_det_prev   : std_logic := '0';  -- to detect rising edge of gap_det
+    signal gap_period_int : unsigned(31 downto 0) := (others => '0');
     signal z_armed        : std_logic := '0';
 
     -- Tooth counting
@@ -186,7 +191,8 @@ begin
 
                 -- Arm Z on rising edge of gap_det
                 if gap_det = '1' and gap_det_prev = '0' then
-                    z_armed <= '1';
+                    z_armed       <= '1';
+                    gap_period_int <= period_cnt;
                 end if;
 
                 -- Clear z_armed when p_z fires (edge_pulse with z_armed)
@@ -352,5 +358,7 @@ begin
     tooth_count    <= tooth_cnt;
     gap_detected   <= gap_det;
     signal_present <= sig_present;
+    edge_pulse_out <= edge_pulse;
+    gap_period     <= gap_period_int;
 
 end architecture rtl;

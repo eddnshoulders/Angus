@@ -122,7 +122,9 @@ begin
             tooth_period   => tooth_period,
             tooth_count    => tooth_count,
             gap_detected   => gap_detected,
-            signal_present => signal_present
+            signal_present => signal_present,
+            edge_pulse_out => open,
+            gap_period     => open
         );
 
     -- -------------------------------------------------------------------------
