@@ -2,7 +2,7 @@
 --Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
 ----------------------------------------------------------------------------------
 --Tool Version: Vivado v.2024.1 (lin64) Build 5076996 Wed May 22 18:36:09 MDT 2024
---Date        : Mon May 25 11:35:11 2026
+--Date        : Mon May 25 14:26:56 2026
 --Host        : yocto running 64-bit Ubuntu 22.04.5 LTS
 --Command     : generate_target pynq_z2.bd
 --Design      : pynq_z2
@@ -1093,16 +1093,10 @@ entity pynq_z2 is
     cam_raw_0 : in STD_LOGIC;
     crank_raw_0 : in STD_LOGIC;
     debug_out_0 : out STD_LOGIC_VECTOR ( 11 downto 0 );
-    digital_inputs_0 : in STD_LOGIC_VECTOR ( 7 downto 0 );
-    vauxp0_0 : in STD_LOGIC;
-    vauxp1_0 : in STD_LOGIC;
-    vauxp2_0 : in STD_LOGIC;
-    vauxp3_0 : in STD_LOGIC;
-    vauxp4_0 : in STD_LOGIC;
-    vauxp5_0 : in STD_LOGIC
+    digital_inputs_0 : in STD_LOGIC_VECTOR ( 7 downto 0 )
   );
   attribute CORE_GENERATION_INFO : string;
-  attribute CORE_GENERATION_INFO of pynq_z2 : entity is "pynq_z2,IP_Integrator,{x_ipVendor=xilinx.com,x_ipLibrary=BlockDiagram,x_ipName=pynq_z2,x_ipVersion=1.00.a,x_ipLanguage=VHDL,numBlks=13,numReposBlks=9,numNonXlnxBlks=0,numHierBlks=4,maxHierDepth=0,numSysgenBlks=0,numHlsBlks=0,numHdlrefBlks=1,numPkgbdBlks=0,bdsource=USER,da_clkrst_cnt=1,da_ps7_cnt=1,synth_mode=Hierarchical}";
+  attribute CORE_GENERATION_INFO of pynq_z2 : entity is "pynq_z2,IP_Integrator,{x_ipVendor=xilinx.com,x_ipLibrary=BlockDiagram,x_ipName=pynq_z2,x_ipVersion=1.00.a,x_ipLanguage=VHDL,numBlks=15,numReposBlks=11,numNonXlnxBlks=0,numHierBlks=4,maxHierDepth=0,numSysgenBlks=0,numHlsBlks=0,numHdlrefBlks=1,numPkgbdBlks=0,bdsource=USER,da_clkrst_cnt=1,da_ps7_cnt=1,synth_mode=Hierarchical}";
   attribute HW_HANDOFF : string;
   attribute HW_HANDOFF of pynq_z2 : entity is "pynq_z2.hwdef";
 end pynq_z2;
@@ -1271,38 +1265,6 @@ architecture STRUCTURE of pynq_z2 is
     s2mm_introut : out STD_LOGIC
   );
   end component pynq_z2_axi_dma_0_0;
-  component pynq_z2_xadc_wiz_0_0 is
-  port (
-    di_in : in STD_LOGIC_VECTOR ( 15 downto 0 );
-    daddr_in : in STD_LOGIC_VECTOR ( 6 downto 0 );
-    den_in : in STD_LOGIC;
-    dwe_in : in STD_LOGIC;
-    drdy_out : out STD_LOGIC;
-    do_out : out STD_LOGIC_VECTOR ( 15 downto 0 );
-    dclk_in : in STD_LOGIC;
-    reset_in : in STD_LOGIC;
-    convst_in : in STD_LOGIC;
-    vp_in : in STD_LOGIC;
-    vn_in : in STD_LOGIC;
-    vauxp0 : in STD_LOGIC;
-    vauxn0 : in STD_LOGIC;
-    vauxp1 : in STD_LOGIC;
-    vauxn1 : in STD_LOGIC;
-    vauxp2 : in STD_LOGIC;
-    vauxn2 : in STD_LOGIC;
-    vauxp3 : in STD_LOGIC;
-    vauxn3 : in STD_LOGIC;
-    vauxp4 : in STD_LOGIC;
-    vauxn4 : in STD_LOGIC;
-    vauxp5 : in STD_LOGIC;
-    vauxn5 : in STD_LOGIC;
-    channel_out : out STD_LOGIC_VECTOR ( 4 downto 0 );
-    eoc_out : out STD_LOGIC;
-    alarm_out : out STD_LOGIC;
-    eos_out : out STD_LOGIC;
-    busy_out : out STD_LOGIC
-  );
-  end component pynq_z2_xadc_wiz_0_0;
   component pynq_z2_top_0_0 is
   port (
     clk : in STD_LOGIC;
@@ -1408,6 +1370,21 @@ architecture STRUCTURE of pynq_z2 is
     dout : out STD_LOGIC_VECTOR ( 0 to 0 )
   );
   end component pynq_z2_xlconstant_0_0;
+  component pynq_z2_xlconstant_1_0 is
+  port (
+    dout : out STD_LOGIC_VECTOR ( 15 downto 0 )
+  );
+  end component pynq_z2_xlconstant_1_0;
+  component pynq_z2_xlconstant_1_1 is
+  port (
+    dout : out STD_LOGIC_VECTOR ( 4 downto 0 )
+  );
+  end component pynq_z2_xlconstant_1_1;
+  component pynq_z2_xlconstant_1_2 is
+  port (
+    dout : out STD_LOGIC_VECTOR ( 0 to 0 )
+  );
+  end component pynq_z2_xlconstant_1_2;
   signal CAN0_PHY_RX_0_1 : STD_LOGIC;
   signal axi_dma_0_M_AXI_S2MM_AWADDR : STD_LOGIC_VECTOR ( 31 downto 0 );
   signal axi_dma_0_M_AXI_S2MM_AWBURST : STD_LOGIC_VECTOR ( 1 downto 0 );
@@ -1464,7 +1441,6 @@ architecture STRUCTURE of pynq_z2 is
   signal digital_inputs_0_1 : STD_LOGIC_VECTOR ( 7 downto 0 );
   signal proc_sys_reset_0_interconnect_aresetn : STD_LOGIC_VECTOR ( 0 to 0 );
   signal proc_sys_reset_0_peripheral_aresetn : STD_LOGIC_VECTOR ( 0 to 0 );
-  signal proc_sys_reset_0_peripheral_reset : STD_LOGIC_VECTOR ( 0 to 0 );
   signal processing_system7_0_CAN0_PHY_TX : STD_LOGIC;
   signal processing_system7_0_DDR_ADDR : STD_LOGIC_VECTOR ( 14 downto 0 );
   signal processing_system7_0_DDR_BA : STD_LOGIC_VECTOR ( 2 downto 0 );
@@ -1550,27 +1526,14 @@ architecture STRUCTURE of pynq_z2 is
   signal top_0_m_axis_TLAST : STD_LOGIC;
   signal top_0_m_axis_TREADY : STD_LOGIC;
   signal top_0_m_axis_TVALID : STD_LOGIC;
-  signal top_0_xadc_convst : STD_LOGIC;
-  signal top_0_xadc_daddr : STD_LOGIC_VECTOR ( 6 downto 0 );
-  signal top_0_xadc_dclk : STD_LOGIC;
-  signal top_0_xadc_den : STD_LOGIC;
-  signal top_0_xadc_di : STD_LOGIC_VECTOR ( 15 downto 0 );
-  signal top_0_xadc_dwe : STD_LOGIC;
-  signal vauxp0_0_1 : STD_LOGIC;
-  signal vauxp1_0_1 : STD_LOGIC;
-  signal vauxp2_0_1 : STD_LOGIC;
-  signal vauxp3_0_1 : STD_LOGIC;
-  signal vauxp4_0_1 : STD_LOGIC;
-  signal vauxp5_0_1 : STD_LOGIC;
-  signal xadc_wiz_0_busy_out : STD_LOGIC;
-  signal xadc_wiz_0_channel_out : STD_LOGIC_VECTOR ( 4 downto 0 );
-  signal xadc_wiz_0_do_out : STD_LOGIC_VECTOR ( 15 downto 0 );
-  signal xadc_wiz_0_eoc_out : STD_LOGIC;
-  signal xadc_wiz_0_eos_out : STD_LOGIC;
   signal xlconstant_0_dout : STD_LOGIC_VECTOR ( 0 to 0 );
+  signal xlconstant_1_dout : STD_LOGIC_VECTOR ( 15 downto 0 );
+  signal xlconstant_2_dout : STD_LOGIC_VECTOR ( 4 downto 0 );
+  signal xlconstant_3_dout : STD_LOGIC_VECTOR ( 0 to 0 );
   signal NLW_axi_dma_0_s2mm_prmry_reset_out_n_UNCONNECTED : STD_LOGIC;
   signal NLW_proc_sys_reset_0_mb_reset_UNCONNECTED : STD_LOGIC;
   signal NLW_proc_sys_reset_0_bus_struct_reset_UNCONNECTED : STD_LOGIC_VECTOR ( 0 to 0 );
+  signal NLW_proc_sys_reset_0_peripheral_reset_UNCONNECTED : STD_LOGIC_VECTOR ( 0 to 0 );
   signal NLW_processing_system7_0_S_AXI_HP0_ARREADY_UNCONNECTED : STD_LOGIC;
   signal NLW_processing_system7_0_S_AXI_HP0_RLAST_UNCONNECTED : STD_LOGIC;
   signal NLW_processing_system7_0_S_AXI_HP0_RVALID_UNCONNECTED : STD_LOGIC;
@@ -1584,8 +1547,12 @@ architecture STRUCTURE of pynq_z2 is
   signal NLW_processing_system7_0_S_AXI_HP0_WACOUNT_UNCONNECTED : STD_LOGIC_VECTOR ( 5 downto 0 );
   signal NLW_processing_system7_0_S_AXI_HP0_WCOUNT_UNCONNECTED : STD_LOGIC_VECTOR ( 7 downto 0 );
   signal NLW_processing_system7_0_USB0_PORT_INDCTL_UNCONNECTED : STD_LOGIC_VECTOR ( 1 downto 0 );
-  signal NLW_xadc_wiz_0_alarm_out_UNCONNECTED : STD_LOGIC;
-  signal NLW_xadc_wiz_0_drdy_out_UNCONNECTED : STD_LOGIC;
+  signal NLW_top_0_xadc_convst_UNCONNECTED : STD_LOGIC;
+  signal NLW_top_0_xadc_dclk_UNCONNECTED : STD_LOGIC;
+  signal NLW_top_0_xadc_den_UNCONNECTED : STD_LOGIC;
+  signal NLW_top_0_xadc_dwe_UNCONNECTED : STD_LOGIC;
+  signal NLW_top_0_xadc_daddr_UNCONNECTED : STD_LOGIC_VECTOR ( 6 downto 0 );
+  signal NLW_top_0_xadc_di_UNCONNECTED : STD_LOGIC_VECTOR ( 15 downto 0 );
   attribute X_INTERFACE_INFO : string;
   attribute X_INTERFACE_INFO of DDR_cas_n : signal is "xilinx.com:interface:ddrx:1.0 DDR CAS_N";
   attribute X_INTERFACE_INFO of DDR_ck_n : signal is "xilinx.com:interface:ddrx:1.0 DDR CK_N";
@@ -1618,12 +1585,6 @@ begin
   crank_raw_0_1 <= crank_raw_0;
   debug_out_0(11 downto 0) <= top_0_debug_out(11 downto 0);
   digital_inputs_0_1(7 downto 0) <= digital_inputs_0(7 downto 0);
-  vauxp0_0_1 <= vauxp0_0;
-  vauxp1_0_1 <= vauxp1_0;
-  vauxp2_0_1 <= vauxp2_0;
-  vauxp3_0_1 <= vauxp3_0;
-  vauxp4_0_1 <= vauxp4_0;
-  vauxp5_0_1 <= vauxp5_0;
 axi_dma_0: component pynq_z2_axi_dma_0_0
      port map (
       axi_resetn => proc_sys_reset_0_peripheral_aresetn(0),
@@ -1761,7 +1722,7 @@ proc_sys_reset_0: component pynq_z2_proc_sys_reset_0_1
       mb_debug_sys_rst => '0',
       mb_reset => NLW_proc_sys_reset_0_mb_reset_UNCONNECTED,
       peripheral_aresetn(0) => proc_sys_reset_0_peripheral_aresetn(0),
-      peripheral_reset(0) => proc_sys_reset_0_peripheral_reset(0),
+      peripheral_reset(0) => NLW_proc_sys_reset_0_peripheral_reset_UNCONNECTED(0),
       slowest_sync_clk => processing_system7_0_FCLK_CLK0
     );
 processing_system7_0: component pynq_z2_processing_system7_0_0
@@ -1952,51 +1913,32 @@ top_0: component pynq_z2_top_0_0
       s_axi_wready => axi_interconnect_0_M00_AXI_WREADY,
       s_axi_wstrb(3 downto 0) => axi_interconnect_0_M00_AXI_WSTRB(3 downto 0),
       s_axi_wvalid => axi_interconnect_0_M00_AXI_WVALID,
-      xadc_busy => xadc_wiz_0_busy_out,
-      xadc_channel(4 downto 0) => xadc_wiz_0_channel_out(4 downto 0),
-      xadc_convst => top_0_xadc_convst,
-      xadc_daddr(6 downto 0) => top_0_xadc_daddr(6 downto 0),
-      xadc_dclk => top_0_xadc_dclk,
-      xadc_den => top_0_xadc_den,
-      xadc_di(15 downto 0) => top_0_xadc_di(15 downto 0),
-      xadc_do(15 downto 0) => xadc_wiz_0_do_out(15 downto 0),
-      xadc_dwe => top_0_xadc_dwe,
-      xadc_eoc => xadc_wiz_0_eoc_out,
-      xadc_eos => xadc_wiz_0_eos_out
-    );
-xadc_wiz_0: component pynq_z2_xadc_wiz_0_0
-     port map (
-      alarm_out => NLW_xadc_wiz_0_alarm_out_UNCONNECTED,
-      busy_out => xadc_wiz_0_busy_out,
-      channel_out(4 downto 0) => xadc_wiz_0_channel_out(4 downto 0),
-      convst_in => top_0_xadc_convst,
-      daddr_in(6 downto 0) => top_0_xadc_daddr(6 downto 0),
-      dclk_in => top_0_xadc_dclk,
-      den_in => top_0_xadc_den,
-      di_in(15 downto 0) => top_0_xadc_di(15 downto 0),
-      do_out(15 downto 0) => xadc_wiz_0_do_out(15 downto 0),
-      drdy_out => NLW_xadc_wiz_0_drdy_out_UNCONNECTED,
-      dwe_in => top_0_xadc_dwe,
-      eoc_out => xadc_wiz_0_eoc_out,
-      eos_out => xadc_wiz_0_eos_out,
-      reset_in => proc_sys_reset_0_peripheral_reset(0),
-      vauxn0 => '0',
-      vauxn1 => '0',
-      vauxn2 => '0',
-      vauxn3 => '0',
-      vauxn4 => '0',
-      vauxn5 => '0',
-      vauxp0 => vauxp0_0_1,
-      vauxp1 => vauxp1_0_1,
-      vauxp2 => vauxp2_0_1,
-      vauxp3 => vauxp3_0_1,
-      vauxp4 => vauxp4_0_1,
-      vauxp5 => vauxp5_0_1,
-      vn_in => '0',
-      vp_in => '0'
+      xadc_busy => xlconstant_3_dout(0),
+      xadc_channel(4 downto 0) => xlconstant_2_dout(4 downto 0),
+      xadc_convst => NLW_top_0_xadc_convst_UNCONNECTED,
+      xadc_daddr(6 downto 0) => NLW_top_0_xadc_daddr_UNCONNECTED(6 downto 0),
+      xadc_dclk => NLW_top_0_xadc_dclk_UNCONNECTED,
+      xadc_den => NLW_top_0_xadc_den_UNCONNECTED,
+      xadc_di(15 downto 0) => NLW_top_0_xadc_di_UNCONNECTED(15 downto 0),
+      xadc_do(15 downto 0) => xlconstant_1_dout(15 downto 0),
+      xadc_dwe => NLW_top_0_xadc_dwe_UNCONNECTED,
+      xadc_eoc => xlconstant_3_dout(0),
+      xadc_eos => xlconstant_3_dout(0)
     );
 xlconstant_0: component pynq_z2_xlconstant_0_0
      port map (
       dout(0) => xlconstant_0_dout(0)
+    );
+xlconstant_1: component pynq_z2_xlconstant_1_0
+     port map (
+      dout(15 downto 0) => xlconstant_1_dout(15 downto 0)
+    );
+xlconstant_2: component pynq_z2_xlconstant_1_1
+     port map (
+      dout(4 downto 0) => xlconstant_2_dout(4 downto 0)
+    );
+xlconstant_3: component pynq_z2_xlconstant_1_2
+     port map (
+      dout(0) => xlconstant_3_dout(0)
     );
 end STRUCTURE;

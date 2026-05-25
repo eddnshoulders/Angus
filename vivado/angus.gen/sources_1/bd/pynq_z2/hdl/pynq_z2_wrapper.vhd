@@ -2,7 +2,7 @@
 --Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
 ----------------------------------------------------------------------------------
 --Tool Version: Vivado v.2024.1 (lin64) Build 5076996 Wed May 22 18:36:09 MDT 2024
---Date        : Mon May 25 11:35:11 2026
+--Date        : Mon May 25 14:26:56 2026
 --Host        : yocto running 64-bit Ubuntu 22.04.5 LTS
 --Command     : generate_target pynq_z2_wrapper.bd
 --Design      : pynq_z2_wrapper
@@ -40,13 +40,7 @@ entity pynq_z2_wrapper is
     cam_raw_0 : in STD_LOGIC;
     crank_raw_0 : in STD_LOGIC;
     debug_out_0 : out STD_LOGIC_VECTOR ( 11 downto 0 );
-    digital_inputs_0 : in STD_LOGIC_VECTOR ( 7 downto 0 );
-    vauxp0_0 : in STD_LOGIC;
-    vauxp1_0 : in STD_LOGIC;
-    vauxp2_0 : in STD_LOGIC;
-    vauxp3_0 : in STD_LOGIC;
-    vauxp4_0 : in STD_LOGIC;
-    vauxp5_0 : in STD_LOGIC
+    digital_inputs_0 : in STD_LOGIC_VECTOR ( 7 downto 0 )
   );
 end pynq_z2_wrapper;
 
@@ -77,12 +71,6 @@ architecture STRUCTURE of pynq_z2_wrapper is
     crank_raw_0 : in STD_LOGIC;
     cam_raw_0 : in STD_LOGIC;
     digital_inputs_0 : in STD_LOGIC_VECTOR ( 7 downto 0 );
-    vauxp0_0 : in STD_LOGIC;
-    vauxp1_0 : in STD_LOGIC;
-    vauxp2_0 : in STD_LOGIC;
-    vauxp3_0 : in STD_LOGIC;
-    vauxp4_0 : in STD_LOGIC;
-    vauxp5_0 : in STD_LOGIC;
     CAN0_PHY_TX_0 : out STD_LOGIC;
     CAN0_PHY_RX_0 : in STD_LOGIC;
     debug_out_0 : out STD_LOGIC_VECTOR ( 11 downto 0 )
@@ -117,12 +105,6 @@ pynq_z2_i: component pynq_z2
       cam_raw_0 => cam_raw_0,
       crank_raw_0 => crank_raw_0,
       debug_out_0(11 downto 0) => debug_out_0(11 downto 0),
-      digital_inputs_0(7 downto 0) => digital_inputs_0(7 downto 0),
-      vauxp0_0 => vauxp0_0,
-      vauxp1_0 => vauxp1_0,
-      vauxp2_0 => vauxp2_0,
-      vauxp3_0 => vauxp3_0,
-      vauxp4_0 => vauxp4_0,
-      vauxp5_0 => vauxp5_0
+      digital_inputs_0(7 downto 0) => digital_inputs_0(7 downto 0)
     );
 end STRUCTURE;

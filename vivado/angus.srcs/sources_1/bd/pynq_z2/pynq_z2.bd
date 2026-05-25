@@ -1,7 +1,7 @@
 {
   "design": {
     "design_info": {
-      "boundary_crc": "0xE5C31E4FC6DE4359",
+      "boundary_crc": "0xFF1840DBF37C61CD",
       "device": "xc7z020clg400-1",
       "gen_directory": "../../../../angus.gen/sources_1/bd/pynq_z2",
       "name": "pynq_z2",
@@ -21,11 +21,13 @@
         "m00_couplers": {},
         "m01_couplers": {}
       },
-      "xadc_wiz_0": "",
       "top_0": "",
       "smartconnect_0": "",
       "proc_sys_reset_0": "",
-      "xlconstant_0": ""
+      "xlconstant_0": "",
+      "xlconstant_1": "",
+      "xlconstant_2": "",
+      "xlconstant_3": ""
     },
     "interface_ports": {
       "DDR": {
@@ -208,24 +210,6 @@
         "direction": "I",
         "left": "7",
         "right": "0"
-      },
-      "vauxp0_0": {
-        "direction": "I"
-      },
-      "vauxp1_0": {
-        "direction": "I"
-      },
-      "vauxp2_0": {
-        "direction": "I"
-      },
-      "vauxp3_0": {
-        "direction": "I"
-      },
-      "vauxp4_0": {
-        "direction": "I"
-      },
-      "vauxp5_0": {
-        "direction": "I"
       },
       "CAN0_PHY_TX_0": {
         "direction": "O"
@@ -2489,150 +2473,6 @@
           }
         }
       },
-      "xadc_wiz_0": {
-        "vlnv": "xilinx.com:ip:xadc_wiz:3.3",
-        "ip_revision": "10",
-        "xci_name": "pynq_z2_xadc_wiz_0_0",
-        "xci_path": "ip/pynq_z2_xadc_wiz_0_0/pynq_z2_xadc_wiz_0_0.xci",
-        "inst_hier_path": "xadc_wiz_0",
-        "parameters": {
-          "ACQUISITION_TIME_VAUXP0_VAUXN0": {
-            "value": "false"
-          },
-          "ACQUISITION_TIME_VAUXP8_VAUXN8": {
-            "value": "false"
-          },
-          "AVERAGE_ENABLE_VAUXP0_VAUXN0": {
-            "value": "false"
-          },
-          "CHANNEL_ENABLE_CALIBRATION": {
-            "value": "false"
-          },
-          "CHANNEL_ENABLE_TEMPERATURE": {
-            "value": "false"
-          },
-          "CHANNEL_ENABLE_VAUXP0_VAUXN0": {
-            "value": "true"
-          },
-          "CHANNEL_ENABLE_VAUXP10_VAUXN10": {
-            "value": "false"
-          },
-          "CHANNEL_ENABLE_VAUXP11_VAUXN11": {
-            "value": "false"
-          },
-          "CHANNEL_ENABLE_VAUXP12_VAUXN12": {
-            "value": "false"
-          },
-          "CHANNEL_ENABLE_VAUXP13_VAUXN13": {
-            "value": "false"
-          },
-          "CHANNEL_ENABLE_VAUXP1_VAUXN1": {
-            "value": "true"
-          },
-          "CHANNEL_ENABLE_VAUXP2_VAUXN2": {
-            "value": "true"
-          },
-          "CHANNEL_ENABLE_VAUXP3_VAUXN3": {
-            "value": "true"
-          },
-          "CHANNEL_ENABLE_VAUXP4_VAUXN4": {
-            "value": "true"
-          },
-          "CHANNEL_ENABLE_VAUXP5_VAUXN5": {
-            "value": "true"
-          },
-          "CHANNEL_ENABLE_VAUXP8_VAUXN8": {
-            "value": "false"
-          },
-          "CHANNEL_ENABLE_VAUXP9_VAUXN9": {
-            "value": "false"
-          },
-          "CHANNEL_ENABLE_VBRAM": {
-            "value": "false"
-          },
-          "CHANNEL_ENABLE_VCCAUX": {
-            "value": "false"
-          },
-          "CHANNEL_ENABLE_VCCDDRO": {
-            "value": "false"
-          },
-          "CHANNEL_ENABLE_VCCINT": {
-            "value": "false"
-          },
-          "CHANNEL_ENABLE_VCCPAUX": {
-            "value": "false"
-          },
-          "CHANNEL_ENABLE_VCCPINT": {
-            "value": "false"
-          },
-          "CHANNEL_ENABLE_VP_VN": {
-            "value": "false"
-          },
-          "CHANNEL_ENABLE_VREFP": {
-            "value": "false"
-          },
-          "ENABLE_AXI4STREAM": {
-            "value": "false"
-          },
-          "ENABLE_CALIBRATION_AVERAGING": {
-            "value": "true"
-          },
-          "ENABLE_EXTERNAL_MUX": {
-            "value": "false"
-          },
-          "ENABLE_JTAG_ARBITER": {
-            "value": "false"
-          },
-          "ENABLE_RESET": {
-            "value": "true"
-          },
-          "ENABLE_VCCDDRO_ALARM": {
-            "value": "false"
-          },
-          "ENABLE_VCCPAUX_ALARM": {
-            "value": "false"
-          },
-          "ENABLE_VCCPINT_ALARM": {
-            "value": "false"
-          },
-          "EXTERNAL_MUX_CHANNEL": {
-            "value": "VP_VN"
-          },
-          "INTERFACE_SELECTION": {
-            "value": "ENABLE_DRP"
-          },
-          "OT_ALARM": {
-            "value": "false"
-          },
-          "POWER_DOWN_ADCA": {
-            "value": "false"
-          },
-          "POWER_DOWN_ADCB": {
-            "value": "false"
-          },
-          "SEQUENCER_MODE": {
-            "value": "One_Pass"
-          },
-          "SINGLE_CHANNEL_SELECTION": {
-            "value": "TEMPERATURE"
-          },
-          "TIMING_MODE": {
-            "value": "Event"
-          },
-          "USER_TEMP_ALARM": {
-            "value": "false"
-          },
-          "VCCAUX_ALARM": {
-            "value": "false"
-          },
-          "VCCINT_ALARM": {
-            "value": "false"
-          },
-          "XADC_STARUP_SELECTION": {
-            "value": "channel_sequencer"
-          }
-        }
-      },
       "top_0": {
         "vlnv": "xilinx.com:module_ref:top:1.0",
         "ip_revision": "1",
@@ -3095,6 +2935,51 @@
         "xci_name": "pynq_z2_xlconstant_0_0",
         "xci_path": "ip/pynq_z2_xlconstant_0_0/pynq_z2_xlconstant_0_0.xci",
         "inst_hier_path": "xlconstant_0"
+      },
+      "xlconstant_1": {
+        "vlnv": "xilinx.com:ip:xlconstant:1.1",
+        "ip_revision": "9",
+        "xci_name": "pynq_z2_xlconstant_1_0",
+        "xci_path": "ip/pynq_z2_xlconstant_1_0/pynq_z2_xlconstant_1_0.xci",
+        "inst_hier_path": "xlconstant_1",
+        "parameters": {
+          "CONST_VAL": {
+            "value": "0x0000"
+          },
+          "CONST_WIDTH": {
+            "value": "16"
+          }
+        }
+      },
+      "xlconstant_2": {
+        "vlnv": "xilinx.com:ip:xlconstant:1.1",
+        "ip_revision": "9",
+        "xci_name": "pynq_z2_xlconstant_1_1",
+        "xci_path": "ip/pynq_z2_xlconstant_1_1_1/pynq_z2_xlconstant_1_1.xci",
+        "inst_hier_path": "xlconstant_2",
+        "parameters": {
+          "CONST_VAL": {
+            "value": "0x00"
+          },
+          "CONST_WIDTH": {
+            "value": "5"
+          }
+        }
+      },
+      "xlconstant_3": {
+        "vlnv": "xilinx.com:ip:xlconstant:1.1",
+        "ip_revision": "9",
+        "xci_name": "pynq_z2_xlconstant_1_2",
+        "xci_path": "ip/pynq_z2_xlconstant_1_2_1/pynq_z2_xlconstant_1_2.xci",
+        "inst_hier_path": "xlconstant_3",
+        "parameters": {
+          "CONST_VAL": {
+            "value": "0"
+          },
+          "CONST_WIDTH": {
+            "value": "1"
+          }
+        }
       }
     },
     "interface_nets": {
@@ -3196,12 +3081,6 @@
           "top_0/s_axi_aresetn"
         ]
       },
-      "proc_sys_reset_0_peripheral_reset": {
-        "ports": [
-          "proc_sys_reset_0/peripheral_reset",
-          "xadc_wiz_0/reset_in"
-        ]
-      },
       "processing_system7_0_CAN0_PHY_TX": {
         "ports": [
           "processing_system7_0/CAN0_PHY_TX",
@@ -3237,112 +3116,30 @@
           "debug_out_0"
         ]
       },
-      "top_0_xadc_convst": {
-        "ports": [
-          "top_0/xadc_convst",
-          "xadc_wiz_0/convst_in"
-        ]
-      },
-      "top_0_xadc_daddr": {
-        "ports": [
-          "top_0/xadc_daddr",
-          "xadc_wiz_0/daddr_in"
-        ]
-      },
-      "top_0_xadc_dclk": {
-        "ports": [
-          "top_0/xadc_dclk",
-          "xadc_wiz_0/dclk_in"
-        ]
-      },
-      "top_0_xadc_den": {
-        "ports": [
-          "top_0/xadc_den",
-          "xadc_wiz_0/den_in"
-        ]
-      },
-      "top_0_xadc_di": {
-        "ports": [
-          "top_0/xadc_di",
-          "xadc_wiz_0/di_in"
-        ]
-      },
-      "top_0_xadc_dwe": {
-        "ports": [
-          "top_0/xadc_dwe",
-          "xadc_wiz_0/dwe_in"
-        ]
-      },
-      "vauxp0_0_1": {
-        "ports": [
-          "vauxp0_0",
-          "xadc_wiz_0/vauxp0"
-        ]
-      },
-      "vauxp1_0_1": {
-        "ports": [
-          "vauxp1_0",
-          "xadc_wiz_0/vauxp1"
-        ]
-      },
-      "vauxp2_0_1": {
-        "ports": [
-          "vauxp2_0",
-          "xadc_wiz_0/vauxp2"
-        ]
-      },
-      "vauxp3_0_1": {
-        "ports": [
-          "vauxp3_0",
-          "xadc_wiz_0/vauxp3"
-        ]
-      },
-      "vauxp4_0_1": {
-        "ports": [
-          "vauxp4_0",
-          "xadc_wiz_0/vauxp4"
-        ]
-      },
-      "vauxp5_0_1": {
-        "ports": [
-          "vauxp5_0",
-          "xadc_wiz_0/vauxp5"
-        ]
-      },
-      "xadc_wiz_0_busy_out": {
-        "ports": [
-          "xadc_wiz_0/busy_out",
-          "top_0/xadc_busy"
-        ]
-      },
-      "xadc_wiz_0_channel_out": {
-        "ports": [
-          "xadc_wiz_0/channel_out",
-          "top_0/xadc_channel"
-        ]
-      },
-      "xadc_wiz_0_do_out": {
-        "ports": [
-          "xadc_wiz_0/do_out",
-          "top_0/xadc_do"
-        ]
-      },
-      "xadc_wiz_0_eoc_out": {
-        "ports": [
-          "xadc_wiz_0/eoc_out",
-          "top_0/xadc_eoc"
-        ]
-      },
-      "xadc_wiz_0_eos_out": {
-        "ports": [
-          "xadc_wiz_0/eos_out",
-          "top_0/xadc_eos"
-        ]
-      },
       "xlconstant_0_dout": {
         "ports": [
           "xlconstant_0/dout",
           "proc_sys_reset_0/dcm_locked"
+        ]
+      },
+      "xlconstant_1_dout": {
+        "ports": [
+          "xlconstant_1/dout",
+          "top_0/xadc_do"
+        ]
+      },
+      "xlconstant_2_dout": {
+        "ports": [
+          "xlconstant_2/dout",
+          "top_0/xadc_channel"
+        ]
+      },
+      "xlconstant_3_dout": {
+        "ports": [
+          "xlconstant_3/dout",
+          "top_0/xadc_eoc",
+          "top_0/xadc_eos",
+          "top_0/xadc_busy"
         ]
       }
     },
