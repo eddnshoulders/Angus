@@ -2,10 +2,10 @@
 -- Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
 -- --------------------------------------------------------------------------------
 -- Tool Version: Vivado v.2024.1 (lin64) Build 5076996 Wed May 22 18:36:09 MDT 2024
--- Date        : Thu May 21 01:48:25 2026
+-- Date        : Sun May 24 08:01:41 2026
 -- Host        : yocto running 64-bit Ubuntu 22.04.5 LTS
--- Command     : write_vhdl -force -mode funcsim
---               /mnt/hgfs/yocto/angus/vivado/angus.gen/sources_1/bd/pynq_z2/ip/pynq_z2_xbar_0/pynq_z2_xbar_0_sim_netlist.vhdl
+-- Command     : write_vhdl -force -mode funcsim -rename_top pynq_z2_xbar_0 -prefix
+--               pynq_z2_xbar_0_ pynq_z2_xbar_0_sim_netlist.vhdl
 -- Design      : pynq_z2_xbar_0
 -- Purpose     : This VHDL netlist is a functional simulation representation of the design and should not be modified or
 --               synthesized. This netlist cannot be used for SDF annotated simulation.
@@ -70,8 +70,6 @@ entity pynq_z2_xbar_0_axi_crossbar_v2_1_32_addr_arbiter_sasd is
     s_axi_araddr : in STD_LOGIC_VECTOR ( 31 downto 0 );
     s_axi_awaddr : in STD_LOGIC_VECTOR ( 31 downto 0 )
   );
-  attribute ORIG_REF_NAME : string;
-  attribute ORIG_REF_NAME of pynq_z2_xbar_0_axi_crossbar_v2_1_32_addr_arbiter_sasd : entity is "axi_crossbar_v2_1_32_addr_arbiter_sasd";
 end pynq_z2_xbar_0_axi_crossbar_v2_1_32_addr_arbiter_sasd;
 
 architecture STRUCTURE of pynq_z2_xbar_0_axi_crossbar_v2_1_32_addr_arbiter_sasd is
@@ -1435,8 +1433,6 @@ entity pynq_z2_xbar_0_axi_crossbar_v2_1_32_decerr_slave is
     \gen_axilite.s_axi_awready_i_reg_0\ : in STD_LOGIC;
     m_ready_d : in STD_LOGIC_VECTOR ( 0 to 0 )
   );
-  attribute ORIG_REF_NAME : string;
-  attribute ORIG_REF_NAME of pynq_z2_xbar_0_axi_crossbar_v2_1_32_decerr_slave : entity is "axi_crossbar_v2_1_32_decerr_slave";
 end pynq_z2_xbar_0_axi_crossbar_v2_1_32_decerr_slave;
 
 architecture STRUCTURE of pynq_z2_xbar_0_axi_crossbar_v2_1_32_decerr_slave is
@@ -1609,8 +1605,6 @@ entity pynq_z2_xbar_0_axi_crossbar_v2_1_32_splitter is
     m_ready_d0 : in STD_LOGIC_VECTOR ( 1 downto 0 );
     aclk : in STD_LOGIC
   );
-  attribute ORIG_REF_NAME : string;
-  attribute ORIG_REF_NAME of pynq_z2_xbar_0_axi_crossbar_v2_1_32_splitter : entity is "axi_crossbar_v2_1_32_splitter";
 end pynq_z2_xbar_0_axi_crossbar_v2_1_32_splitter;
 
 architecture STRUCTURE of pynq_z2_xbar_0_axi_crossbar_v2_1_32_splitter is
@@ -1796,8 +1790,6 @@ entity pynq_z2_xbar_0_axi_register_slice_v2_1_31_axic_register_slice is
     \m_axi_rready[1]\ : in STD_LOGIC_VECTOR ( 1 downto 0 );
     SR : in STD_LOGIC_VECTOR ( 0 to 0 )
   );
-  attribute ORIG_REF_NAME : string;
-  attribute ORIG_REF_NAME of pynq_z2_xbar_0_axi_register_slice_v2_1_31_axic_register_slice : entity is "axi_register_slice_v2_1_31_axic_register_slice";
 end pynq_z2_xbar_0_axi_register_slice_v2_1_31_axic_register_slice;
 
 architecture STRUCTURE of pynq_z2_xbar_0_axi_register_slice_v2_1_31_axic_register_slice is
@@ -3003,8 +2995,6 @@ entity pynq_z2_xbar_0_axi_crossbar_v2_1_32_crossbar_sasd is
     s_axi_araddr : in STD_LOGIC_VECTOR ( 31 downto 0 );
     s_axi_awaddr : in STD_LOGIC_VECTOR ( 31 downto 0 )
   );
-  attribute ORIG_REF_NAME : string;
-  attribute ORIG_REF_NAME of pynq_z2_xbar_0_axi_crossbar_v2_1_32_crossbar_sasd : entity is "axi_crossbar_v2_1_32_crossbar_sasd";
 end pynq_z2_xbar_0_axi_crossbar_v2_1_32_crossbar_sasd;
 
 architecture STRUCTURE of pynq_z2_xbar_0_axi_crossbar_v2_1_32_crossbar_sasd is
@@ -3412,8 +3402,6 @@ entity pynq_z2_xbar_0_axi_crossbar_v2_1_32_axi_crossbar is
   attribute C_S_AXI_WRITE_ACCEPTANCE of pynq_z2_xbar_0_axi_crossbar_v2_1_32_axi_crossbar : entity is 1;
   attribute DowngradeIPIdentifiedWarnings : string;
   attribute DowngradeIPIdentifiedWarnings of pynq_z2_xbar_0_axi_crossbar_v2_1_32_axi_crossbar : entity is "yes";
-  attribute ORIG_REF_NAME : string;
-  attribute ORIG_REF_NAME of pynq_z2_xbar_0_axi_crossbar_v2_1_32_axi_crossbar : entity is "axi_crossbar_v2_1_32_axi_crossbar";
   attribute P_ADDR_DECODE : integer;
   attribute P_ADDR_DECODE of pynq_z2_xbar_0_axi_crossbar_v2_1_32_axi_crossbar : entity is 1;
   attribute P_AXI3 : integer;

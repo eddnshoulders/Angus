@@ -2,10 +2,10 @@
 -- Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
 -- --------------------------------------------------------------------------------
 -- Tool Version: Vivado v.2024.1 (lin64) Build 5076996 Wed May 22 18:36:09 MDT 2024
--- Date        : Thu May 21 01:48:25 2026
+-- Date        : Sun May 24 08:01:40 2026
 -- Host        : yocto running 64-bit Ubuntu 22.04.5 LTS
--- Command     : write_vhdl -force -mode synth_stub
---               /mnt/hgfs/yocto/angus/vivado/angus.gen/sources_1/bd/pynq_z2/ip/pynq_z2_xbar_0/pynq_z2_xbar_0_stub.vhdl
+-- Command     : write_vhdl -force -mode synth_stub -rename_top pynq_z2_xbar_0 -prefix
+--               pynq_z2_xbar_0_ pynq_z2_xbar_0_stub.vhdl
 -- Design      : pynq_z2_xbar_0
 -- Purpose     : Stub declaration of top-level module interface
 -- Device      : xc7z020clg400-1

@@ -93,7 +93,8 @@ ENTITY pynq_z2_top_0_0 IS
     m_axis_tdata : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
     m_axis_tvalid : OUT STD_LOGIC;
     m_axis_tready : IN STD_LOGIC;
-    m_axis_tlast : OUT STD_LOGIC
+    m_axis_tlast : OUT STD_LOGIC;
+    debug_out : OUT STD_LOGIC_VECTOR(11 DOWNTO 0)
   );
 END pynq_z2_top_0_0;
 
@@ -140,7 +141,8 @@ ARCHITECTURE pynq_z2_top_0_0_arch OF pynq_z2_top_0_0 IS
       m_axis_tdata : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
       m_axis_tvalid : OUT STD_LOGIC;
       m_axis_tready : IN STD_LOGIC;
-      m_axis_tlast : OUT STD_LOGIC
+      m_axis_tlast : OUT STD_LOGIC;
+      debug_out : OUT STD_LOGIC_VECTOR(11 DOWNTO 0)
     );
   END COMPONENT top;
   ATTRIBUTE X_INTERFACE_INFO : STRING;
@@ -218,6 +220,7 @@ BEGIN
       m_axis_tdata => m_axis_tdata,
       m_axis_tvalid => m_axis_tvalid,
       m_axis_tready => m_axis_tready,
-      m_axis_tlast => m_axis_tlast
+      m_axis_tlast => m_axis_tlast,
+      debug_out => debug_out
     );
 END pynq_z2_top_0_0_arch;

@@ -2,7 +2,7 @@
 // Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
 // --------------------------------------------------------------------------------
 // Tool Version: Vivado v.2024.1 (lin64) Build 5076996 Wed May 22 18:36:09 MDT 2024
-// Date        : Fri May 22 17:23:17 2026
+// Date        : Mon May 25 11:36:26 2026
 // Host        : yocto running 64-bit Ubuntu 22.04.5 LTS
 // Command     : write_verilog -force -mode funcsim
 //               /mnt/hgfs/yocto/angus/vivado/angus.gen/sources_1/bd/pynq_z2/ip/pynq_z2_top_0_0/pynq_z2_top_0_0_sim_netlist.v
@@ -55,7 +55,8 @@ module pynq_z2_top_0_0
     m_axis_tdata,
     m_axis_tvalid,
     m_axis_tready,
-    m_axis_tlast);
+    m_axis_tlast,
+    debug_out);
   (* x_interface_info = "xilinx.com:signal:clock:1.0 clk CLK" *) (* x_interface_parameter = "XIL_INTERFACENAME clk, ASSOCIATED_BUSIF m_axis:s_axi, FREQ_HZ 100000000, FREQ_TOLERANCE_HZ 0, PHASE 0.0, CLK_DOMAIN pynq_z2_processing_system7_0_0_FCLK_CLK0, INSERT_VIP 0" *) input clk;
   (* x_interface_info = "xilinx.com:signal:reset:1.0 rst_n RST" *) (* x_interface_parameter = "XIL_INTERFACENAME rst_n, POLARITY ACTIVE_LOW, INSERT_VIP 0" *) input rst_n;
   input crank_raw;
@@ -95,11 +96,13 @@ module pynq_z2_top_0_0
   (* x_interface_info = "xilinx.com:interface:axis:1.0 m_axis TVALID" *) output m_axis_tvalid;
   (* x_interface_info = "xilinx.com:interface:axis:1.0 m_axis TREADY" *) input m_axis_tready;
   (* x_interface_info = "xilinx.com:interface:axis:1.0 m_axis TLAST" *) output m_axis_tlast;
+  output [11:0]debug_out;
 
   wire \<const0> ;
   wire cam_raw;
   wire clk;
   wire crank_raw;
+  wire [11:0]debug_out;
   wire [7:0]digital_inputs;
   wire [31:0]m_axis_tdata;
   wire m_axis_tlast;
@@ -122,7 +125,6 @@ module pynq_z2_top_0_0
   wire s_axi_wready;
   wire s_axi_wvalid;
   wire [4:0]xadc_channel;
-  wire xadc_convst;
   wire [15:0]xadc_do;
   wire xadc_eoc;
   wire xadc_eos;
@@ -132,6 +134,7 @@ module pynq_z2_top_0_0
   assign s_axi_bresp[0] = \<const0> ;
   assign s_axi_rresp[1] = \<const0> ;
   assign s_axi_rresp[0] = \<const0> ;
+  assign xadc_convst = debug_out[8];
   assign xadc_daddr[6] = \<const0> ;
   assign xadc_daddr[5] = \<const0> ;
   assign xadc_daddr[4] = \<const0> ;
@@ -161,10 +164,14 @@ module pynq_z2_top_0_0
   GND GND
        (.G(\<const0> ));
   pynq_z2_top_0_0_top U0
-       (.cam_raw(cam_raw),
+       (.ab_int_reg(debug_out[4]),
+        .cam_raw(cam_raw),
         .clk(clk),
         .crank_raw(crank_raw),
+        .debug_out({debug_out[7],debug_out[3:2]}),
         .digital_inputs(digital_inputs),
+        .gap_det_reg(debug_out[6]),
+        .\gen_vld_en.valid_en_reg ({debug_out[9],debug_out[1]}),
         .m_axis_tdata(m_axis_tdata),
         .m_axis_tlast(m_axis_tlast),
         .m_axis_tready(m_axis_tready),
@@ -185,11 +192,15 @@ module pynq_z2_top_0_0
         .s_axi_rvalid(s_axi_rvalid),
         .s_axi_wdata(s_axi_wdata),
         .s_axi_wvalid(s_axi_wvalid),
-        .sample_pulse_int_reg(xadc_convst),
+        .sample_pulse_int_reg(debug_out[8]),
+        .sig_present_reg(debug_out[10]),
+        .stable_int_reg(debug_out[0]),
+        .\state_reg[1] (debug_out[11]),
         .xadc_channel(xadc_channel),
         .xadc_do(xadc_do),
         .xadc_eoc(xadc_eoc),
-        .xadc_eos(xadc_eos));
+        .xadc_eos(xadc_eos),
+        .z_int_reg(debug_out[5]));
 endmodule
 
 (* ORIG_REF_NAME = "angle_engine" *) 
@@ -199,10 +210,14 @@ module pynq_z2_top_0_0_angle_engine
     Q,
     z_prev,
     quotient_reg,
+    engine_angle1,
+    \reg_tdc_off_reg[15] ,
     O,
-    D,
-    z_prev_reg_0,
-    ab_prev_reg_0,
+    \phase_error_reg[31]_0 ,
+    \reg_tdc_off_reg[3] ,
+    \gen_vld_en.valid_en_reg ,
+    \nco_inc_reg[31]_0 ,
+    \correction_reg[31]_0 ,
     \raw_angle_int_reg[12]_0 ,
     DI,
     \raw_angle_int_reg[11]_0 ,
@@ -216,7 +231,9 @@ module pynq_z2_top_0_0_angle_engine
     \raw_angle_int_reg[3]_1 ,
     \raw_angle_int_reg[7]_2 ,
     \raw_angle_int_reg[12]_2 ,
+    D,
     \engine_angle_prev_reg[15] ,
+    \reg_tdc_off_reg[11] ,
     crank_angle,
     \raw_angle_int_reg[11]_3 ,
     \raw_angle_int_reg[11]_4 ,
@@ -227,25 +244,32 @@ module pynq_z2_top_0_0_angle_engine
     \raw_angle_int_reg[11]_9 ,
     \raw_angle_int_reg[11]_10 ,
     \raw_angle_int_reg[11]_11 ,
+    \reg_tdc_off_reg[15]_0 ,
+    \reg_tdc_off_reg[15]_1 ,
+    \reg_tdc_off_reg[15]_2 ,
+    \reg_tdc_off_reg[15]_3 ,
+    \reg_tdc_off_reg[15]_4 ,
+    \reg_tdc_off_reg[15]_5 ,
+    \reg_tdc_off_reg[15]_6 ,
+    \reg_tdc_off_reg[15]_7 ,
     rst,
-    \gen_vld_en.valid_en_reg ,
+    \gen_vld_en.valid_en_reg_0 ,
     clk,
+    ab_edge_reg_0,
     ab_count1,
     E,
     SR,
     ki,
     kp,
-    sync_state,
+    \angle_temp_reg[32]_0 ,
     pi_stage2_reg_0,
-    ab,
-    z,
+    z_prev_reg_0,
     \decim_cnt_reg[7] ,
     rst_n,
     \dividend_op_reg[3] ,
     div_start,
     tooth_period,
     zero_divide,
-    \ab_count_reg[0] ,
     expected_phase_angle,
     ref_det_reg_i_57,
     ref_det_reg_i_34,
@@ -263,10 +287,14 @@ module pynq_z2_top_0_0_angle_engine
   output [0:0]Q;
   output z_prev;
   output quotient_reg;
-  output [3:0]O;
-  output [15:0]D;
-  output [0:0]z_prev_reg_0;
-  output [0:0]ab_prev_reg_0;
+  output engine_angle1;
+  output [6:0]\reg_tdc_off_reg[15] ;
+  output [2:0]O;
+  output [31:0]\phase_error_reg[31]_0 ;
+  output [3:0]\reg_tdc_off_reg[3] ;
+  output [0:0]\gen_vld_en.valid_en_reg ;
+  output [31:0]\nco_inc_reg[31]_0 ;
+  output [31:0]\correction_reg[31]_0 ;
   output [12:0]\raw_angle_int_reg[12]_0 ;
   output [1:0]DI;
   output [1:0]\raw_angle_int_reg[11]_0 ;
@@ -280,7 +308,9 @@ module pynq_z2_top_0_0_angle_engine
   output [3:0]\raw_angle_int_reg[3]_1 ;
   output [3:0]\raw_angle_int_reg[7]_2 ;
   output [0:0]\raw_angle_int_reg[12]_2 ;
+  output [15:0]D;
   output [0:0]\engine_angle_prev_reg[15] ;
+  output [3:0]\reg_tdc_off_reg[11] ;
   output [2:0]crank_angle;
   output \raw_angle_int_reg[11]_3 ;
   output \raw_angle_int_reg[11]_4 ;
@@ -291,25 +321,32 @@ module pynq_z2_top_0_0_angle_engine
   output \raw_angle_int_reg[11]_9 ;
   output \raw_angle_int_reg[11]_10 ;
   output \raw_angle_int_reg[11]_11 ;
+  output \reg_tdc_off_reg[15]_0 ;
+  output \reg_tdc_off_reg[15]_1 ;
+  output \reg_tdc_off_reg[15]_2 ;
+  output \reg_tdc_off_reg[15]_3 ;
+  output \reg_tdc_off_reg[15]_4 ;
+  output \reg_tdc_off_reg[15]_5 ;
+  output \reg_tdc_off_reg[15]_6 ;
+  output \reg_tdc_off_reg[15]_7 ;
   input rst;
-  input \gen_vld_en.valid_en_reg ;
+  input \gen_vld_en.valid_en_reg_0 ;
   input clk;
+  input ab_edge_reg_0;
   input ab_count1;
   input [0:0]E;
   input [0:0]SR;
   input [15:0]ki;
   input [15:0]kp;
-  input [0:0]sync_state;
+  input \angle_temp_reg[32]_0 ;
   input pi_stage2_reg_0;
-  input ab;
-  input z;
+  input z_prev_reg_0;
   input [15:0]\decim_cnt_reg[7] ;
   input rst_n;
   input \dividend_op_reg[3] ;
   input div_start;
   input [30:0]tooth_period;
   input zero_divide;
-  input [0:0]\ab_count_reg[0] ;
   input [12:0]expected_phase_angle;
   input [3:0]ref_det_reg_i_57;
   input [3:0]ref_det_reg_i_34;
@@ -333,17 +370,15 @@ module pynq_z2_top_0_0_angle_engine
   wire [15:0]D;
   wire [1:0]DI;
   wire [0:0]E;
-  wire [3:0]O;
+  wire [2:0]O;
   wire [0:0]Q;
   wire [2:0]S;
   wire [0:0]SR;
-  wire ab;
   wire ab_count1;
-  wire [0:0]\ab_count_reg[0] ;
   wire ab_edge;
   wire [7:0]ab_edge_cnt_reg;
-  wire ab_prev;
-  wire [0:0]ab_prev_reg_0;
+  wire ab_edge_reg_0;
+  wire [44:32]angle_temp;
   wire \angle_temp[33]_i_10_n_0 ;
   wire \angle_temp[33]_i_11_n_0 ;
   wire \angle_temp[33]_i_12_n_0 ;
@@ -437,6 +472,7 @@ module pynq_z2_top_0_0_angle_engine
   wire \angle_temp[44]_i_5_n_0 ;
   wire \angle_temp[44]_i_6_n_0 ;
   wire \angle_temp[44]_i_7_n_0 ;
+  wire \angle_temp_reg[32]_0 ;
   wire \angle_temp_reg[33]_i_18_n_0 ;
   wire \angle_temp_reg[33]_i_18_n_1 ;
   wire \angle_temp_reg[33]_i_18_n_2 ;
@@ -618,26 +654,8 @@ module pynq_z2_top_0_0_angle_engine
   wire \angle_temp_reg[44]_i_9_n_5 ;
   wire \angle_temp_reg[44]_i_9_n_6 ;
   wire \angle_temp_reg[44]_i_9_n_7 ;
-  wire \axi_rdata[15]_i_10_n_0 ;
-  wire \axi_rdata[3]_i_15_n_0 ;
-  wire \axi_rdata[3]_i_4_n_0 ;
-  wire \axi_rdata[3]_i_5_n_0 ;
-  wire \axi_rdata[3]_i_6_n_0 ;
-  wire \axi_rdata[3]_i_7_n_0 ;
-  wire \axi_rdata_reg[3]_i_10_n_0 ;
-  wire \axi_rdata_reg[3]_i_10_n_1 ;
-  wire \axi_rdata_reg[3]_i_10_n_2 ;
-  wire \axi_rdata_reg[3]_i_10_n_3 ;
-  wire \axi_rdata_reg[3]_i_10_n_4 ;
-  wire \axi_rdata_reg[3]_i_10_n_5 ;
-  wire \axi_rdata_reg[3]_i_10_n_6 ;
-  wire \axi_rdata_reg[3]_i_10_n_7 ;
-  wire \axi_rdata_reg[3]_i_2_n_0 ;
-  wire \axi_rdata_reg[3]_i_2_n_1 ;
-  wire \axi_rdata_reg[3]_i_2_n_2 ;
-  wire \axi_rdata_reg[3]_i_2_n_3 ;
+  wire \axi_rdata[15]_i_13_n_0 ;
   wire clk;
-  wire [31:0]correction;
   wire [15:1]correction0;
   wire correction1;
   wire correction10_in;
@@ -1031,6 +1049,7 @@ module pynq_z2_top_0_0_angle_engine
   wire \correction_reg[30]_i_3_n_1 ;
   wire \correction_reg[30]_i_3_n_2 ;
   wire \correction_reg[30]_i_3_n_3 ;
+  wire [31:0]\correction_reg[31]_0 ;
   wire \correction_reg[31]_i_100_n_0 ;
   wire \correction_reg[31]_i_100_n_1 ;
   wire \correction_reg[31]_i_100_n_2 ;
@@ -1148,6 +1167,7 @@ module pynq_z2_top_0_0_angle_engine
   wire [2:0]crank_angle;
   wire \decim_cnt[7]_i_10_n_0 ;
   wire \decim_cnt[7]_i_11_n_0 ;
+  wire \decim_cnt[7]_i_12_n_0 ;
   wire \decim_cnt[7]_i_5_n_0 ;
   wire \decim_cnt[7]_i_6_n_0 ;
   wire \decim_cnt[7]_i_8_n_0 ;
@@ -1162,6 +1182,7 @@ module pynq_z2_top_0_0_angle_engine
   wire div_start;
   wire \dividend_op_reg[3] ;
   wire [0:0]\divisor_op_reg[0] ;
+  wire engine_angle1;
   wire \engine_angle_prev[11]_i_12_n_0 ;
   wire \engine_angle_prev[11]_i_13_n_0 ;
   wire \engine_angle_prev[11]_i_14_n_0 ;
@@ -1172,21 +1193,27 @@ module pynq_z2_top_0_0_angle_engine
   wire \engine_angle_prev[11]_i_7_n_0 ;
   wire \engine_angle_prev[11]_i_8_n_0 ;
   wire \engine_angle_prev[11]_i_9_n_0 ;
+  wire \engine_angle_prev[13]_i_3_n_0 ;
+  wire \engine_angle_prev[13]_i_4_n_0 ;
+  wire \engine_angle_prev[13]_i_5_n_0 ;
   wire \engine_angle_prev[15]_i_10_n_0 ;
   wire \engine_angle_prev[15]_i_11_n_0 ;
-  wire \engine_angle_prev[15]_i_13_n_0 ;
-  wire \engine_angle_prev[15]_i_14_n_0 ;
-  wire \engine_angle_prev[15]_i_18_n_0 ;
-  wire \engine_angle_prev[15]_i_19_n_0 ;
+  wire \engine_angle_prev[15]_i_15_n_0 ;
+  wire \engine_angle_prev[15]_i_16_n_0 ;
   wire \engine_angle_prev[15]_i_5_n_0 ;
   wire \engine_angle_prev[15]_i_6_n_0 ;
   wire \engine_angle_prev[15]_i_7_n_0 ;
   wire \engine_angle_prev[15]_i_8_n_0 ;
   wire \engine_angle_prev[15]_i_9_n_0 ;
+  wire \engine_angle_prev[3]_i_3_n_0 ;
+  wire \engine_angle_prev[3]_i_4_n_0 ;
+  wire \engine_angle_prev[3]_i_5_n_0 ;
+  wire \engine_angle_prev[3]_i_6_n_0 ;
   wire \engine_angle_prev[7]_i_10_n_0 ;
-  wire \engine_angle_prev[7]_i_12_n_0 ;
   wire \engine_angle_prev[7]_i_13_n_0 ;
   wire \engine_angle_prev[7]_i_14_n_0 ;
+  wire \engine_angle_prev[7]_i_15_n_0 ;
+  wire \engine_angle_prev[7]_i_16_n_0 ;
   wire \engine_angle_prev[7]_i_4_n_0 ;
   wire \engine_angle_prev[7]_i_5_n_0 ;
   wire \engine_angle_prev[7]_i_6_n_0 ;
@@ -1213,18 +1240,14 @@ module pynq_z2_top_0_0_angle_engine
   wire \engine_angle_prev_reg[11]_i_3_n_1 ;
   wire \engine_angle_prev_reg[11]_i_3_n_2 ;
   wire \engine_angle_prev_reg[11]_i_3_n_3 ;
-  wire \engine_angle_prev_reg[11]_i_3_n_4 ;
-  wire \engine_angle_prev_reg[11]_i_3_n_5 ;
-  wire \engine_angle_prev_reg[11]_i_3_n_6 ;
-  wire \engine_angle_prev_reg[11]_i_3_n_7 ;
+  wire \engine_angle_prev_reg[13]_i_2_n_3 ;
   wire [0:0]\engine_angle_prev_reg[15] ;
-  wire \engine_angle_prev_reg[15]_i_12_n_3 ;
-  wire \engine_angle_prev_reg[15]_i_16_n_1 ;
-  wire \engine_angle_prev_reg[15]_i_16_n_3 ;
-  wire \engine_angle_prev_reg[15]_i_17_n_1 ;
-  wire \engine_angle_prev_reg[15]_i_17_n_3 ;
-  wire \engine_angle_prev_reg[15]_i_17_n_6 ;
-  wire \engine_angle_prev_reg[15]_i_17_n_7 ;
+  wire \engine_angle_prev_reg[15]_i_13_n_1 ;
+  wire \engine_angle_prev_reg[15]_i_13_n_3 ;
+  wire \engine_angle_prev_reg[15]_i_14_n_1 ;
+  wire \engine_angle_prev_reg[15]_i_14_n_3 ;
+  wire \engine_angle_prev_reg[15]_i_14_n_6 ;
+  wire \engine_angle_prev_reg[15]_i_14_n_7 ;
   wire \engine_angle_prev_reg[15]_i_2_n_1 ;
   wire \engine_angle_prev_reg[15]_i_2_n_2 ;
   wire \engine_angle_prev_reg[15]_i_2_n_3 ;
@@ -1232,14 +1255,23 @@ module pynq_z2_top_0_0_angle_engine
   wire \engine_angle_prev_reg[15]_i_3_n_1 ;
   wire \engine_angle_prev_reg[15]_i_3_n_2 ;
   wire \engine_angle_prev_reg[15]_i_3_n_3 ;
-  wire \engine_angle_prev_reg[15]_i_3_n_4 ;
-  wire \engine_angle_prev_reg[15]_i_3_n_5 ;
   wire \engine_angle_prev_reg[15]_i_3_n_6 ;
-  wire \engine_angle_prev_reg[15]_i_3_n_7 ;
+  wire \engine_angle_prev_reg[3]_i_2_n_0 ;
+  wire \engine_angle_prev_reg[3]_i_2_n_1 ;
+  wire \engine_angle_prev_reg[3]_i_2_n_2 ;
+  wire \engine_angle_prev_reg[3]_i_2_n_3 ;
   wire \engine_angle_prev_reg[7]_i_11_n_0 ;
   wire \engine_angle_prev_reg[7]_i_11_n_1 ;
   wire \engine_angle_prev_reg[7]_i_11_n_2 ;
   wire \engine_angle_prev_reg[7]_i_11_n_3 ;
+  wire \engine_angle_prev_reg[7]_i_12_n_0 ;
+  wire \engine_angle_prev_reg[7]_i_12_n_1 ;
+  wire \engine_angle_prev_reg[7]_i_12_n_2 ;
+  wire \engine_angle_prev_reg[7]_i_12_n_3 ;
+  wire \engine_angle_prev_reg[7]_i_12_n_4 ;
+  wire \engine_angle_prev_reg[7]_i_12_n_5 ;
+  wire \engine_angle_prev_reg[7]_i_12_n_6 ;
+  wire \engine_angle_prev_reg[7]_i_12_n_7 ;
   wire \engine_angle_prev_reg[7]_i_2_n_0 ;
   wire \engine_angle_prev_reg[7]_i_2_n_1 ;
   wire \engine_angle_prev_reg[7]_i_2_n_2 ;
@@ -1253,8 +1285,8 @@ module pynq_z2_top_0_0_angle_engine
   wire \engine_angle_prev_reg[7]_i_3_n_6 ;
   wire \engine_angle_prev_reg[7]_i_3_n_7 ;
   wire [12:0]expected_phase_angle;
-  wire \gen_vld_en.valid_en_reg ;
-  wire [31:0]in;
+  wire [0:0]\gen_vld_en.valid_en_reg ;
+  wire \gen_vld_en.valid_en_reg_0 ;
   wire \integrator[0]_i_2_n_0 ;
   wire \integrator[0]_i_3_n_0 ;
   wire \integrator[0]_i_4_n_0 ;
@@ -1624,9 +1656,8 @@ module pynq_z2_top_0_0_angle_engine
   wire \nco_accum_reg[8]_i_1_n_6 ;
   wire \nco_accum_reg[8]_i_1_n_7 ;
   wire nco_inc0;
-  wire [12:0]p_0_in;
+  wire [31:0]\nco_inc_reg[31]_0 ;
   wire [47:0]p_1_in;
-  wire [31:0]phase_error;
   wire [31:0]phase_error0;
   wire [7:1]phase_error10_out;
   wire \phase_error1[-_n_0_1111111106] ;
@@ -1693,81 +1724,7 @@ module pynq_z2_top_0_0_angle_engine
   wire phase_error1_n_97;
   wire phase_error1_n_98;
   wire phase_error1_n_99;
-  wire \phase_error[11]_i_2_n_0 ;
-  wire \phase_error[11]_i_3_n_0 ;
-  wire \phase_error[11]_i_4_n_0 ;
-  wire \phase_error[11]_i_5_n_0 ;
-  wire \phase_error[15]_i_2_n_0 ;
-  wire \phase_error[15]_i_3_n_0 ;
-  wire \phase_error[15]_i_4_n_0 ;
-  wire \phase_error[15]_i_5_n_0 ;
-  wire \phase_error[19]_i_2_n_0 ;
-  wire \phase_error[19]_i_3_n_0 ;
-  wire \phase_error[19]_i_4_n_0 ;
-  wire \phase_error[19]_i_5_n_0 ;
-  wire \phase_error[23]_i_2_n_0 ;
-  wire \phase_error[23]_i_3_n_0 ;
-  wire \phase_error[23]_i_4_n_0 ;
-  wire \phase_error[23]_i_5_n_0 ;
-  wire \phase_error[27]_i_2_n_0 ;
-  wire \phase_error[27]_i_3_n_0 ;
-  wire \phase_error[27]_i_4_n_0 ;
-  wire \phase_error[27]_i_5_n_0 ;
-  wire \phase_error[31]_i_10_n_0 ;
-  wire \phase_error[31]_i_11_n_0 ;
-  wire \phase_error[31]_i_12_n_0 ;
-  wire \phase_error[31]_i_13_n_0 ;
-  wire \phase_error[31]_i_2_n_0 ;
-  wire \phase_error[31]_i_3_n_0 ;
-  wire \phase_error[31]_i_4_n_0 ;
-  wire \phase_error[31]_i_5_n_0 ;
-  wire \phase_error[31]_i_8_n_0 ;
-  wire \phase_error[31]_i_9_n_0 ;
-  wire \phase_error[3]_i_2_n_0 ;
-  wire \phase_error[3]_i_3_n_0 ;
-  wire \phase_error[3]_i_4_n_0 ;
-  wire \phase_error[3]_i_5_n_0 ;
-  wire \phase_error[7]_i_2_n_0 ;
-  wire \phase_error[7]_i_3_n_0 ;
-  wire \phase_error[7]_i_4_n_0 ;
-  wire \phase_error[7]_i_5_n_0 ;
-  wire \phase_error_reg[11]_i_1_n_0 ;
-  wire \phase_error_reg[11]_i_1_n_1 ;
-  wire \phase_error_reg[11]_i_1_n_2 ;
-  wire \phase_error_reg[11]_i_1_n_3 ;
-  wire \phase_error_reg[15]_i_1_n_0 ;
-  wire \phase_error_reg[15]_i_1_n_1 ;
-  wire \phase_error_reg[15]_i_1_n_2 ;
-  wire \phase_error_reg[15]_i_1_n_3 ;
-  wire \phase_error_reg[19]_i_1_n_0 ;
-  wire \phase_error_reg[19]_i_1_n_1 ;
-  wire \phase_error_reg[19]_i_1_n_2 ;
-  wire \phase_error_reg[19]_i_1_n_3 ;
-  wire \phase_error_reg[23]_i_1_n_0 ;
-  wire \phase_error_reg[23]_i_1_n_1 ;
-  wire \phase_error_reg[23]_i_1_n_2 ;
-  wire \phase_error_reg[23]_i_1_n_3 ;
-  wire \phase_error_reg[27]_i_1_n_0 ;
-  wire \phase_error_reg[27]_i_1_n_1 ;
-  wire \phase_error_reg[27]_i_1_n_2 ;
-  wire \phase_error_reg[27]_i_1_n_3 ;
-  wire \phase_error_reg[31]_i_1_n_1 ;
-  wire \phase_error_reg[31]_i_1_n_2 ;
-  wire \phase_error_reg[31]_i_1_n_3 ;
-  wire \phase_error_reg[31]_i_6_n_2 ;
-  wire \phase_error_reg[31]_i_6_n_3 ;
-  wire \phase_error_reg[31]_i_7_n_0 ;
-  wire \phase_error_reg[31]_i_7_n_1 ;
-  wire \phase_error_reg[31]_i_7_n_2 ;
-  wire \phase_error_reg[31]_i_7_n_3 ;
-  wire \phase_error_reg[3]_i_1_n_0 ;
-  wire \phase_error_reg[3]_i_1_n_1 ;
-  wire \phase_error_reg[3]_i_1_n_2 ;
-  wire \phase_error_reg[3]_i_1_n_3 ;
-  wire \phase_error_reg[7]_i_1_n_0 ;
-  wire \phase_error_reg[7]_i_1_n_1 ;
-  wire \phase_error_reg[7]_i_1_n_2 ;
-  wire \phase_error_reg[7]_i_1_n_3 ;
+  wire [31:0]\phase_error_reg[31]_0 ;
   wire pi_i_term0_i_10_n_0;
   wire pi_i_term0_i_11_n_0;
   wire pi_i_term0_i_12_n_0;
@@ -2011,6 +1968,46 @@ module pynq_z2_top_0_0_angle_engine
   wire pi_i_term_reg_n_73;
   wire pi_i_term_reg_n_74;
   wire [15:0]pi_max_corr;
+  wire pi_p_term0_i_10_n_0;
+  wire pi_p_term0_i_11_n_0;
+  wire pi_p_term0_i_12_n_0;
+  wire pi_p_term0_i_13_n_0;
+  wire pi_p_term0_i_14_n_0;
+  wire pi_p_term0_i_15_n_0;
+  wire pi_p_term0_i_16_n_0;
+  wire pi_p_term0_i_17_n_0;
+  wire pi_p_term0_i_18_n_0;
+  wire pi_p_term0_i_19_n_0;
+  wire pi_p_term0_i_1_n_0;
+  wire pi_p_term0_i_1_n_1;
+  wire pi_p_term0_i_1_n_2;
+  wire pi_p_term0_i_1_n_3;
+  wire pi_p_term0_i_20_n_0;
+  wire pi_p_term0_i_21_n_0;
+  wire pi_p_term0_i_22_n_0;
+  wire pi_p_term0_i_23_n_0;
+  wire pi_p_term0_i_24_n_0;
+  wire pi_p_term0_i_25_n_0;
+  wire pi_p_term0_i_2_n_0;
+  wire pi_p_term0_i_2_n_1;
+  wire pi_p_term0_i_2_n_2;
+  wire pi_p_term0_i_2_n_3;
+  wire pi_p_term0_i_3_n_0;
+  wire pi_p_term0_i_3_n_1;
+  wire pi_p_term0_i_3_n_2;
+  wire pi_p_term0_i_3_n_3;
+  wire pi_p_term0_i_4_n_0;
+  wire pi_p_term0_i_4_n_1;
+  wire pi_p_term0_i_4_n_2;
+  wire pi_p_term0_i_4_n_3;
+  wire pi_p_term0_i_5_n_0;
+  wire pi_p_term0_i_5_n_1;
+  wire pi_p_term0_i_5_n_2;
+  wire pi_p_term0_i_5_n_3;
+  wire pi_p_term0_i_6_n_0;
+  wire pi_p_term0_i_7_n_0;
+  wire pi_p_term0_i_8_n_0;
+  wire pi_p_term0_i_9_n_0;
   wire pi_p_term0_n_100;
   wire pi_p_term0_n_101;
   wire pi_p_term0_n_102;
@@ -2108,6 +2105,41 @@ module pynq_z2_top_0_0_angle_engine
   wire pi_p_term0_n_98;
   wire pi_p_term0_n_99;
   wire [47:0]pi_p_term_reg__0;
+  wire pi_p_term_reg_i_10_n_0;
+  wire pi_p_term_reg_i_11_n_0;
+  wire pi_p_term_reg_i_12_n_0;
+  wire pi_p_term_reg_i_13_n_0;
+  wire pi_p_term_reg_i_14_n_0;
+  wire pi_p_term_reg_i_15_n_0;
+  wire pi_p_term_reg_i_16_n_2;
+  wire pi_p_term_reg_i_16_n_3;
+  wire pi_p_term_reg_i_17_n_0;
+  wire pi_p_term_reg_i_17_n_1;
+  wire pi_p_term_reg_i_17_n_2;
+  wire pi_p_term_reg_i_17_n_3;
+  wire pi_p_term_reg_i_18_n_0;
+  wire pi_p_term_reg_i_19_n_0;
+  wire pi_p_term_reg_i_1_n_1;
+  wire pi_p_term_reg_i_1_n_2;
+  wire pi_p_term_reg_i_1_n_3;
+  wire pi_p_term_reg_i_20_n_0;
+  wire pi_p_term_reg_i_21_n_0;
+  wire pi_p_term_reg_i_22_n_0;
+  wire pi_p_term_reg_i_23_n_0;
+  wire pi_p_term_reg_i_2_n_0;
+  wire pi_p_term_reg_i_2_n_1;
+  wire pi_p_term_reg_i_2_n_2;
+  wire pi_p_term_reg_i_2_n_3;
+  wire pi_p_term_reg_i_3_n_0;
+  wire pi_p_term_reg_i_3_n_1;
+  wire pi_p_term_reg_i_3_n_2;
+  wire pi_p_term_reg_i_3_n_3;
+  wire pi_p_term_reg_i_4_n_0;
+  wire pi_p_term_reg_i_5_n_0;
+  wire pi_p_term_reg_i_6_n_0;
+  wire pi_p_term_reg_i_7_n_0;
+  wire pi_p_term_reg_i_8_n_0;
+  wire pi_p_term_reg_i_9_n_0;
   wire pi_p_term_reg_n_58;
   wire pi_p_term_reg_n_59;
   wire pi_p_term_reg_n_60;
@@ -2168,22 +2200,29 @@ module pynq_z2_top_0_0_angle_engine
   wire [3:0]ref_det_reg_i_34;
   wire [3:0]ref_det_reg_i_57;
   wire [1:0]ref_det_reg_i_74;
+  wire [3:0]\reg_tdc_off_reg[11] ;
+  wire [6:0]\reg_tdc_off_reg[15] ;
+  wire \reg_tdc_off_reg[15]_0 ;
+  wire \reg_tdc_off_reg[15]_1 ;
+  wire \reg_tdc_off_reg[15]_2 ;
+  wire \reg_tdc_off_reg[15]_3 ;
+  wire \reg_tdc_off_reg[15]_4 ;
+  wire \reg_tdc_off_reg[15]_5 ;
+  wire \reg_tdc_off_reg[15]_6 ;
+  wire \reg_tdc_off_reg[15]_7 ;
+  wire [3:0]\reg_tdc_off_reg[3] ;
   wire rst;
   wire rst_n;
   wire sync_offset;
-  wire [0:0]sync_state;
   wire [15:0]tdc_offset;
   wire [30:0]tooth_period;
   wire [13:4]\u_angle_offset/crank_angle_int0 ;
   wire \u_angle_offset/crank_angle_int1 ;
-  wire [15:4]\u_angle_offset/engine_angle0 ;
-  wire \u_angle_offset/engine_angle1 ;
-  wire \u_sync/ab_count0 ;
+  wire [13:4]\u_angle_offset/engine_angle0 ;
   wire valid_en;
-  wire z;
   wire z_edge;
   wire z_prev;
-  wire [0:0]z_prev_reg_0;
+  wire z_prev_reg_0;
   wire zero_divide;
   wire [1:0]\NLW_angle_temp_reg[33]_i_1_O_UNCONNECTED ;
   wire [3:0]\NLW_angle_temp_reg[33]_i_19_O_UNCONNECTED ;
@@ -2223,12 +2262,12 @@ module pynq_z2_top_0_0_angle_engine
   wire [3:2]\NLW_decim_cnt_reg[7]_i_2_CO_UNCONNECTED ;
   wire [3:0]\NLW_decim_cnt_reg[7]_i_2_O_UNCONNECTED ;
   wire [3:0]\NLW_decim_cnt_reg[7]_i_4_O_UNCONNECTED ;
-  wire [3:1]\NLW_engine_angle_prev_reg[15]_i_12_CO_UNCONNECTED ;
-  wire [3:0]\NLW_engine_angle_prev_reg[15]_i_12_O_UNCONNECTED ;
-  wire [3:1]\NLW_engine_angle_prev_reg[15]_i_16_CO_UNCONNECTED ;
-  wire [3:2]\NLW_engine_angle_prev_reg[15]_i_16_O_UNCONNECTED ;
-  wire [3:1]\NLW_engine_angle_prev_reg[15]_i_17_CO_UNCONNECTED ;
-  wire [3:2]\NLW_engine_angle_prev_reg[15]_i_17_O_UNCONNECTED ;
+  wire [3:1]\NLW_engine_angle_prev_reg[13]_i_2_CO_UNCONNECTED ;
+  wire [3:0]\NLW_engine_angle_prev_reg[13]_i_2_O_UNCONNECTED ;
+  wire [3:1]\NLW_engine_angle_prev_reg[15]_i_13_CO_UNCONNECTED ;
+  wire [3:2]\NLW_engine_angle_prev_reg[15]_i_13_O_UNCONNECTED ;
+  wire [3:1]\NLW_engine_angle_prev_reg[15]_i_14_CO_UNCONNECTED ;
+  wire [3:2]\NLW_engine_angle_prev_reg[15]_i_14_O_UNCONNECTED ;
   wire [3:3]\NLW_engine_angle_prev_reg[15]_i_2_CO_UNCONNECTED ;
   wire [3:3]\NLW_integrator_reg[44]_i_1_CO_UNCONNECTED ;
   wire [3:3]\NLW_nco_accum_reg[28]_i_1_CO_UNCONNECTED ;
@@ -2243,9 +2282,6 @@ module pynq_z2_top_0_0_angle_engine
   wire [17:0]NLW_phase_error1_BCOUT_UNCONNECTED;
   wire [3:0]NLW_phase_error1_CARRYOUT_UNCONNECTED;
   wire [47:0]NLW_phase_error1_PCOUT_UNCONNECTED;
-  wire [3:3]\NLW_phase_error_reg[31]_i_1_CO_UNCONNECTED ;
-  wire [3:2]\NLW_phase_error_reg[31]_i_6_CO_UNCONNECTED ;
-  wire [3:3]\NLW_phase_error_reg[31]_i_6_O_UNCONNECTED ;
   wire NLW_pi_i_term0_CARRYCASCOUT_UNCONNECTED;
   wire NLW_pi_i_term0_MULTSIGNOUT_UNCONNECTED;
   wire NLW_pi_i_term0_OVERFLOW_UNCONNECTED;
@@ -2289,28 +2325,12 @@ module pynq_z2_top_0_0_angle_engine
   wire [17:0]NLW_pi_p_term_reg_BCOUT_UNCONNECTED;
   wire [3:0]NLW_pi_p_term_reg_CARRYOUT_UNCONNECTED;
   wire [47:0]NLW_pi_p_term_reg_PCOUT_UNCONNECTED;
+  wire [3:3]NLW_pi_p_term_reg_i_1_CO_UNCONNECTED;
+  wire [3:2]NLW_pi_p_term_reg_i_16_CO_UNCONNECTED;
+  wire [3:3]NLW_pi_p_term_reg_i_16_O_UNCONNECTED;
   wire [3:0]NLW_ref_det_reg_i_182_O_UNCONNECTED;
   wire [3:0]NLW_ref_det_reg_i_200_O_UNCONNECTED;
 
-  (* SOFT_HLUTNM = "soft_lutpair5" *) 
-  LUT5 #(
-    .INIT(32'h0060FF6F)) 
-    \ab_count[0]_i_1 
-       (.I0(ab_prev),
-        .I1(ab),
-        .I2(z),
-        .I3(z_prev),
-        .I4(\ab_count_reg[0] ),
-        .O(ab_prev_reg_0));
-  (* SOFT_HLUTNM = "soft_lutpair5" *) 
-  LUT4 #(
-    .INIT(16'h4FF4)) 
-    \ab_count[7]_i_2 
-       (.I0(z_prev),
-        .I1(z),
-        .I2(ab),
-        .I3(ab_prev),
-        .O(z_prev_reg_0));
   FDRE #(
     .INIT(1'b0)) 
     \ab_edge_cnt_reg[0] 
@@ -2375,27 +2395,13 @@ module pynq_z2_top_0_0_angle_engine
         .D(phase_error1_i_3_n_0),
         .Q(ab_edge_cnt_reg[7]),
         .R(phase_error1_i_2_n_0));
-  LUT2 #(
-    .INIT(4'h6)) 
-    ab_edge_i_1
-       (.I0(ab_prev),
-        .I1(ab),
-        .O(\u_sync/ab_count0 ));
   FDRE #(
     .INIT(1'b0)) 
     ab_edge_reg
        (.C(clk),
         .CE(1'b1),
-        .D(\u_sync/ab_count0 ),
+        .D(ab_edge_reg_0),
         .Q(ab_edge),
-        .R(rst));
-  FDRE #(
-    .INIT(1'b0)) 
-    ab_prev_reg
-       (.C(clk),
-        .CE(1'b1),
-        .D(ab),
-        .Q(ab_prev),
         .R(rst));
   LUT2 #(
     .INIT(4'h6)) 
@@ -2956,17 +2962,17 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \angle_temp_reg[32] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\angle_temp_reg[33]_i_1_n_5 ),
-        .Q(p_0_in[0]),
+        .Q(angle_temp[32]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
     \angle_temp_reg[33] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\angle_temp_reg[33]_i_1_n_4 ),
-        .Q(p_0_in[1]),
+        .Q(angle_temp[33]),
         .R(phase_error1_i_2_n_0));
   (* ADDER_THRESHOLD = "35" *) 
   (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
@@ -3114,33 +3120,33 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \angle_temp_reg[34] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\angle_temp_reg[37]_i_1_n_7 ),
-        .Q(p_0_in[2]),
+        .Q(angle_temp[34]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
     \angle_temp_reg[35] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\angle_temp_reg[37]_i_1_n_6 ),
-        .Q(p_0_in[3]),
+        .Q(angle_temp[35]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
     \angle_temp_reg[36] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\angle_temp_reg[37]_i_1_n_5 ),
-        .Q(p_0_in[4]),
+        .Q(angle_temp[36]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
     \angle_temp_reg[37] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\angle_temp_reg[37]_i_1_n_4 ),
-        .Q(p_0_in[5]),
+        .Q(angle_temp[37]),
         .R(phase_error1_i_2_n_0));
   (* ADDER_THRESHOLD = "35" *) 
   (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
@@ -3171,33 +3177,33 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \angle_temp_reg[38] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\angle_temp_reg[41]_i_1_n_7 ),
-        .Q(p_0_in[6]),
+        .Q(angle_temp[38]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
     \angle_temp_reg[39] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\angle_temp_reg[41]_i_1_n_6 ),
-        .Q(p_0_in[7]),
+        .Q(angle_temp[39]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
     \angle_temp_reg[40] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\angle_temp_reg[41]_i_1_n_5 ),
-        .Q(p_0_in[8]),
+        .Q(angle_temp[40]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
     \angle_temp_reg[41] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\angle_temp_reg[41]_i_1_n_4 ),
-        .Q(p_0_in[9]),
+        .Q(angle_temp[41]),
         .R(phase_error1_i_2_n_0));
   (* ADDER_THRESHOLD = "35" *) 
   (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
@@ -3228,25 +3234,25 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \angle_temp_reg[42] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\angle_temp_reg[44]_i_1_n_7 ),
-        .Q(p_0_in[10]),
+        .Q(angle_temp[42]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
     \angle_temp_reg[43] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\angle_temp_reg[44]_i_1_n_6 ),
-        .Q(p_0_in[11]),
+        .Q(angle_temp[43]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
     \angle_temp_reg[44] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\angle_temp_reg[44]_i_1_n_5 ),
-        .Q(p_0_in[12]),
+        .Q(angle_temp[44]),
         .R(phase_error1_i_2_n_0));
   (* ADDER_THRESHOLD = "35" *) 
   (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
@@ -3284,174 +3290,209 @@ module pynq_z2_top_0_0_angle_engine
   (* SOFT_HLUTNM = "soft_lutpair6" *) 
   LUT5 #(
     .INIT(32'hBA88BB88)) 
-    \axi_rdata[10]_i_8 
+    \axi_rdata[10]_i_12 
        (.I0(\u_angle_offset/crank_angle_int0 [10]),
-        .I1(\engine_angle_prev_reg[15]_i_17_n_1 ),
-        .I2(\axi_rdata[15]_i_10_n_0 ),
+        .I1(\engine_angle_prev_reg[15]_i_14_n_1 ),
+        .I2(\axi_rdata[15]_i_13_n_0 ),
         .I3(\engine_angle_prev_reg[11]_i_11_n_4 ),
-        .I4(\engine_angle_prev_reg[15]_i_17_n_7 ),
+        .I4(\engine_angle_prev_reg[15]_i_14_n_7 ),
         .O(\raw_angle_int_reg[11]_9 ));
   LUT5 #(
     .INIT(32'hBABB8888)) 
-    \axi_rdata[11]_i_8 
+    \axi_rdata[11]_i_12 
        (.I0(\u_angle_offset/crank_angle_int0 [11]),
-        .I1(\engine_angle_prev_reg[15]_i_17_n_1 ),
-        .I2(\axi_rdata[15]_i_10_n_0 ),
+        .I1(\engine_angle_prev_reg[15]_i_14_n_1 ),
+        .I2(\axi_rdata[15]_i_13_n_0 ),
         .I3(\engine_angle_prev_reg[11]_i_11_n_4 ),
-        .I4(\engine_angle_prev_reg[15]_i_17_n_7 ),
+        .I4(\engine_angle_prev_reg[15]_i_14_n_7 ),
         .O(\raw_angle_int_reg[11]_10 ));
   LUT6 #(
     .INIT(64'hBABBBBBB8A888888)) 
-    \axi_rdata[12]_i_8 
+    \axi_rdata[12]_i_12 
        (.I0(\u_angle_offset/crank_angle_int0 [12]),
-        .I1(\engine_angle_prev_reg[15]_i_17_n_1 ),
-        .I2(\axi_rdata[15]_i_10_n_0 ),
+        .I1(\engine_angle_prev_reg[15]_i_14_n_1 ),
+        .I2(\axi_rdata[15]_i_13_n_0 ),
         .I3(\engine_angle_prev_reg[11]_i_11_n_4 ),
-        .I4(\engine_angle_prev_reg[15]_i_17_n_7 ),
-        .I5(\engine_angle_prev_reg[15]_i_17_n_6 ),
+        .I4(\engine_angle_prev_reg[15]_i_14_n_7 ),
+        .I5(\engine_angle_prev_reg[15]_i_14_n_6 ),
         .O(\raw_angle_int_reg[11]_11 ));
   LUT6 #(
     .INIT(64'hAAAA008000000000)) 
-    \axi_rdata[13]_i_8 
+    \axi_rdata[13]_i_11 
        (.I0(sync_offset),
-        .I1(\engine_angle_prev_reg[15]_i_17_n_7 ),
+        .I1(\engine_angle_prev_reg[15]_i_14_n_7 ),
         .I2(\engine_angle_prev_reg[11]_i_11_n_4 ),
-        .I3(\axi_rdata[15]_i_10_n_0 ),
-        .I4(\engine_angle_prev_reg[15]_i_17_n_1 ),
+        .I3(\axi_rdata[15]_i_13_n_0 ),
+        .I4(\engine_angle_prev_reg[15]_i_14_n_1 ),
         .I5(\u_angle_offset/crank_angle_int0 [13]),
         .O(crank_angle[1]));
   LUT6 #(
+    .INIT(64'h2022202020202020)) 
+    \axi_rdata[15]_i_12 
+       (.I0(sync_offset),
+        .I1(\engine_angle_prev_reg[15]_i_13_n_1 ),
+        .I2(\engine_angle_prev_reg[15]_i_14_n_1 ),
+        .I3(\axi_rdata[15]_i_13_n_0 ),
+        .I4(\engine_angle_prev_reg[11]_i_11_n_4 ),
+        .I5(\engine_angle_prev_reg[15]_i_14_n_7 ),
+        .O(crank_angle[2]));
+  LUT6 #(
     .INIT(64'h5555555555555557)) 
-    \axi_rdata[15]_i_10 
-       (.I0(\engine_angle_prev_reg[15]_i_17_n_6 ),
+    \axi_rdata[15]_i_13 
+       (.I0(\engine_angle_prev_reg[15]_i_14_n_6 ),
         .I1(\engine_angle_prev_reg[11]_i_11_n_6 ),
         .I2(\engine_angle_prev_reg[11]_i_11_n_7 ),
-        .I3(\axi_rdata_reg[3]_i_10_n_5 ),
+        .I3(\engine_angle_prev_reg[7]_i_12_n_5 ),
         .I4(\engine_angle_prev_reg[11]_i_11_n_5 ),
-        .I5(\axi_rdata_reg[3]_i_10_n_4 ),
-        .O(\axi_rdata[15]_i_10_n_0 ));
-  LUT6 #(
-    .INIT(64'h2022202020202020)) 
-    \axi_rdata[15]_i_9 
-       (.I0(sync_offset),
-        .I1(\engine_angle_prev_reg[15]_i_16_n_1 ),
-        .I2(\engine_angle_prev_reg[15]_i_17_n_1 ),
-        .I3(\axi_rdata[15]_i_10_n_0 ),
-        .I4(\engine_angle_prev_reg[11]_i_11_n_4 ),
-        .I5(\engine_angle_prev_reg[15]_i_17_n_7 ),
-        .O(crank_angle[2]));
-  LUT1 #(
-    .INIT(2'h1)) 
-    \axi_rdata[3]_i_15 
-       (.I0(\raw_angle_int_reg[12]_0 [4]),
-        .O(\axi_rdata[3]_i_15_n_0 ));
+        .I5(\engine_angle_prev_reg[7]_i_12_n_4 ),
+        .O(\axi_rdata[15]_i_13_n_0 ));
   LUT3 #(
     .INIT(8'hB8)) 
-    \axi_rdata[3]_i_16 
-       (.I0(\axi_rdata_reg[3]_i_10_n_7 ),
+    \axi_rdata[3]_i_11 
+       (.I0(\engine_angle_prev_reg[7]_i_12_n_7 ),
         .I1(sync_offset),
         .I2(\raw_angle_int_reg[12]_0 [3]),
         .O(crank_angle[0]));
-  LUT4 #(
-    .INIT(16'h1DE2)) 
-    \axi_rdata[3]_i_4 
-       (.I0(\raw_angle_int_reg[12]_0 [3]),
-        .I1(sync_offset),
-        .I2(\axi_rdata_reg[3]_i_10_n_7 ),
-        .I3(tdc_offset[3]),
-        .O(\axi_rdata[3]_i_4_n_0 ));
-  LUT2 #(
-    .INIT(4'h6)) 
-    \axi_rdata[3]_i_5 
-       (.I0(\raw_angle_int_reg[12]_0 [2]),
-        .I1(tdc_offset[2]),
-        .O(\axi_rdata[3]_i_5_n_0 ));
-  LUT2 #(
-    .INIT(4'h6)) 
-    \axi_rdata[3]_i_6 
-       (.I0(\raw_angle_int_reg[12]_0 [1]),
-        .I1(tdc_offset[1]),
-        .O(\axi_rdata[3]_i_6_n_0 ));
-  LUT2 #(
-    .INIT(4'h6)) 
-    \axi_rdata[3]_i_7 
-       (.I0(\raw_angle_int_reg[12]_0 [0]),
-        .I1(tdc_offset[0]),
-        .O(\axi_rdata[3]_i_7_n_0 ));
+  LUT6 #(
+    .INIT(64'h5555555555557775)) 
+    \axi_rdata[4]_i_12 
+       (.I0(\u_angle_offset/engine_angle0 [4]),
+        .I1(\engine_angle_prev[13]_i_5_n_0 ),
+        .I2(\engine_angle_prev[13]_i_4_n_0 ),
+        .I3(\engine_angle_prev[13]_i_3_n_0 ),
+        .I4(\engine_angle_prev_reg[13]_i_2_n_3 ),
+        .I5(\engine_angle_prev_reg[15]_i_3_n_6 ),
+        .O(\reg_tdc_off_reg[15]_1 ));
+  LUT6 #(
+    .INIT(64'hFFFFFFABFFFFFFFF)) 
+    \axi_rdata[4]_i_13 
+       (.I0(\engine_angle_prev[13]_i_5_n_0 ),
+        .I1(\engine_angle_prev[13]_i_4_n_0 ),
+        .I2(\engine_angle_prev[13]_i_3_n_0 ),
+        .I3(\engine_angle_prev_reg[13]_i_2_n_3 ),
+        .I4(\engine_angle_prev_reg[15]_i_3_n_6 ),
+        .I5(\engine_angle_prev_reg[7]_i_3_n_7 ),
+        .O(\reg_tdc_off_reg[15]_0 ));
   LUT6 #(
     .INIT(64'hBABBBBBB8A888888)) 
-    \axi_rdata[4]_i_8 
+    \axi_rdata[4]_i_14 
        (.I0(\u_angle_offset/crank_angle_int0 [4]),
-        .I1(\engine_angle_prev_reg[15]_i_17_n_1 ),
-        .I2(\axi_rdata[15]_i_10_n_0 ),
+        .I1(\engine_angle_prev_reg[15]_i_14_n_1 ),
+        .I2(\axi_rdata[15]_i_13_n_0 ),
         .I3(\engine_angle_prev_reg[11]_i_11_n_4 ),
-        .I4(\engine_angle_prev_reg[15]_i_17_n_7 ),
-        .I5(\axi_rdata_reg[3]_i_10_n_6 ),
+        .I4(\engine_angle_prev_reg[15]_i_14_n_7 ),
+        .I5(\engine_angle_prev_reg[7]_i_12_n_6 ),
         .O(\raw_angle_int_reg[11]_3 ));
   LUT6 #(
+    .INIT(64'h5555555555557775)) 
+    \axi_rdata[5]_i_12 
+       (.I0(\u_angle_offset/engine_angle0 [5]),
+        .I1(\engine_angle_prev[13]_i_5_n_0 ),
+        .I2(\engine_angle_prev[13]_i_4_n_0 ),
+        .I3(\engine_angle_prev[13]_i_3_n_0 ),
+        .I4(\engine_angle_prev_reg[13]_i_2_n_3 ),
+        .I5(\engine_angle_prev_reg[15]_i_3_n_6 ),
+        .O(\reg_tdc_off_reg[15]_3 ));
+  LUT6 #(
+    .INIT(64'hFFFFFFABFFFFFFFF)) 
+    \axi_rdata[5]_i_13 
+       (.I0(\engine_angle_prev[13]_i_5_n_0 ),
+        .I1(\engine_angle_prev[13]_i_4_n_0 ),
+        .I2(\engine_angle_prev[13]_i_3_n_0 ),
+        .I3(\engine_angle_prev_reg[13]_i_2_n_3 ),
+        .I4(\engine_angle_prev_reg[15]_i_3_n_6 ),
+        .I5(\engine_angle_prev_reg[7]_i_3_n_6 ),
+        .O(\reg_tdc_off_reg[15]_2 ));
+  LUT6 #(
     .INIT(64'hBABBBBBB8A888888)) 
-    \axi_rdata[5]_i_8 
+    \axi_rdata[5]_i_14 
        (.I0(\u_angle_offset/crank_angle_int0 [5]),
-        .I1(\engine_angle_prev_reg[15]_i_17_n_1 ),
-        .I2(\axi_rdata[15]_i_10_n_0 ),
+        .I1(\engine_angle_prev_reg[15]_i_14_n_1 ),
+        .I2(\axi_rdata[15]_i_13_n_0 ),
         .I3(\engine_angle_prev_reg[11]_i_11_n_4 ),
-        .I4(\engine_angle_prev_reg[15]_i_17_n_7 ),
-        .I5(\axi_rdata_reg[3]_i_10_n_5 ),
+        .I4(\engine_angle_prev_reg[15]_i_14_n_7 ),
+        .I5(\engine_angle_prev_reg[7]_i_12_n_5 ),
         .O(\raw_angle_int_reg[11]_4 ));
   LUT6 #(
-    .INIT(64'hBABBBBBB8A888888)) 
-    \axi_rdata[6]_i_8 
-       (.I0(\u_angle_offset/crank_angle_int0 [6]),
-        .I1(\engine_angle_prev_reg[15]_i_17_n_1 ),
-        .I2(\axi_rdata[15]_i_10_n_0 ),
-        .I3(\engine_angle_prev_reg[11]_i_11_n_4 ),
-        .I4(\engine_angle_prev_reg[15]_i_17_n_7 ),
-        .I5(\axi_rdata_reg[3]_i_10_n_4 ),
-        .O(\raw_angle_int_reg[11]_5 ));
+    .INIT(64'h5555555555557775)) 
+    \axi_rdata[6]_i_12 
+       (.I0(\u_angle_offset/engine_angle0 [6]),
+        .I1(\engine_angle_prev[13]_i_5_n_0 ),
+        .I2(\engine_angle_prev[13]_i_4_n_0 ),
+        .I3(\engine_angle_prev[13]_i_3_n_0 ),
+        .I4(\engine_angle_prev_reg[13]_i_2_n_3 ),
+        .I5(\engine_angle_prev_reg[15]_i_3_n_6 ),
+        .O(\reg_tdc_off_reg[15]_5 ));
+  LUT6 #(
+    .INIT(64'hFFFFFFABFFFFFFFF)) 
+    \axi_rdata[6]_i_13 
+       (.I0(\engine_angle_prev[13]_i_5_n_0 ),
+        .I1(\engine_angle_prev[13]_i_4_n_0 ),
+        .I2(\engine_angle_prev[13]_i_3_n_0 ),
+        .I3(\engine_angle_prev_reg[13]_i_2_n_3 ),
+        .I4(\engine_angle_prev_reg[15]_i_3_n_6 ),
+        .I5(\engine_angle_prev_reg[7]_i_3_n_5 ),
+        .O(\reg_tdc_off_reg[15]_4 ));
   LUT6 #(
     .INIT(64'hBABBBBBB8A888888)) 
-    \axi_rdata[7]_i_8 
-       (.I0(\u_angle_offset/crank_angle_int0 [7]),
-        .I1(\engine_angle_prev_reg[15]_i_17_n_1 ),
-        .I2(\axi_rdata[15]_i_10_n_0 ),
+    \axi_rdata[6]_i_14 
+       (.I0(\u_angle_offset/crank_angle_int0 [6]),
+        .I1(\engine_angle_prev_reg[15]_i_14_n_1 ),
+        .I2(\axi_rdata[15]_i_13_n_0 ),
         .I3(\engine_angle_prev_reg[11]_i_11_n_4 ),
-        .I4(\engine_angle_prev_reg[15]_i_17_n_7 ),
+        .I4(\engine_angle_prev_reg[15]_i_14_n_7 ),
+        .I5(\engine_angle_prev_reg[7]_i_12_n_4 ),
+        .O(\raw_angle_int_reg[11]_5 ));
+  LUT6 #(
+    .INIT(64'h5555555555557775)) 
+    \axi_rdata[7]_i_12 
+       (.I0(\u_angle_offset/engine_angle0 [7]),
+        .I1(\engine_angle_prev[13]_i_5_n_0 ),
+        .I2(\engine_angle_prev[13]_i_4_n_0 ),
+        .I3(\engine_angle_prev[13]_i_3_n_0 ),
+        .I4(\engine_angle_prev_reg[13]_i_2_n_3 ),
+        .I5(\engine_angle_prev_reg[15]_i_3_n_6 ),
+        .O(\reg_tdc_off_reg[15]_7 ));
+  LUT6 #(
+    .INIT(64'hFFFFFFABFFFFFFFF)) 
+    \axi_rdata[7]_i_13 
+       (.I0(\engine_angle_prev[13]_i_5_n_0 ),
+        .I1(\engine_angle_prev[13]_i_4_n_0 ),
+        .I2(\engine_angle_prev[13]_i_3_n_0 ),
+        .I3(\engine_angle_prev_reg[13]_i_2_n_3 ),
+        .I4(\engine_angle_prev_reg[15]_i_3_n_6 ),
+        .I5(\engine_angle_prev_reg[7]_i_3_n_4 ),
+        .O(\reg_tdc_off_reg[15]_6 ));
+  LUT6 #(
+    .INIT(64'hBABBBBBB8A888888)) 
+    \axi_rdata[7]_i_14 
+       (.I0(\u_angle_offset/crank_angle_int0 [7]),
+        .I1(\engine_angle_prev_reg[15]_i_14_n_1 ),
+        .I2(\axi_rdata[15]_i_13_n_0 ),
+        .I3(\engine_angle_prev_reg[11]_i_11_n_4 ),
+        .I4(\engine_angle_prev_reg[15]_i_14_n_7 ),
         .I5(\engine_angle_prev_reg[11]_i_11_n_7 ),
         .O(\raw_angle_int_reg[11]_6 ));
   LUT6 #(
     .INIT(64'hBABBBBBB8A888888)) 
-    \axi_rdata[8]_i_8 
+    \axi_rdata[8]_i_12 
        (.I0(\u_angle_offset/crank_angle_int0 [8]),
-        .I1(\engine_angle_prev_reg[15]_i_17_n_1 ),
-        .I2(\axi_rdata[15]_i_10_n_0 ),
+        .I1(\engine_angle_prev_reg[15]_i_14_n_1 ),
+        .I2(\axi_rdata[15]_i_13_n_0 ),
         .I3(\engine_angle_prev_reg[11]_i_11_n_4 ),
-        .I4(\engine_angle_prev_reg[15]_i_17_n_7 ),
+        .I4(\engine_angle_prev_reg[15]_i_14_n_7 ),
         .I5(\engine_angle_prev_reg[11]_i_11_n_6 ),
         .O(\raw_angle_int_reg[11]_7 ));
   LUT6 #(
     .INIT(64'hBABBBBBB8A888888)) 
-    \axi_rdata[9]_i_8 
+    \axi_rdata[9]_i_12 
        (.I0(\u_angle_offset/crank_angle_int0 [9]),
-        .I1(\engine_angle_prev_reg[15]_i_17_n_1 ),
-        .I2(\axi_rdata[15]_i_10_n_0 ),
+        .I1(\engine_angle_prev_reg[15]_i_14_n_1 ),
+        .I2(\axi_rdata[15]_i_13_n_0 ),
         .I3(\engine_angle_prev_reg[11]_i_11_n_4 ),
-        .I4(\engine_angle_prev_reg[15]_i_17_n_7 ),
+        .I4(\engine_angle_prev_reg[15]_i_14_n_7 ),
         .I5(\engine_angle_prev_reg[11]_i_11_n_5 ),
         .O(\raw_angle_int_reg[11]_8 ));
-  CARRY4 \axi_rdata_reg[3]_i_10 
-       (.CI(1'b0),
-        .CO({\axi_rdata_reg[3]_i_10_n_0 ,\axi_rdata_reg[3]_i_10_n_1 ,\axi_rdata_reg[3]_i_10_n_2 ,\axi_rdata_reg[3]_i_10_n_3 }),
-        .CYINIT(1'b0),
-        .DI({1'b0,1'b0,\raw_angle_int_reg[12]_0 [4],1'b0}),
-        .O({\axi_rdata_reg[3]_i_10_n_4 ,\axi_rdata_reg[3]_i_10_n_5 ,\axi_rdata_reg[3]_i_10_n_6 ,\axi_rdata_reg[3]_i_10_n_7 }),
-        .S({\raw_angle_int_reg[12]_0 [6:5],\axi_rdata[3]_i_15_n_0 ,\raw_angle_int_reg[12]_0 [3]}));
-  CARRY4 \axi_rdata_reg[3]_i_2 
-       (.CI(1'b0),
-        .CO({\axi_rdata_reg[3]_i_2_n_0 ,\axi_rdata_reg[3]_i_2_n_1 ,\axi_rdata_reg[3]_i_2_n_2 ,\axi_rdata_reg[3]_i_2_n_3 }),
-        .CYINIT(1'b0),
-        .DI({tdc_offset[3],\raw_angle_int_reg[12]_0 [2:0]}),
-        .O(O),
-        .S({\axi_rdata[3]_i_4_n_0 ,\axi_rdata[3]_i_5_n_0 ,\axi_rdata[3]_i_6_n_0 ,\axi_rdata[3]_i_7_n_0 }));
   LUT6 #(
     .INIT(64'hCCCFCCC5CCCACCC0)) 
     \correction[0]_i_1 
@@ -3588,7 +3629,7 @@ module pynq_z2_top_0_0_angle_engine
         .I3(pi_max_corr[10]),
         .I4(correction10_in),
         .O(\correction[10]_i_1_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair9" *) 
+  (* SOFT_HLUTNM = "soft_lutpair10" *) 
   LUT3 #(
     .INIT(8'hB8)) 
     \correction[10]_i_2 
@@ -3605,7 +3646,7 @@ module pynq_z2_top_0_0_angle_engine
         .I3(pi_max_corr[11]),
         .I4(correction10_in),
         .O(\correction[11]_i_1_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair9" *) 
+  (* SOFT_HLUTNM = "soft_lutpair10" *) 
   LUT3 #(
     .INIT(8'hB8)) 
     \correction[11]_i_2 
@@ -3646,7 +3687,7 @@ module pynq_z2_top_0_0_angle_engine
         .I3(pi_max_corr[12]),
         .I4(correction10_in),
         .O(\correction[12]_i_1_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair8" *) 
+  (* SOFT_HLUTNM = "soft_lutpair9" *) 
   LUT3 #(
     .INIT(8'hB8)) 
     \correction[12]_i_2 
@@ -3683,7 +3724,7 @@ module pynq_z2_top_0_0_angle_engine
         .I3(pi_max_corr[13]),
         .I4(correction10_in),
         .O(\correction[13]_i_1_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair8" *) 
+  (* SOFT_HLUTNM = "soft_lutpair9" *) 
   LUT3 #(
     .INIT(8'hB8)) 
     \correction[13]_i_2 
@@ -3700,7 +3741,7 @@ module pynq_z2_top_0_0_angle_engine
         .I3(pi_max_corr[14]),
         .I4(correction10_in),
         .O(\correction[14]_i_1_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair7" *) 
+  (* SOFT_HLUTNM = "soft_lutpair8" *) 
   LUT3 #(
     .INIT(8'hB8)) 
     \correction[14]_i_2 
@@ -3717,7 +3758,7 @@ module pynq_z2_top_0_0_angle_engine
         .I3(pi_max_corr[15]),
         .I4(correction10_in),
         .O(\correction[15]_i_1_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair7" *) 
+  (* SOFT_HLUTNM = "soft_lutpair8" *) 
   LUT3 #(
     .INIT(8'hB8)) 
     \correction[15]_i_2 
@@ -3918,7 +3959,7 @@ module pynq_z2_top_0_0_angle_engine
         .I3(pi_max_corr[1]),
         .I4(correction10_in),
         .O(\correction[1]_i_1_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair14" *) 
+  (* SOFT_HLUTNM = "soft_lutpair15" *) 
   LUT3 #(
     .INIT(8'hB8)) 
     \correction[1]_i_2 
@@ -4227,7 +4268,7 @@ module pynq_z2_top_0_0_angle_engine
         .I3(pi_max_corr[2]),
         .I4(correction10_in),
         .O(\correction[2]_i_1_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair13" *) 
+  (* SOFT_HLUTNM = "soft_lutpair14" *) 
   LUT3 #(
     .INIT(8'hB8)) 
     \correction[2]_i_2 
@@ -4809,7 +4850,7 @@ module pynq_z2_top_0_0_angle_engine
         .I4(ARG00_in),
         .I5(pi_max_corr[0]),
         .O(\correction[31]_i_157_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair14" *) 
+  (* SOFT_HLUTNM = "soft_lutpair15" *) 
   LUT3 #(
     .INIT(8'hB8)) 
     \correction[31]_i_158 
@@ -5433,7 +5474,7 @@ module pynq_z2_top_0_0_angle_engine
         .I3(pi_max_corr[3]),
         .I4(correction10_in),
         .O(\correction[3]_i_1_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair13" *) 
+  (* SOFT_HLUTNM = "soft_lutpair14" *) 
   LUT3 #(
     .INIT(8'hB8)) 
     \correction[3]_i_2 
@@ -5505,7 +5546,7 @@ module pynq_z2_top_0_0_angle_engine
     \correction[4]_i_19 
        (.I0(p_1_in[9]),
         .O(\correction[4]_i_19_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair12" *) 
+  (* SOFT_HLUTNM = "soft_lutpair13" *) 
   LUT3 #(
     .INIT(8'hB8)) 
     \correction[4]_i_2 
@@ -5547,7 +5588,7 @@ module pynq_z2_top_0_0_angle_engine
         .I3(pi_max_corr[5]),
         .I4(correction10_in),
         .O(\correction[5]_i_1_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair12" *) 
+  (* SOFT_HLUTNM = "soft_lutpair13" *) 
   LUT3 #(
     .INIT(8'hB8)) 
     \correction[5]_i_2 
@@ -5564,7 +5605,7 @@ module pynq_z2_top_0_0_angle_engine
         .I3(pi_max_corr[6]),
         .I4(correction10_in),
         .O(\correction[6]_i_1_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair11" *) 
+  (* SOFT_HLUTNM = "soft_lutpair12" *) 
   LUT3 #(
     .INIT(8'hB8)) 
     \correction[6]_i_2 
@@ -5581,7 +5622,7 @@ module pynq_z2_top_0_0_angle_engine
         .I3(pi_max_corr[7]),
         .I4(correction10_in),
         .O(\correction[7]_i_1_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair11" *) 
+  (* SOFT_HLUTNM = "soft_lutpair12" *) 
   LUT3 #(
     .INIT(8'hB8)) 
     \correction[7]_i_2 
@@ -5663,7 +5704,7 @@ module pynq_z2_top_0_0_angle_engine
     \correction[8]_i_17 
        (.I0(p_1_in[13]),
         .O(\correction[8]_i_17_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair10" *) 
+  (* SOFT_HLUTNM = "soft_lutpair11" *) 
   LUT3 #(
     .INIT(8'hB8)) 
     \correction[8]_i_2 
@@ -5707,7 +5748,7 @@ module pynq_z2_top_0_0_angle_engine
         .I3(pi_max_corr[9]),
         .I4(correction10_in),
         .O(\correction[9]_i_1_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair10" *) 
+  (* SOFT_HLUTNM = "soft_lutpair11" *) 
   LUT3 #(
     .INIT(8'hB8)) 
     \correction[9]_i_2 
@@ -5721,7 +5762,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[0]_i_1_n_0 ),
-        .Q(correction[0]),
+        .Q(\correction_reg[31]_0 [0]),
         .R(SR));
   (* ADDER_THRESHOLD = "35" *) 
   CARRY4 \correction_reg[0]_i_19 
@@ -5769,7 +5810,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[10]_i_1_n_0 ),
-        .Q(correction[10]),
+        .Q(\correction_reg[31]_0 [10]),
         .R(SR));
   FDRE #(
     .INIT(1'b0)) 
@@ -5777,7 +5818,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[11]_i_1_n_0 ),
-        .Q(correction[11]),
+        .Q(\correction_reg[31]_0 [11]),
         .R(SR));
   (* ADDER_THRESHOLD = "35" *) 
   CARRY4 \correction_reg[11]_i_3 
@@ -5793,7 +5834,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[12]_i_1_n_0 ),
-        .Q(correction[12]),
+        .Q(\correction_reg[31]_0 [12]),
         .R(SR));
   CARRY4 \correction_reg[12]_i_3 
        (.CI(\correction_reg[8]_i_3_n_0 ),
@@ -5808,7 +5849,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[13]_i_1_n_0 ),
-        .Q(correction[13]),
+        .Q(\correction_reg[31]_0 [13]),
         .R(SR));
   FDRE #(
     .INIT(1'b0)) 
@@ -5816,7 +5857,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[14]_i_1_n_0 ),
-        .Q(correction[14]),
+        .Q(\correction_reg[31]_0 [14]),
         .R(SR));
   FDRE #(
     .INIT(1'b0)) 
@@ -5824,7 +5865,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[15]_i_1_n_0 ),
-        .Q(correction[15]),
+        .Q(\correction_reg[31]_0 [15]),
         .R(SR));
   FDRE #(
     .INIT(1'b0)) 
@@ -5832,7 +5873,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[16]_i_1_n_0 ),
-        .Q(correction[16]),
+        .Q(\correction_reg[31]_0 [16]),
         .R(SR));
   (* ADDER_THRESHOLD = "35" *) 
   CARRY4 \correction_reg[16]_i_12 
@@ -5870,7 +5911,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[17]_i_1_n_0 ),
-        .Q(correction[17]),
+        .Q(\correction_reg[31]_0 [17]),
         .R(SR));
   FDRE #(
     .INIT(1'b0)) 
@@ -5878,7 +5919,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[18]_i_1_n_0 ),
-        .Q(correction[18]),
+        .Q(\correction_reg[31]_0 [18]),
         .R(SR));
   FDRE #(
     .INIT(1'b0)) 
@@ -5886,7 +5927,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[19]_i_1_n_0 ),
-        .Q(correction[19]),
+        .Q(\correction_reg[31]_0 [19]),
         .R(SR));
   (* ADDER_THRESHOLD = "35" *) 
   CARRY4 \correction_reg[19]_i_2 
@@ -5910,7 +5951,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[1]_i_1_n_0 ),
-        .Q(correction[1]),
+        .Q(\correction_reg[31]_0 [1]),
         .R(SR));
   FDRE #(
     .INIT(1'b0)) 
@@ -5918,7 +5959,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[20]_i_1_n_0 ),
-        .Q(correction[20]),
+        .Q(\correction_reg[31]_0 [20]),
         .R(SR));
   CARRY4 \correction_reg[20]_i_2 
        (.CI(\correction_reg[16]_i_2_n_0 ),
@@ -5941,7 +5982,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[21]_i_1_n_0 ),
-        .Q(correction[21]),
+        .Q(\correction_reg[31]_0 [21]),
         .R(SR));
   FDRE #(
     .INIT(1'b0)) 
@@ -5949,7 +5990,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[22]_i_1_n_0 ),
-        .Q(correction[22]),
+        .Q(\correction_reg[31]_0 [22]),
         .R(SR));
   FDRE #(
     .INIT(1'b0)) 
@@ -5957,7 +5998,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[23]_i_1_n_0 ),
-        .Q(correction[23]),
+        .Q(\correction_reg[31]_0 [23]),
         .R(SR));
   (* ADDER_THRESHOLD = "35" *) 
   CARRY4 \correction_reg[23]_i_2 
@@ -5973,7 +6014,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[24]_i_1_n_0 ),
-        .Q(correction[24]),
+        .Q(\correction_reg[31]_0 [24]),
         .R(SR));
   CARRY4 \correction_reg[24]_i_2 
        (.CI(\correction_reg[20]_i_2_n_0 ),
@@ -5996,7 +6037,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[25]_i_1_n_0 ),
-        .Q(correction[25]),
+        .Q(\correction_reg[31]_0 [25]),
         .R(SR));
   FDRE #(
     .INIT(1'b0)) 
@@ -6004,7 +6045,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[26]_i_1_n_0 ),
-        .Q(correction[26]),
+        .Q(\correction_reg[31]_0 [26]),
         .R(SR));
   FDRE #(
     .INIT(1'b0)) 
@@ -6012,7 +6053,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[27]_i_1_n_0 ),
-        .Q(correction[27]),
+        .Q(\correction_reg[31]_0 [27]),
         .R(SR));
   (* ADDER_THRESHOLD = "35" *) 
   CARRY4 \correction_reg[27]_i_2 
@@ -6028,7 +6069,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[28]_i_1_n_0 ),
-        .Q(correction[28]),
+        .Q(\correction_reg[31]_0 [28]),
         .R(SR));
   CARRY4 \correction_reg[28]_i_2 
        (.CI(\correction_reg[24]_i_2_n_0 ),
@@ -6051,7 +6092,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[29]_i_1_n_0 ),
-        .Q(correction[29]),
+        .Q(\correction_reg[31]_0 [29]),
         .R(SR));
   FDRE #(
     .INIT(1'b0)) 
@@ -6059,7 +6100,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[2]_i_1_n_0 ),
-        .Q(correction[2]),
+        .Q(\correction_reg[31]_0 [2]),
         .R(SR));
   FDRE #(
     .INIT(1'b0)) 
@@ -6067,7 +6108,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[30]_i_1_n_0 ),
-        .Q(correction[30]),
+        .Q(\correction_reg[31]_0 [30]),
         .R(SR));
   (* ADDER_THRESHOLD = "35" *) 
   CARRY4 \correction_reg[30]_i_12 
@@ -6098,7 +6139,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[31]_i_1_n_0 ),
-        .Q(correction[31]),
+        .Q(\correction_reg[31]_0 [31]),
         .R(SR));
   CARRY4 \correction_reg[31]_i_100 
        (.CI(\correction_reg[31]_i_123_n_0 ),
@@ -6290,7 +6331,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[3]_i_1_n_0 ),
-        .Q(correction[3]),
+        .Q(\correction_reg[31]_0 [3]),
         .R(SR));
   FDRE #(
     .INIT(1'b0)) 
@@ -6298,7 +6339,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[4]_i_1_n_0 ),
-        .Q(correction[4]),
+        .Q(\correction_reg[31]_0 [4]),
         .R(SR));
   (* ADDER_THRESHOLD = "35" *) 
   CARRY4 \correction_reg[4]_i_15 
@@ -6328,7 +6369,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[5]_i_1_n_0 ),
-        .Q(correction[5]),
+        .Q(\correction_reg[31]_0 [5]),
         .R(SR));
   FDRE #(
     .INIT(1'b0)) 
@@ -6336,7 +6377,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[6]_i_1_n_0 ),
-        .Q(correction[6]),
+        .Q(\correction_reg[31]_0 [6]),
         .R(SR));
   FDRE #(
     .INIT(1'b0)) 
@@ -6344,7 +6385,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[7]_i_1_n_0 ),
-        .Q(correction[7]),
+        .Q(\correction_reg[31]_0 [7]),
         .R(SR));
   (* ADDER_THRESHOLD = "35" *) 
   CARRY4 \correction_reg[7]_i_3 
@@ -6360,7 +6401,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[8]_i_1_n_0 ),
-        .Q(correction[8]),
+        .Q(\correction_reg[31]_0 [8]),
         .R(SR));
   (* ADDER_THRESHOLD = "35" *) 
   CARRY4 \correction_reg[8]_i_13 
@@ -6390,35 +6431,43 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(pi_stage2),
         .D(\correction[9]_i_1_n_0 ),
-        .Q(correction[9]),
+        .Q(\correction_reg[31]_0 [9]),
         .R(SR));
-  LUT6 #(
-    .INIT(64'h9009000000009009)) 
+  LUT5 #(
+    .INIT(32'h90000090)) 
     \decim_cnt[7]_i_10 
-       (.I0(O[3]),
+       (.I0(\reg_tdc_off_reg[3] [3]),
         .I1(\decim_cnt_reg[7] [3]),
-        .I2(\decim_cnt_reg[7] [5]),
-        .I3(D[5]),
-        .I4(\decim_cnt_reg[7] [4]),
-        .I5(D[4]),
+        .I2(\decim_cnt[7]_i_12_n_0 ),
+        .I3(\decim_cnt_reg[7] [4]),
+        .I4(D[4]),
         .O(\decim_cnt[7]_i_10_n_0 ));
   LUT6 #(
-    .INIT(64'h8040080420100201)) 
+    .INIT(64'h9009000000009009)) 
     \decim_cnt[7]_i_11 
-       (.I0(O[0]),
-        .I1(O[1]),
-        .I2(O[2]),
-        .I3(\decim_cnt_reg[7] [0]),
-        .I4(\decim_cnt_reg[7] [2]),
-        .I5(\decim_cnt_reg[7] [1]),
+       (.I0(\reg_tdc_off_reg[3] [1]),
+        .I1(\decim_cnt_reg[7] [1]),
+        .I2(\reg_tdc_off_reg[3] [2]),
+        .I3(\decim_cnt_reg[7] [2]),
+        .I4(\reg_tdc_off_reg[3] [0]),
+        .I5(\decim_cnt_reg[7] [0]),
         .O(\decim_cnt[7]_i_11_n_0 ));
+  (* SOFT_HLUTNM = "soft_lutpair7" *) 
+  LUT4 #(
+    .INIT(16'hA965)) 
+    \decim_cnt[7]_i_12 
+       (.I0(\decim_cnt_reg[7] [5]),
+        .I1(engine_angle1),
+        .I2(\engine_angle_prev_reg[7]_i_3_n_6 ),
+        .I3(\u_angle_offset/engine_angle0 [5]),
+        .O(\decim_cnt[7]_i_12_n_0 ));
   LUT4 #(
     .INIT(16'hA965)) 
     \decim_cnt[7]_i_5 
        (.I0(\decim_cnt_reg[7] [15]),
-        .I1(\u_angle_offset/engine_angle1 ),
-        .I2(\engine_angle_prev_reg[15]_i_3_n_4 ),
-        .I3(\u_angle_offset/engine_angle0 [15]),
+        .I1(engine_angle1),
+        .I2(O[2]),
+        .I3(\reg_tdc_off_reg[15] [6]),
         .O(\decim_cnt[7]_i_5_n_0 ));
   LUT6 #(
     .INIT(64'h9009000000009009)) 
@@ -6467,23 +6516,23 @@ module pynq_z2_top_0_0_angle_engine
   LUT1 #(
     .INIT(2'h2)) 
     \engine_angle_prev[0]_i_1 
-       (.I0(O[0]),
+       (.I0(\reg_tdc_off_reg[3] [0]),
         .O(D[0]));
   (* SOFT_HLUTNM = "soft_lutpair18" *) 
   LUT3 #(
     .INIT(8'hAC)) 
     \engine_angle_prev[10]_i_1 
-       (.I0(\u_angle_offset/engine_angle0 [10]),
-        .I1(\engine_angle_prev_reg[11]_i_3_n_5 ),
-        .I2(\u_angle_offset/engine_angle1 ),
+       (.I0(\reg_tdc_off_reg[15] [2]),
+        .I1(\reg_tdc_off_reg[11] [2]),
+        .I2(engine_angle1),
         .O(D[10]));
   (* SOFT_HLUTNM = "soft_lutpair19" *) 
   LUT3 #(
     .INIT(8'hAC)) 
     \engine_angle_prev[11]_i_1 
-       (.I0(\u_angle_offset/engine_angle0 [11]),
-        .I1(\engine_angle_prev_reg[11]_i_3_n_4 ),
-        .I2(\u_angle_offset/engine_angle1 ),
+       (.I0(\reg_tdc_off_reg[15] [3]),
+        .I1(\reg_tdc_off_reg[11] [3]),
+        .I2(engine_angle1),
         .O(D[11]));
   LUT1 #(
     .INIT(2'h1)) 
@@ -6508,19 +6557,19 @@ module pynq_z2_top_0_0_angle_engine
   LUT1 #(
     .INIT(2'h1)) 
     \engine_angle_prev[11]_i_4 
-       (.I0(\engine_angle_prev_reg[11]_i_3_n_6 ),
+       (.I0(\reg_tdc_off_reg[11] [1]),
         .O(\engine_angle_prev[11]_i_4_n_0 ));
   LUT1 #(
     .INIT(2'h1)) 
     \engine_angle_prev[11]_i_5 
-       (.I0(\engine_angle_prev_reg[11]_i_3_n_7 ),
+       (.I0(\reg_tdc_off_reg[11] [0]),
         .O(\engine_angle_prev[11]_i_5_n_0 ));
   LUT6 #(
     .INIT(64'h111DDD1DEEE222E2)) 
     \engine_angle_prev[11]_i_6 
        (.I0(\raw_angle_int_reg[12]_0 [11]),
         .I1(sync_offset),
-        .I2(\engine_angle_prev_reg[15]_i_17_n_7 ),
+        .I2(\engine_angle_prev_reg[15]_i_14_n_7 ),
         .I3(\u_angle_offset/crank_angle_int1 ),
         .I4(\u_angle_offset/crank_angle_int0 [11]),
         .I5(tdc_offset[11]),
@@ -6555,43 +6604,70 @@ module pynq_z2_top_0_0_angle_engine
         .I4(\u_angle_offset/crank_angle_int0 [8]),
         .I5(tdc_offset[8]),
         .O(\engine_angle_prev[11]_i_9_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair19" *) 
-  LUT3 #(
-    .INIT(8'hAC)) 
-    \engine_angle_prev[12]_i_1 
-       (.I0(\u_angle_offset/engine_angle0 [12]),
-        .I1(\engine_angle_prev_reg[15]_i_3_n_7 ),
-        .I2(\u_angle_offset/engine_angle1 ),
-        .O(D[12]));
   (* SOFT_HLUTNM = "soft_lutpair20" *) 
   LUT3 #(
     .INIT(8'hAC)) 
+    \engine_angle_prev[12]_i_1 
+       (.I0(\reg_tdc_off_reg[15] [4]),
+        .I1(O[0]),
+        .I2(engine_angle1),
+        .O(D[12]));
+  LUT6 #(
+    .INIT(64'hAAAAAAAAA8A8A8AA)) 
     \engine_angle_prev[13]_i_1 
        (.I0(\u_angle_offset/engine_angle0 [13]),
         .I1(\engine_angle_prev_reg[15]_i_3_n_6 ),
-        .I2(\u_angle_offset/engine_angle1 ),
+        .I2(\engine_angle_prev_reg[13]_i_2_n_3 ),
+        .I3(\engine_angle_prev[13]_i_3_n_0 ),
+        .I4(\engine_angle_prev[13]_i_4_n_0 ),
+        .I5(\engine_angle_prev[13]_i_5_n_0 ),
         .O(D[13]));
+  LUT6 #(
+    .INIT(64'h5555555555555557)) 
+    \engine_angle_prev[13]_i_3 
+       (.I0(O[0]),
+        .I1(\reg_tdc_off_reg[11] [0]),
+        .I2(\engine_angle_prev_reg[7]_i_3_n_4 ),
+        .I3(\engine_angle_prev_reg[7]_i_3_n_6 ),
+        .I4(\reg_tdc_off_reg[11] [1]),
+        .I5(\engine_angle_prev_reg[7]_i_3_n_5 ),
+        .O(\engine_angle_prev[13]_i_3_n_0 ));
+  (* SOFT_HLUTNM = "soft_lutpair19" *) 
+  LUT2 #(
+    .INIT(4'h7)) 
+    \engine_angle_prev[13]_i_4 
+       (.I0(\reg_tdc_off_reg[11] [2]),
+        .I1(\reg_tdc_off_reg[11] [3]),
+        .O(\engine_angle_prev[13]_i_4_n_0 ));
+  (* SOFT_HLUTNM = "soft_lutpair21" *) 
+  LUT2 #(
+    .INIT(4'hE)) 
+    \engine_angle_prev[13]_i_5 
+       (.I0(O[1]),
+        .I1(O[2]),
+        .O(\engine_angle_prev[13]_i_5_n_0 ));
   (* SOFT_HLUTNM = "soft_lutpair20" *) 
   LUT3 #(
     .INIT(8'hAC)) 
     \engine_angle_prev[14]_i_1 
-       (.I0(\u_angle_offset/engine_angle0 [14]),
-        .I1(\engine_angle_prev_reg[15]_i_3_n_5 ),
-        .I2(\u_angle_offset/engine_angle1 ),
+       (.I0(\reg_tdc_off_reg[15] [5]),
+        .I1(O[1]),
+        .I2(engine_angle1),
         .O(D[14]));
+  (* SOFT_HLUTNM = "soft_lutpair21" *) 
   LUT3 #(
     .INIT(8'hAC)) 
     \engine_angle_prev[15]_i_1 
-       (.I0(\u_angle_offset/engine_angle0 [15]),
-        .I1(\engine_angle_prev_reg[15]_i_3_n_4 ),
-        .I2(\u_angle_offset/engine_angle1 ),
+       (.I0(\reg_tdc_off_reg[15] [6]),
+        .I1(O[2]),
+        .I2(engine_angle1),
         .O(D[15]));
   LUT5 #(
     .INIT(32'h47FFB800)) 
     \engine_angle_prev[15]_i_10 
        (.I0(\u_angle_offset/crank_angle_int0 [13]),
         .I1(\u_angle_offset/crank_angle_int1 ),
-        .I2(\engine_angle_prev_reg[15]_i_17_n_1 ),
+        .I2(\engine_angle_prev_reg[15]_i_14_n_1 ),
         .I3(sync_offset),
         .I4(tdc_offset[13]),
         .O(\engine_angle_prev[15]_i_10_n_0 ));
@@ -6600,66 +6676,49 @@ module pynq_z2_top_0_0_angle_engine
     \engine_angle_prev[15]_i_11 
        (.I0(\raw_angle_int_reg[12]_0 [12]),
         .I1(sync_offset),
-        .I2(\engine_angle_prev_reg[15]_i_17_n_6 ),
+        .I2(\engine_angle_prev_reg[15]_i_14_n_6 ),
         .I3(\u_angle_offset/crank_angle_int1 ),
         .I4(\u_angle_offset/crank_angle_int0 [12]),
         .I5(tdc_offset[12]),
         .O(\engine_angle_prev[15]_i_11_n_0 ));
-  LUT6 #(
-    .INIT(64'h5555555555555557)) 
-    \engine_angle_prev[15]_i_13 
-       (.I0(\engine_angle_prev_reg[15]_i_3_n_7 ),
-        .I1(\engine_angle_prev_reg[11]_i_3_n_7 ),
-        .I2(\engine_angle_prev_reg[7]_i_3_n_4 ),
-        .I3(\engine_angle_prev_reg[7]_i_3_n_6 ),
-        .I4(\engine_angle_prev_reg[11]_i_3_n_6 ),
-        .I5(\engine_angle_prev_reg[7]_i_3_n_5 ),
-        .O(\engine_angle_prev[15]_i_13_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair18" *) 
-  LUT2 #(
-    .INIT(4'h7)) 
-    \engine_angle_prev[15]_i_14 
-       (.I0(\engine_angle_prev_reg[11]_i_3_n_5 ),
-        .I1(\engine_angle_prev_reg[11]_i_3_n_4 ),
-        .O(\engine_angle_prev[15]_i_14_n_0 ));
   (* SOFT_HLUTNM = "soft_lutpair6" *) 
   LUT4 #(
     .INIT(16'hBAAA)) 
-    \engine_angle_prev[15]_i_15 
-       (.I0(\engine_angle_prev_reg[15]_i_17_n_1 ),
-        .I1(\axi_rdata[15]_i_10_n_0 ),
+    \engine_angle_prev[15]_i_12 
+       (.I0(\engine_angle_prev_reg[15]_i_14_n_1 ),
+        .I1(\axi_rdata[15]_i_13_n_0 ),
         .I2(\engine_angle_prev_reg[11]_i_11_n_4 ),
-        .I3(\engine_angle_prev_reg[15]_i_17_n_7 ),
+        .I3(\engine_angle_prev_reg[15]_i_14_n_7 ),
         .O(\u_angle_offset/crank_angle_int1 ));
   LUT1 #(
     .INIT(2'h1)) 
-    \engine_angle_prev[15]_i_18 
-       (.I0(\engine_angle_prev_reg[15]_i_17_n_1 ),
-        .O(\engine_angle_prev[15]_i_18_n_0 ));
+    \engine_angle_prev[15]_i_15 
+       (.I0(\engine_angle_prev_reg[15]_i_14_n_1 ),
+        .O(\engine_angle_prev[15]_i_15_n_0 ));
   LUT1 #(
     .INIT(2'h1)) 
-    \engine_angle_prev[15]_i_19 
+    \engine_angle_prev[15]_i_16 
        (.I0(\raw_angle_int_reg[12]_0 [11]),
-        .O(\engine_angle_prev[15]_i_19_n_0 ));
+        .O(\engine_angle_prev[15]_i_16_n_0 ));
   LUT6 #(
     .INIT(64'hFFFFFFFFFFFFEEEF)) 
     \engine_angle_prev[15]_i_4 
        (.I0(\engine_angle_prev_reg[15]_i_3_n_6 ),
-        .I1(\engine_angle_prev_reg[15]_i_12_n_3 ),
-        .I2(\engine_angle_prev[15]_i_13_n_0 ),
-        .I3(\engine_angle_prev[15]_i_14_n_0 ),
-        .I4(\engine_angle_prev_reg[15]_i_3_n_5 ),
-        .I5(\engine_angle_prev_reg[15]_i_3_n_4 ),
-        .O(\u_angle_offset/engine_angle1 ));
+        .I1(\engine_angle_prev_reg[13]_i_2_n_3 ),
+        .I2(\engine_angle_prev[13]_i_3_n_0 ),
+        .I3(\engine_angle_prev[13]_i_4_n_0 ),
+        .I4(O[1]),
+        .I5(O[2]),
+        .O(engine_angle1));
   LUT1 #(
     .INIT(2'h1)) 
     \engine_angle_prev[15]_i_5 
-       (.I0(\engine_angle_prev_reg[15]_i_3_n_4 ),
+       (.I0(O[2]),
         .O(\engine_angle_prev[15]_i_5_n_0 ));
   LUT1 #(
     .INIT(2'h1)) 
     \engine_angle_prev[15]_i_6 
-       (.I0(\engine_angle_prev_reg[15]_i_3_n_5 ),
+       (.I0(O[1]),
         .O(\engine_angle_prev[15]_i_6_n_0 ));
   LUT1 #(
     .INIT(2'h1)) 
@@ -6670,7 +6729,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(16'hDF20)) 
     \engine_angle_prev[15]_i_8 
        (.I0(\u_angle_offset/crank_angle_int1 ),
-        .I1(\engine_angle_prev_reg[15]_i_16_n_1 ),
+        .I1(\engine_angle_prev_reg[15]_i_13_n_1 ),
         .I2(sync_offset),
         .I3(tdc_offset[15]),
         .O(\engine_angle_prev[15]_i_8_n_0 ));
@@ -6678,40 +6737,66 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(16'hDF20)) 
     \engine_angle_prev[15]_i_9 
        (.I0(\u_angle_offset/crank_angle_int1 ),
-        .I1(\engine_angle_prev_reg[15]_i_16_n_1 ),
+        .I1(\engine_angle_prev_reg[15]_i_13_n_1 ),
         .I2(sync_offset),
         .I3(tdc_offset[14]),
         .O(\engine_angle_prev[15]_i_9_n_0 ));
   LUT1 #(
     .INIT(2'h2)) 
     \engine_angle_prev[1]_i_1 
-       (.I0(O[1]),
+       (.I0(\reg_tdc_off_reg[3] [1]),
         .O(D[1]));
   LUT1 #(
     .INIT(2'h2)) 
     \engine_angle_prev[2]_i_1 
-       (.I0(O[2]),
+       (.I0(\reg_tdc_off_reg[3] [2]),
         .O(D[2]));
   LUT1 #(
     .INIT(2'h2)) 
     \engine_angle_prev[3]_i_1 
-       (.I0(O[3]),
+       (.I0(\reg_tdc_off_reg[3] [3]),
         .O(D[3]));
-  (* SOFT_HLUTNM = "soft_lutpair15" *) 
+  LUT4 #(
+    .INIT(16'h1DE2)) 
+    \engine_angle_prev[3]_i_3 
+       (.I0(\raw_angle_int_reg[12]_0 [3]),
+        .I1(sync_offset),
+        .I2(\engine_angle_prev_reg[7]_i_12_n_7 ),
+        .I3(tdc_offset[3]),
+        .O(\engine_angle_prev[3]_i_3_n_0 ));
+  LUT2 #(
+    .INIT(4'h6)) 
+    \engine_angle_prev[3]_i_4 
+       (.I0(\raw_angle_int_reg[12]_0 [2]),
+        .I1(tdc_offset[2]),
+        .O(\engine_angle_prev[3]_i_4_n_0 ));
+  LUT2 #(
+    .INIT(4'h6)) 
+    \engine_angle_prev[3]_i_5 
+       (.I0(\raw_angle_int_reg[12]_0 [1]),
+        .I1(tdc_offset[1]),
+        .O(\engine_angle_prev[3]_i_5_n_0 ));
+  LUT2 #(
+    .INIT(4'h6)) 
+    \engine_angle_prev[3]_i_6 
+       (.I0(\raw_angle_int_reg[12]_0 [0]),
+        .I1(tdc_offset[0]),
+        .O(\engine_angle_prev[3]_i_6_n_0 ));
+  (* SOFT_HLUTNM = "soft_lutpair16" *) 
   LUT3 #(
     .INIT(8'hAC)) 
     \engine_angle_prev[4]_i_1 
        (.I0(\u_angle_offset/engine_angle0 [4]),
         .I1(\engine_angle_prev_reg[7]_i_3_n_7 ),
-        .I2(\u_angle_offset/engine_angle1 ),
+        .I2(engine_angle1),
         .O(D[4]));
-  (* SOFT_HLUTNM = "soft_lutpair15" *) 
+  (* SOFT_HLUTNM = "soft_lutpair7" *) 
   LUT3 #(
     .INIT(8'hAC)) 
     \engine_angle_prev[5]_i_1 
        (.I0(\u_angle_offset/engine_angle0 [5]),
         .I1(\engine_angle_prev_reg[7]_i_3_n_6 ),
-        .I2(\u_angle_offset/engine_angle1 ),
+        .I2(engine_angle1),
         .O(D[5]));
   (* SOFT_HLUTNM = "soft_lutpair16" *) 
   LUT3 #(
@@ -6719,41 +6804,46 @@ module pynq_z2_top_0_0_angle_engine
     \engine_angle_prev[6]_i_1 
        (.I0(\u_angle_offset/engine_angle0 [6]),
         .I1(\engine_angle_prev_reg[7]_i_3_n_5 ),
-        .I2(\u_angle_offset/engine_angle1 ),
+        .I2(engine_angle1),
         .O(D[6]));
-  (* SOFT_HLUTNM = "soft_lutpair16" *) 
+  (* SOFT_HLUTNM = "soft_lutpair17" *) 
   LUT3 #(
     .INIT(8'hAC)) 
     \engine_angle_prev[7]_i_1 
        (.I0(\u_angle_offset/engine_angle0 [7]),
         .I1(\engine_angle_prev_reg[7]_i_3_n_4 ),
-        .I2(\u_angle_offset/engine_angle1 ),
+        .I2(engine_angle1),
         .O(D[7]));
   LUT6 #(
     .INIT(64'h111DDD1DEEE222E2)) 
     \engine_angle_prev[7]_i_10 
        (.I0(\raw_angle_int_reg[12]_0 [4]),
         .I1(sync_offset),
-        .I2(\axi_rdata_reg[3]_i_10_n_6 ),
+        .I2(\engine_angle_prev_reg[7]_i_12_n_6 ),
         .I3(\u_angle_offset/crank_angle_int1 ),
         .I4(\u_angle_offset/crank_angle_int0 [4]),
         .I5(tdc_offset[4]),
         .O(\engine_angle_prev[7]_i_10_n_0 ));
   LUT1 #(
     .INIT(2'h1)) 
-    \engine_angle_prev[7]_i_12 
-       (.I0(\engine_angle_prev_reg[11]_i_11_n_7 ),
-        .O(\engine_angle_prev[7]_i_12_n_0 ));
-  LUT1 #(
-    .INIT(2'h1)) 
     \engine_angle_prev[7]_i_13 
-       (.I0(\axi_rdata_reg[3]_i_10_n_4 ),
+       (.I0(\engine_angle_prev_reg[11]_i_11_n_7 ),
         .O(\engine_angle_prev[7]_i_13_n_0 ));
   LUT1 #(
     .INIT(2'h1)) 
     \engine_angle_prev[7]_i_14 
-       (.I0(\axi_rdata_reg[3]_i_10_n_5 ),
+       (.I0(\engine_angle_prev_reg[7]_i_12_n_4 ),
         .O(\engine_angle_prev[7]_i_14_n_0 ));
+  LUT1 #(
+    .INIT(2'h1)) 
+    \engine_angle_prev[7]_i_15 
+       (.I0(\engine_angle_prev_reg[7]_i_12_n_5 ),
+        .O(\engine_angle_prev[7]_i_15_n_0 ));
+  LUT1 #(
+    .INIT(2'h1)) 
+    \engine_angle_prev[7]_i_16 
+       (.I0(\raw_angle_int_reg[12]_0 [4]),
+        .O(\engine_angle_prev[7]_i_16_n_0 ));
   LUT1 #(
     .INIT(2'h1)) 
     \engine_angle_prev[7]_i_4 
@@ -6784,7 +6874,7 @@ module pynq_z2_top_0_0_angle_engine
     \engine_angle_prev[7]_i_8 
        (.I0(\raw_angle_int_reg[12]_0 [6]),
         .I1(sync_offset),
-        .I2(\axi_rdata_reg[3]_i_10_n_4 ),
+        .I2(\engine_angle_prev_reg[7]_i_12_n_4 ),
         .I3(\u_angle_offset/crank_angle_int1 ),
         .I4(\u_angle_offset/crank_angle_int0 [6]),
         .I5(tdc_offset[6]),
@@ -6794,7 +6884,7 @@ module pynq_z2_top_0_0_angle_engine
     \engine_angle_prev[7]_i_9 
        (.I0(\raw_angle_int_reg[12]_0 [5]),
         .I1(sync_offset),
-        .I2(\axi_rdata_reg[3]_i_10_n_5 ),
+        .I2(\engine_angle_prev_reg[7]_i_12_n_5 ),
         .I3(\u_angle_offset/crank_angle_int1 ),
         .I4(\u_angle_offset/crank_angle_int0 [5]),
         .I5(tdc_offset[5]),
@@ -6803,17 +6893,17 @@ module pynq_z2_top_0_0_angle_engine
   LUT3 #(
     .INIT(8'hAC)) 
     \engine_angle_prev[8]_i_1 
-       (.I0(\u_angle_offset/engine_angle0 [8]),
-        .I1(\engine_angle_prev_reg[11]_i_3_n_7 ),
-        .I2(\u_angle_offset/engine_angle1 ),
+       (.I0(\reg_tdc_off_reg[15] [0]),
+        .I1(\reg_tdc_off_reg[11] [0]),
+        .I2(engine_angle1),
         .O(D[8]));
-  (* SOFT_HLUTNM = "soft_lutpair17" *) 
+  (* SOFT_HLUTNM = "soft_lutpair18" *) 
   LUT3 #(
     .INIT(8'hAC)) 
     \engine_angle_prev[9]_i_1 
-       (.I0(\u_angle_offset/engine_angle0 [9]),
-        .I1(\engine_angle_prev_reg[11]_i_3_n_6 ),
-        .I2(\u_angle_offset/engine_angle1 ),
+       (.I0(\reg_tdc_off_reg[15] [1]),
+        .I1(\reg_tdc_off_reg[11] [1]),
+        .I2(engine_angle1),
         .O(D[9]));
   CARRY4 \engine_angle_prev_reg[11]_i_10 
        (.CI(\engine_angle_prev_reg[7]_i_11_n_0 ),
@@ -6821,9 +6911,9 @@ module pynq_z2_top_0_0_angle_engine
         .CYINIT(1'b0),
         .DI({1'b0,1'b0,\engine_angle_prev_reg[11]_i_11_n_5 ,\engine_angle_prev_reg[11]_i_11_n_6 }),
         .O(\u_angle_offset/crank_angle_int0 [11:8]),
-        .S({\engine_angle_prev_reg[15]_i_17_n_7 ,\engine_angle_prev_reg[11]_i_11_n_4 ,\engine_angle_prev[11]_i_12_n_0 ,\engine_angle_prev[11]_i_13_n_0 }));
+        .S({\engine_angle_prev_reg[15]_i_14_n_7 ,\engine_angle_prev_reg[11]_i_11_n_4 ,\engine_angle_prev[11]_i_12_n_0 ,\engine_angle_prev[11]_i_13_n_0 }));
   CARRY4 \engine_angle_prev_reg[11]_i_11 
-       (.CI(\axi_rdata_reg[3]_i_10_n_0 ),
+       (.CI(\engine_angle_prev_reg[7]_i_12_n_0 ),
         .CO({\engine_angle_prev_reg[11]_i_11_n_0 ,\engine_angle_prev_reg[11]_i_11_n_1 ,\engine_angle_prev_reg[11]_i_11_n_2 ,\engine_angle_prev_reg[11]_i_11_n_3 }),
         .CYINIT(1'b0),
         .DI({\raw_angle_int_reg[12]_0 [10:9],1'b0,1'b0}),
@@ -6834,59 +6924,73 @@ module pynq_z2_top_0_0_angle_engine
        (.CI(\engine_angle_prev_reg[7]_i_2_n_0 ),
         .CO({\engine_angle_prev_reg[11]_i_2_n_0 ,\engine_angle_prev_reg[11]_i_2_n_1 ,\engine_angle_prev_reg[11]_i_2_n_2 ,\engine_angle_prev_reg[11]_i_2_n_3 }),
         .CYINIT(1'b0),
-        .DI({1'b0,1'b0,\engine_angle_prev_reg[11]_i_3_n_6 ,\engine_angle_prev_reg[11]_i_3_n_7 }),
-        .O(\u_angle_offset/engine_angle0 [11:8]),
-        .S({\engine_angle_prev_reg[11]_i_3_n_4 ,\engine_angle_prev_reg[11]_i_3_n_5 ,\engine_angle_prev[11]_i_4_n_0 ,\engine_angle_prev[11]_i_5_n_0 }));
+        .DI({1'b0,1'b0,\reg_tdc_off_reg[11] [1:0]}),
+        .O(\reg_tdc_off_reg[15] [3:0]),
+        .S({\reg_tdc_off_reg[11] [3:2],\engine_angle_prev[11]_i_4_n_0 ,\engine_angle_prev[11]_i_5_n_0 }));
   CARRY4 \engine_angle_prev_reg[11]_i_3 
        (.CI(\engine_angle_prev_reg[7]_i_3_n_0 ),
         .CO({\engine_angle_prev_reg[11]_i_3_n_0 ,\engine_angle_prev_reg[11]_i_3_n_1 ,\engine_angle_prev_reg[11]_i_3_n_2 ,\engine_angle_prev_reg[11]_i_3_n_3 }),
         .CYINIT(1'b0),
         .DI(tdc_offset[11:8]),
-        .O({\engine_angle_prev_reg[11]_i_3_n_4 ,\engine_angle_prev_reg[11]_i_3_n_5 ,\engine_angle_prev_reg[11]_i_3_n_6 ,\engine_angle_prev_reg[11]_i_3_n_7 }),
+        .O(\reg_tdc_off_reg[11] ),
         .S({\engine_angle_prev[11]_i_6_n_0 ,\engine_angle_prev[11]_i_7_n_0 ,\engine_angle_prev[11]_i_8_n_0 ,\engine_angle_prev[11]_i_9_n_0 }));
-  CARRY4 \engine_angle_prev_reg[15]_i_12 
+  CARRY4 \engine_angle_prev_reg[13]_i_2 
        (.CI(\engine_angle_prev_reg[15]_i_3_n_0 ),
-        .CO({\NLW_engine_angle_prev_reg[15]_i_12_CO_UNCONNECTED [3:1],\engine_angle_prev_reg[15]_i_12_n_3 }),
+        .CO({\NLW_engine_angle_prev_reg[13]_i_2_CO_UNCONNECTED [3:1],\engine_angle_prev_reg[13]_i_2_n_3 }),
         .CYINIT(1'b0),
         .DI({1'b0,1'b0,1'b0,1'b0}),
-        .O(\NLW_engine_angle_prev_reg[15]_i_12_O_UNCONNECTED [3:0]),
+        .O(\NLW_engine_angle_prev_reg[13]_i_2_O_UNCONNECTED [3:0]),
         .S({1'b0,1'b0,1'b0,1'b1}));
-  CARRY4 \engine_angle_prev_reg[15]_i_16 
+  CARRY4 \engine_angle_prev_reg[15]_i_13 
        (.CI(\engine_angle_prev_reg[11]_i_10_n_0 ),
-        .CO({\NLW_engine_angle_prev_reg[15]_i_16_CO_UNCONNECTED [3],\engine_angle_prev_reg[15]_i_16_n_1 ,\NLW_engine_angle_prev_reg[15]_i_16_CO_UNCONNECTED [1],\engine_angle_prev_reg[15]_i_16_n_3 }),
+        .CO({\NLW_engine_angle_prev_reg[15]_i_13_CO_UNCONNECTED [3],\engine_angle_prev_reg[15]_i_13_n_1 ,\NLW_engine_angle_prev_reg[15]_i_13_CO_UNCONNECTED [1],\engine_angle_prev_reg[15]_i_13_n_3 }),
         .CYINIT(1'b0),
-        .DI({1'b0,1'b0,\engine_angle_prev_reg[15]_i_17_n_1 ,1'b0}),
-        .O({\NLW_engine_angle_prev_reg[15]_i_16_O_UNCONNECTED [3:2],\u_angle_offset/crank_angle_int0 [13:12]}),
-        .S({1'b0,1'b1,\engine_angle_prev[15]_i_18_n_0 ,\engine_angle_prev_reg[15]_i_17_n_6 }));
-  CARRY4 \engine_angle_prev_reg[15]_i_17 
+        .DI({1'b0,1'b0,\engine_angle_prev_reg[15]_i_14_n_1 ,1'b0}),
+        .O({\NLW_engine_angle_prev_reg[15]_i_13_O_UNCONNECTED [3:2],\u_angle_offset/crank_angle_int0 [13:12]}),
+        .S({1'b0,1'b1,\engine_angle_prev[15]_i_15_n_0 ,\engine_angle_prev_reg[15]_i_14_n_6 }));
+  CARRY4 \engine_angle_prev_reg[15]_i_14 
        (.CI(\engine_angle_prev_reg[11]_i_11_n_0 ),
-        .CO({\NLW_engine_angle_prev_reg[15]_i_17_CO_UNCONNECTED [3],\engine_angle_prev_reg[15]_i_17_n_1 ,\NLW_engine_angle_prev_reg[15]_i_17_CO_UNCONNECTED [1],\engine_angle_prev_reg[15]_i_17_n_3 }),
+        .CO({\NLW_engine_angle_prev_reg[15]_i_14_CO_UNCONNECTED [3],\engine_angle_prev_reg[15]_i_14_n_1 ,\NLW_engine_angle_prev_reg[15]_i_14_CO_UNCONNECTED [1],\engine_angle_prev_reg[15]_i_14_n_3 }),
         .CYINIT(1'b0),
         .DI({1'b0,1'b0,1'b0,\raw_angle_int_reg[12]_0 [11]}),
-        .O({\NLW_engine_angle_prev_reg[15]_i_17_O_UNCONNECTED [3:2],\engine_angle_prev_reg[15]_i_17_n_6 ,\engine_angle_prev_reg[15]_i_17_n_7 }),
-        .S({1'b0,1'b1,\raw_angle_int_reg[12]_0 [12],\engine_angle_prev[15]_i_19_n_0 }));
+        .O({\NLW_engine_angle_prev_reg[15]_i_14_O_UNCONNECTED [3:2],\engine_angle_prev_reg[15]_i_14_n_6 ,\engine_angle_prev_reg[15]_i_14_n_7 }),
+        .S({1'b0,1'b1,\raw_angle_int_reg[12]_0 [12],\engine_angle_prev[15]_i_16_n_0 }));
   (* ADDER_THRESHOLD = "35" *) 
   CARRY4 \engine_angle_prev_reg[15]_i_2 
        (.CI(\engine_angle_prev_reg[11]_i_2_n_0 ),
         .CO({\NLW_engine_angle_prev_reg[15]_i_2_CO_UNCONNECTED [3],\engine_angle_prev_reg[15]_i_2_n_1 ,\engine_angle_prev_reg[15]_i_2_n_2 ,\engine_angle_prev_reg[15]_i_2_n_3 }),
         .CYINIT(1'b0),
-        .DI({1'b0,\engine_angle_prev_reg[15]_i_3_n_5 ,\engine_angle_prev_reg[15]_i_3_n_6 ,1'b0}),
-        .O(\u_angle_offset/engine_angle0 [15:12]),
-        .S({\engine_angle_prev[15]_i_5_n_0 ,\engine_angle_prev[15]_i_6_n_0 ,\engine_angle_prev[15]_i_7_n_0 ,\engine_angle_prev_reg[15]_i_3_n_7 }));
+        .DI({1'b0,O[1],\engine_angle_prev_reg[15]_i_3_n_6 ,1'b0}),
+        .O({\reg_tdc_off_reg[15] [6:5],\u_angle_offset/engine_angle0 [13],\reg_tdc_off_reg[15] [4]}),
+        .S({\engine_angle_prev[15]_i_5_n_0 ,\engine_angle_prev[15]_i_6_n_0 ,\engine_angle_prev[15]_i_7_n_0 ,O[0]}));
   CARRY4 \engine_angle_prev_reg[15]_i_3 
        (.CI(\engine_angle_prev_reg[11]_i_3_n_0 ),
         .CO({\engine_angle_prev_reg[15]_i_3_n_0 ,\engine_angle_prev_reg[15]_i_3_n_1 ,\engine_angle_prev_reg[15]_i_3_n_2 ,\engine_angle_prev_reg[15]_i_3_n_3 }),
         .CYINIT(1'b0),
         .DI(tdc_offset[15:12]),
-        .O({\engine_angle_prev_reg[15]_i_3_n_4 ,\engine_angle_prev_reg[15]_i_3_n_5 ,\engine_angle_prev_reg[15]_i_3_n_6 ,\engine_angle_prev_reg[15]_i_3_n_7 }),
+        .O({O[2:1],\engine_angle_prev_reg[15]_i_3_n_6 ,O[0]}),
         .S({\engine_angle_prev[15]_i_8_n_0 ,\engine_angle_prev[15]_i_9_n_0 ,\engine_angle_prev[15]_i_10_n_0 ,\engine_angle_prev[15]_i_11_n_0 }));
+  CARRY4 \engine_angle_prev_reg[3]_i_2 
+       (.CI(1'b0),
+        .CO({\engine_angle_prev_reg[3]_i_2_n_0 ,\engine_angle_prev_reg[3]_i_2_n_1 ,\engine_angle_prev_reg[3]_i_2_n_2 ,\engine_angle_prev_reg[3]_i_2_n_3 }),
+        .CYINIT(1'b0),
+        .DI({tdc_offset[3],\raw_angle_int_reg[12]_0 [2:0]}),
+        .O(\reg_tdc_off_reg[3] ),
+        .S({\engine_angle_prev[3]_i_3_n_0 ,\engine_angle_prev[3]_i_4_n_0 ,\engine_angle_prev[3]_i_5_n_0 ,\engine_angle_prev[3]_i_6_n_0 }));
   CARRY4 \engine_angle_prev_reg[7]_i_11 
        (.CI(1'b0),
         .CO({\engine_angle_prev_reg[7]_i_11_n_0 ,\engine_angle_prev_reg[7]_i_11_n_1 ,\engine_angle_prev_reg[7]_i_11_n_2 ,\engine_angle_prev_reg[7]_i_11_n_3 }),
         .CYINIT(1'b0),
-        .DI({\engine_angle_prev_reg[11]_i_11_n_7 ,\axi_rdata_reg[3]_i_10_n_4 ,\axi_rdata_reg[3]_i_10_n_5 ,1'b0}),
+        .DI({\engine_angle_prev_reg[11]_i_11_n_7 ,\engine_angle_prev_reg[7]_i_12_n_4 ,\engine_angle_prev_reg[7]_i_12_n_5 ,1'b0}),
         .O(\u_angle_offset/crank_angle_int0 [7:4]),
-        .S({\engine_angle_prev[7]_i_12_n_0 ,\engine_angle_prev[7]_i_13_n_0 ,\engine_angle_prev[7]_i_14_n_0 ,\axi_rdata_reg[3]_i_10_n_6 }));
+        .S({\engine_angle_prev[7]_i_13_n_0 ,\engine_angle_prev[7]_i_14_n_0 ,\engine_angle_prev[7]_i_15_n_0 ,\engine_angle_prev_reg[7]_i_12_n_6 }));
+  CARRY4 \engine_angle_prev_reg[7]_i_12 
+       (.CI(1'b0),
+        .CO({\engine_angle_prev_reg[7]_i_12_n_0 ,\engine_angle_prev_reg[7]_i_12_n_1 ,\engine_angle_prev_reg[7]_i_12_n_2 ,\engine_angle_prev_reg[7]_i_12_n_3 }),
+        .CYINIT(1'b0),
+        .DI({1'b0,1'b0,\raw_angle_int_reg[12]_0 [4],1'b0}),
+        .O({\engine_angle_prev_reg[7]_i_12_n_4 ,\engine_angle_prev_reg[7]_i_12_n_5 ,\engine_angle_prev_reg[7]_i_12_n_6 ,\engine_angle_prev_reg[7]_i_12_n_7 }),
+        .S({\raw_angle_int_reg[12]_0 [6:5],\engine_angle_prev[7]_i_16_n_0 ,\raw_angle_int_reg[12]_0 [3]}));
   (* ADDER_THRESHOLD = "35" *) 
   CARRY4 \engine_angle_prev_reg[7]_i_2 
        (.CI(1'b0),
@@ -6896,7 +7000,7 @@ module pynq_z2_top_0_0_angle_engine
         .O(\u_angle_offset/engine_angle0 [7:4]),
         .S({\engine_angle_prev[7]_i_4_n_0 ,\engine_angle_prev[7]_i_5_n_0 ,\engine_angle_prev[7]_i_6_n_0 ,\engine_angle_prev_reg[7]_i_3_n_7 }));
   CARRY4 \engine_angle_prev_reg[7]_i_3 
-       (.CI(\axi_rdata_reg[3]_i_2_n_0 ),
+       (.CI(\engine_angle_prev_reg[3]_i_2_n_0 ),
         .CO({\engine_angle_prev_reg[7]_i_3_n_0 ,\engine_angle_prev_reg[7]_i_3_n_1 ,\engine_angle_prev_reg[7]_i_3_n_2 ,\engine_angle_prev_reg[7]_i_3_n_3 }),
         .CYINIT(1'b0),
         .DI(tdc_offset[7:4]),
@@ -6905,289 +7009,289 @@ module pynq_z2_top_0_0_angle_engine
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[0]_i_2 
-       (.I0(phase_error[3]),
+       (.I0(\phase_error_reg[31]_0 [3]),
         .I1(integrator_reg[3]),
         .O(\integrator[0]_i_2_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[0]_i_3 
-       (.I0(phase_error[2]),
+       (.I0(\phase_error_reg[31]_0 [2]),
         .I1(integrator_reg[2]),
         .O(\integrator[0]_i_3_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[0]_i_4 
-       (.I0(phase_error[1]),
+       (.I0(\phase_error_reg[31]_0 [1]),
         .I1(integrator_reg[1]),
         .O(\integrator[0]_i_4_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[0]_i_5 
-       (.I0(phase_error[0]),
+       (.I0(\phase_error_reg[31]_0 [0]),
         .I1(integrator_reg[0]),
         .O(\integrator[0]_i_5_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[12]_i_2 
-       (.I0(phase_error[15]),
+       (.I0(\phase_error_reg[31]_0 [15]),
         .I1(integrator_reg[15]),
         .O(\integrator[12]_i_2_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[12]_i_3 
-       (.I0(phase_error[14]),
+       (.I0(\phase_error_reg[31]_0 [14]),
         .I1(integrator_reg[14]),
         .O(\integrator[12]_i_3_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[12]_i_4 
-       (.I0(phase_error[13]),
+       (.I0(\phase_error_reg[31]_0 [13]),
         .I1(integrator_reg[13]),
         .O(\integrator[12]_i_4_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[12]_i_5 
-       (.I0(phase_error[12]),
+       (.I0(\phase_error_reg[31]_0 [12]),
         .I1(integrator_reg[12]),
         .O(\integrator[12]_i_5_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[16]_i_2 
-       (.I0(phase_error[19]),
+       (.I0(\phase_error_reg[31]_0 [19]),
         .I1(integrator_reg[19]),
         .O(\integrator[16]_i_2_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[16]_i_3 
-       (.I0(phase_error[18]),
+       (.I0(\phase_error_reg[31]_0 [18]),
         .I1(integrator_reg[18]),
         .O(\integrator[16]_i_3_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[16]_i_4 
-       (.I0(phase_error[17]),
+       (.I0(\phase_error_reg[31]_0 [17]),
         .I1(integrator_reg[17]),
         .O(\integrator[16]_i_4_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[16]_i_5 
-       (.I0(phase_error[16]),
+       (.I0(\phase_error_reg[31]_0 [16]),
         .I1(integrator_reg[16]),
         .O(\integrator[16]_i_5_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[20]_i_2 
-       (.I0(phase_error[23]),
+       (.I0(\phase_error_reg[31]_0 [23]),
         .I1(integrator_reg[23]),
         .O(\integrator[20]_i_2_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[20]_i_3 
-       (.I0(phase_error[22]),
+       (.I0(\phase_error_reg[31]_0 [22]),
         .I1(integrator_reg[22]),
         .O(\integrator[20]_i_3_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[20]_i_4 
-       (.I0(phase_error[21]),
+       (.I0(\phase_error_reg[31]_0 [21]),
         .I1(integrator_reg[21]),
         .O(\integrator[20]_i_4_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[20]_i_5 
-       (.I0(phase_error[20]),
+       (.I0(\phase_error_reg[31]_0 [20]),
         .I1(integrator_reg[20]),
         .O(\integrator[20]_i_5_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[24]_i_2 
-       (.I0(phase_error[27]),
+       (.I0(\phase_error_reg[31]_0 [27]),
         .I1(integrator_reg[27]),
         .O(\integrator[24]_i_2_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[24]_i_3 
-       (.I0(phase_error[26]),
+       (.I0(\phase_error_reg[31]_0 [26]),
         .I1(integrator_reg[26]),
         .O(\integrator[24]_i_3_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[24]_i_4 
-       (.I0(phase_error[25]),
+       (.I0(\phase_error_reg[31]_0 [25]),
         .I1(integrator_reg[25]),
         .O(\integrator[24]_i_4_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[24]_i_5 
-       (.I0(phase_error[24]),
+       (.I0(\phase_error_reg[31]_0 [24]),
         .I1(integrator_reg[24]),
         .O(\integrator[24]_i_5_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[28]_i_2 
-       (.I0(phase_error[31]),
+       (.I0(\phase_error_reg[31]_0 [31]),
         .I1(integrator_reg[31]),
         .O(\integrator[28]_i_2_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[28]_i_3 
-       (.I0(phase_error[30]),
+       (.I0(\phase_error_reg[31]_0 [30]),
         .I1(integrator_reg[30]),
         .O(\integrator[28]_i_3_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[28]_i_4 
-       (.I0(phase_error[29]),
+       (.I0(\phase_error_reg[31]_0 [29]),
         .I1(integrator_reg[29]),
         .O(\integrator[28]_i_4_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[28]_i_5 
-       (.I0(phase_error[28]),
+       (.I0(\phase_error_reg[31]_0 [28]),
         .I1(integrator_reg[28]),
         .O(\integrator[28]_i_5_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[32]_i_2 
-       (.I0(phase_error[31]),
+       (.I0(\phase_error_reg[31]_0 [31]),
         .I1(integrator_reg[35]),
         .O(\integrator[32]_i_2_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[32]_i_3 
-       (.I0(phase_error[31]),
+       (.I0(\phase_error_reg[31]_0 [31]),
         .I1(integrator_reg[34]),
         .O(\integrator[32]_i_3_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[32]_i_4 
-       (.I0(phase_error[31]),
+       (.I0(\phase_error_reg[31]_0 [31]),
         .I1(integrator_reg[33]),
         .O(\integrator[32]_i_4_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[32]_i_5 
-       (.I0(phase_error[31]),
+       (.I0(\phase_error_reg[31]_0 [31]),
         .I1(integrator_reg[32]),
         .O(\integrator[32]_i_5_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[36]_i_2 
-       (.I0(phase_error[31]),
+       (.I0(\phase_error_reg[31]_0 [31]),
         .I1(integrator_reg[39]),
         .O(\integrator[36]_i_2_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[36]_i_3 
-       (.I0(phase_error[31]),
+       (.I0(\phase_error_reg[31]_0 [31]),
         .I1(integrator_reg[38]),
         .O(\integrator[36]_i_3_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[36]_i_4 
-       (.I0(phase_error[31]),
+       (.I0(\phase_error_reg[31]_0 [31]),
         .I1(integrator_reg[37]),
         .O(\integrator[36]_i_4_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[36]_i_5 
-       (.I0(phase_error[31]),
+       (.I0(\phase_error_reg[31]_0 [31]),
         .I1(integrator_reg[36]),
         .O(\integrator[36]_i_5_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[40]_i_2 
-       (.I0(phase_error[31]),
+       (.I0(\phase_error_reg[31]_0 [31]),
         .I1(integrator_reg[43]),
         .O(\integrator[40]_i_2_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[40]_i_3 
-       (.I0(phase_error[31]),
+       (.I0(\phase_error_reg[31]_0 [31]),
         .I1(integrator_reg[42]),
         .O(\integrator[40]_i_3_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[40]_i_4 
-       (.I0(phase_error[31]),
+       (.I0(\phase_error_reg[31]_0 [31]),
         .I1(integrator_reg[41]),
         .O(\integrator[40]_i_4_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[40]_i_5 
-       (.I0(phase_error[31]),
+       (.I0(\phase_error_reg[31]_0 [31]),
         .I1(integrator_reg[40]),
         .O(\integrator[40]_i_5_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[44]_i_2 
        (.I0(integrator_reg[47]),
-        .I1(phase_error[31]),
+        .I1(\phase_error_reg[31]_0 [31]),
         .O(\integrator[44]_i_2_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[44]_i_3 
-       (.I0(phase_error[31]),
+       (.I0(\phase_error_reg[31]_0 [31]),
         .I1(integrator_reg[46]),
         .O(\integrator[44]_i_3_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[44]_i_4 
-       (.I0(phase_error[31]),
+       (.I0(\phase_error_reg[31]_0 [31]),
         .I1(integrator_reg[45]),
         .O(\integrator[44]_i_4_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[44]_i_5 
-       (.I0(phase_error[31]),
+       (.I0(\phase_error_reg[31]_0 [31]),
         .I1(integrator_reg[44]),
         .O(\integrator[44]_i_5_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[4]_i_2 
-       (.I0(phase_error[7]),
+       (.I0(\phase_error_reg[31]_0 [7]),
         .I1(integrator_reg[7]),
         .O(\integrator[4]_i_2_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[4]_i_3 
-       (.I0(phase_error[6]),
+       (.I0(\phase_error_reg[31]_0 [6]),
         .I1(integrator_reg[6]),
         .O(\integrator[4]_i_3_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[4]_i_4 
-       (.I0(phase_error[5]),
+       (.I0(\phase_error_reg[31]_0 [5]),
         .I1(integrator_reg[5]),
         .O(\integrator[4]_i_4_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[4]_i_5 
-       (.I0(phase_error[4]),
+       (.I0(\phase_error_reg[31]_0 [4]),
         .I1(integrator_reg[4]),
         .O(\integrator[4]_i_5_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[8]_i_2 
-       (.I0(phase_error[11]),
+       (.I0(\phase_error_reg[31]_0 [11]),
         .I1(integrator_reg[11]),
         .O(\integrator[8]_i_2_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[8]_i_3 
-       (.I0(phase_error[10]),
+       (.I0(\phase_error_reg[31]_0 [10]),
         .I1(integrator_reg[10]),
         .O(\integrator[8]_i_3_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[8]_i_4 
-       (.I0(phase_error[9]),
+       (.I0(\phase_error_reg[31]_0 [9]),
         .I1(integrator_reg[9]),
         .O(\integrator[8]_i_4_n_0 ));
   LUT2 #(
     .INIT(4'h6)) 
     \integrator[8]_i_5 
-       (.I0(phase_error[8]),
+       (.I0(\phase_error_reg[31]_0 [8]),
         .I1(integrator_reg[8]),
         .O(\integrator[8]_i_5_n_0 ));
   FDRE #(
@@ -7204,7 +7308,7 @@ module pynq_z2_top_0_0_angle_engine
        (.CI(1'b0),
         .CO({\integrator_reg[0]_i_1_n_0 ,\integrator_reg[0]_i_1_n_1 ,\integrator_reg[0]_i_1_n_2 ,\integrator_reg[0]_i_1_n_3 }),
         .CYINIT(1'b0),
-        .DI(phase_error[3:0]),
+        .DI(\phase_error_reg[31]_0 [3:0]),
         .O({\integrator_reg[0]_i_1_n_4 ,\integrator_reg[0]_i_1_n_5 ,\integrator_reg[0]_i_1_n_6 ,\integrator_reg[0]_i_1_n_7 }),
         .S({\integrator[0]_i_2_n_0 ,\integrator[0]_i_3_n_0 ,\integrator[0]_i_4_n_0 ,\integrator[0]_i_5_n_0 }));
   FDRE #(
@@ -7237,7 +7341,7 @@ module pynq_z2_top_0_0_angle_engine
        (.CI(\integrator_reg[8]_i_1_n_0 ),
         .CO({\integrator_reg[12]_i_1_n_0 ,\integrator_reg[12]_i_1_n_1 ,\integrator_reg[12]_i_1_n_2 ,\integrator_reg[12]_i_1_n_3 }),
         .CYINIT(1'b0),
-        .DI(phase_error[15:12]),
+        .DI(\phase_error_reg[31]_0 [15:12]),
         .O({\integrator_reg[12]_i_1_n_4 ,\integrator_reg[12]_i_1_n_5 ,\integrator_reg[12]_i_1_n_6 ,\integrator_reg[12]_i_1_n_7 }),
         .S({\integrator[12]_i_2_n_0 ,\integrator[12]_i_3_n_0 ,\integrator[12]_i_4_n_0 ,\integrator[12]_i_5_n_0 }));
   FDRE #(
@@ -7278,7 +7382,7 @@ module pynq_z2_top_0_0_angle_engine
        (.CI(\integrator_reg[12]_i_1_n_0 ),
         .CO({\integrator_reg[16]_i_1_n_0 ,\integrator_reg[16]_i_1_n_1 ,\integrator_reg[16]_i_1_n_2 ,\integrator_reg[16]_i_1_n_3 }),
         .CYINIT(1'b0),
-        .DI(phase_error[19:16]),
+        .DI(\phase_error_reg[31]_0 [19:16]),
         .O({\integrator_reg[16]_i_1_n_4 ,\integrator_reg[16]_i_1_n_5 ,\integrator_reg[16]_i_1_n_6 ,\integrator_reg[16]_i_1_n_7 }),
         .S({\integrator[16]_i_2_n_0 ,\integrator[16]_i_3_n_0 ,\integrator[16]_i_4_n_0 ,\integrator[16]_i_5_n_0 }));
   FDRE #(
@@ -7327,7 +7431,7 @@ module pynq_z2_top_0_0_angle_engine
        (.CI(\integrator_reg[16]_i_1_n_0 ),
         .CO({\integrator_reg[20]_i_1_n_0 ,\integrator_reg[20]_i_1_n_1 ,\integrator_reg[20]_i_1_n_2 ,\integrator_reg[20]_i_1_n_3 }),
         .CYINIT(1'b0),
-        .DI(phase_error[23:20]),
+        .DI(\phase_error_reg[31]_0 [23:20]),
         .O({\integrator_reg[20]_i_1_n_4 ,\integrator_reg[20]_i_1_n_5 ,\integrator_reg[20]_i_1_n_6 ,\integrator_reg[20]_i_1_n_7 }),
         .S({\integrator[20]_i_2_n_0 ,\integrator[20]_i_3_n_0 ,\integrator[20]_i_4_n_0 ,\integrator[20]_i_5_n_0 }));
   FDRE #(
@@ -7368,7 +7472,7 @@ module pynq_z2_top_0_0_angle_engine
        (.CI(\integrator_reg[20]_i_1_n_0 ),
         .CO({\integrator_reg[24]_i_1_n_0 ,\integrator_reg[24]_i_1_n_1 ,\integrator_reg[24]_i_1_n_2 ,\integrator_reg[24]_i_1_n_3 }),
         .CYINIT(1'b0),
-        .DI(phase_error[27:24]),
+        .DI(\phase_error_reg[31]_0 [27:24]),
         .O({\integrator_reg[24]_i_1_n_4 ,\integrator_reg[24]_i_1_n_5 ,\integrator_reg[24]_i_1_n_6 ,\integrator_reg[24]_i_1_n_7 }),
         .S({\integrator[24]_i_2_n_0 ,\integrator[24]_i_3_n_0 ,\integrator[24]_i_4_n_0 ,\integrator[24]_i_5_n_0 }));
   FDRE #(
@@ -7409,7 +7513,7 @@ module pynq_z2_top_0_0_angle_engine
        (.CI(\integrator_reg[24]_i_1_n_0 ),
         .CO({\integrator_reg[28]_i_1_n_0 ,\integrator_reg[28]_i_1_n_1 ,\integrator_reg[28]_i_1_n_2 ,\integrator_reg[28]_i_1_n_3 }),
         .CYINIT(1'b0),
-        .DI(phase_error[31:28]),
+        .DI(\phase_error_reg[31]_0 [31:28]),
         .O({\integrator_reg[28]_i_1_n_4 ,\integrator_reg[28]_i_1_n_5 ,\integrator_reg[28]_i_1_n_6 ,\integrator_reg[28]_i_1_n_7 }),
         .S({\integrator[28]_i_2_n_0 ,\integrator[28]_i_3_n_0 ,\integrator[28]_i_4_n_0 ,\integrator[28]_i_5_n_0 }));
   FDRE #(
@@ -7458,7 +7562,7 @@ module pynq_z2_top_0_0_angle_engine
        (.CI(\integrator_reg[28]_i_1_n_0 ),
         .CO({\integrator_reg[32]_i_1_n_0 ,\integrator_reg[32]_i_1_n_1 ,\integrator_reg[32]_i_1_n_2 ,\integrator_reg[32]_i_1_n_3 }),
         .CYINIT(1'b0),
-        .DI({phase_error[31],phase_error[31],phase_error[31],phase_error[31]}),
+        .DI({\phase_error_reg[31]_0 [31],\phase_error_reg[31]_0 [31],\phase_error_reg[31]_0 [31],\phase_error_reg[31]_0 [31]}),
         .O({\integrator_reg[32]_i_1_n_4 ,\integrator_reg[32]_i_1_n_5 ,\integrator_reg[32]_i_1_n_6 ,\integrator_reg[32]_i_1_n_7 }),
         .S({\integrator[32]_i_2_n_0 ,\integrator[32]_i_3_n_0 ,\integrator[32]_i_4_n_0 ,\integrator[32]_i_5_n_0 }));
   FDRE #(
@@ -7499,7 +7603,7 @@ module pynq_z2_top_0_0_angle_engine
        (.CI(\integrator_reg[32]_i_1_n_0 ),
         .CO({\integrator_reg[36]_i_1_n_0 ,\integrator_reg[36]_i_1_n_1 ,\integrator_reg[36]_i_1_n_2 ,\integrator_reg[36]_i_1_n_3 }),
         .CYINIT(1'b0),
-        .DI({phase_error[31],phase_error[31],phase_error[31],phase_error[31]}),
+        .DI({\phase_error_reg[31]_0 [31],\phase_error_reg[31]_0 [31],\phase_error_reg[31]_0 [31],\phase_error_reg[31]_0 [31]}),
         .O({\integrator_reg[36]_i_1_n_4 ,\integrator_reg[36]_i_1_n_5 ,\integrator_reg[36]_i_1_n_6 ,\integrator_reg[36]_i_1_n_7 }),
         .S({\integrator[36]_i_2_n_0 ,\integrator[36]_i_3_n_0 ,\integrator[36]_i_4_n_0 ,\integrator[36]_i_5_n_0 }));
   FDRE #(
@@ -7548,7 +7652,7 @@ module pynq_z2_top_0_0_angle_engine
        (.CI(\integrator_reg[36]_i_1_n_0 ),
         .CO({\integrator_reg[40]_i_1_n_0 ,\integrator_reg[40]_i_1_n_1 ,\integrator_reg[40]_i_1_n_2 ,\integrator_reg[40]_i_1_n_3 }),
         .CYINIT(1'b0),
-        .DI({phase_error[31],phase_error[31],phase_error[31],phase_error[31]}),
+        .DI({\phase_error_reg[31]_0 [31],\phase_error_reg[31]_0 [31],\phase_error_reg[31]_0 [31],\phase_error_reg[31]_0 [31]}),
         .O({\integrator_reg[40]_i_1_n_4 ,\integrator_reg[40]_i_1_n_5 ,\integrator_reg[40]_i_1_n_6 ,\integrator_reg[40]_i_1_n_7 }),
         .S({\integrator[40]_i_2_n_0 ,\integrator[40]_i_3_n_0 ,\integrator[40]_i_4_n_0 ,\integrator[40]_i_5_n_0 }));
   FDRE #(
@@ -7589,7 +7693,7 @@ module pynq_z2_top_0_0_angle_engine
        (.CI(\integrator_reg[40]_i_1_n_0 ),
         .CO({\NLW_integrator_reg[44]_i_1_CO_UNCONNECTED [3],\integrator_reg[44]_i_1_n_1 ,\integrator_reg[44]_i_1_n_2 ,\integrator_reg[44]_i_1_n_3 }),
         .CYINIT(1'b0),
-        .DI({1'b0,phase_error[31],phase_error[31],phase_error[31]}),
+        .DI({1'b0,\phase_error_reg[31]_0 [31],\phase_error_reg[31]_0 [31],\phase_error_reg[31]_0 [31]}),
         .O({\integrator_reg[44]_i_1_n_4 ,\integrator_reg[44]_i_1_n_5 ,\integrator_reg[44]_i_1_n_6 ,\integrator_reg[44]_i_1_n_7 }),
         .S({\integrator[44]_i_2_n_0 ,\integrator[44]_i_3_n_0 ,\integrator[44]_i_4_n_0 ,\integrator[44]_i_5_n_0 }));
   FDRE #(
@@ -7630,7 +7734,7 @@ module pynq_z2_top_0_0_angle_engine
        (.CI(\integrator_reg[0]_i_1_n_0 ),
         .CO({\integrator_reg[4]_i_1_n_0 ,\integrator_reg[4]_i_1_n_1 ,\integrator_reg[4]_i_1_n_2 ,\integrator_reg[4]_i_1_n_3 }),
         .CYINIT(1'b0),
-        .DI(phase_error[7:4]),
+        .DI(\phase_error_reg[31]_0 [7:4]),
         .O({\integrator_reg[4]_i_1_n_4 ,\integrator_reg[4]_i_1_n_5 ,\integrator_reg[4]_i_1_n_6 ,\integrator_reg[4]_i_1_n_7 }),
         .S({\integrator[4]_i_2_n_0 ,\integrator[4]_i_3_n_0 ,\integrator[4]_i_4_n_0 ,\integrator[4]_i_5_n_0 }));
   FDRE #(
@@ -7671,7 +7775,7 @@ module pynq_z2_top_0_0_angle_engine
        (.CI(\integrator_reg[4]_i_1_n_0 ),
         .CO({\integrator_reg[8]_i_1_n_0 ,\integrator_reg[8]_i_1_n_1 ,\integrator_reg[8]_i_1_n_2 ,\integrator_reg[8]_i_1_n_3 }),
         .CYINIT(1'b0),
-        .DI(phase_error[11:8]),
+        .DI(\phase_error_reg[31]_0 [11:8]),
         .O({\integrator_reg[8]_i_1_n_4 ,\integrator_reg[8]_i_1_n_5 ,\integrator_reg[8]_i_1_n_6 ,\integrator_reg[8]_i_1_n_7 }),
         .S({\integrator[8]_i_2_n_0 ,\integrator[8]_i_3_n_0 ,\integrator[8]_i_4_n_0 ,\integrator[8]_i_5_n_0 }));
   FDRE #(
@@ -7815,31 +7919,31 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(8'hB2)) 
     \nco_accum[0]_i_11 
        (.I0(nco_accum_reg[2]),
-        .I1(correction[2]),
-        .I2(in[2]),
+        .I1(\correction_reg[31]_0 [2]),
+        .I2(\nco_inc_reg[31]_0 [2]),
         .O(\nco_accum[0]_i_11_n_0 ));
   (* HLUTNM = "lutpair1" *) 
   LUT3 #(
     .INIT(8'hB2)) 
     \nco_accum[0]_i_12 
        (.I0(nco_accum_reg[1]),
-        .I1(correction[1]),
-        .I2(in[1]),
+        .I1(\correction_reg[31]_0 [1]),
+        .I2(\nco_inc_reg[31]_0 [1]),
         .O(\nco_accum[0]_i_12_n_0 ));
   (* HLUTNM = "lutpair0" *) 
   LUT2 #(
     .INIT(4'hB)) 
     \nco_accum[0]_i_13 
-       (.I0(in[0]),
-        .I1(correction[0]),
+       (.I0(\nco_inc_reg[31]_0 [0]),
+        .I1(\correction_reg[31]_0 [0]),
         .O(\nco_accum[0]_i_13_n_0 ));
   (* HLUTNM = "lutpair3" *) 
   LUT4 #(
     .INIT(16'h9669)) 
     \nco_accum[0]_i_14 
        (.I0(nco_accum_reg[3]),
-        .I1(correction[3]),
-        .I2(in[3]),
+        .I1(\correction_reg[31]_0 [3]),
+        .I2(\nco_inc_reg[31]_0 [3]),
         .I3(\nco_accum[0]_i_11_n_0 ),
         .O(\nco_accum[0]_i_14_n_0 ));
   (* HLUTNM = "lutpair2" *) 
@@ -7847,8 +7951,8 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(16'h9669)) 
     \nco_accum[0]_i_15 
        (.I0(nco_accum_reg[2]),
-        .I1(correction[2]),
-        .I2(in[2]),
+        .I1(\correction_reg[31]_0 [2]),
+        .I2(\nco_inc_reg[31]_0 [2]),
         .I3(\nco_accum[0]_i_12_n_0 ),
         .O(\nco_accum[0]_i_15_n_0 ));
   (* HLUTNM = "lutpair1" *) 
@@ -7856,46 +7960,46 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(16'h9669)) 
     \nco_accum[0]_i_16 
        (.I0(nco_accum_reg[1]),
-        .I1(correction[1]),
-        .I2(in[1]),
+        .I1(\correction_reg[31]_0 [1]),
+        .I2(\nco_inc_reg[31]_0 [1]),
         .I3(\nco_accum[0]_i_13_n_0 ),
         .O(\nco_accum[0]_i_16_n_0 ));
   (* HLUTNM = "lutpair0" *) 
   LUT3 #(
     .INIT(8'h96)) 
     \nco_accum[0]_i_17 
-       (.I0(in[0]),
-        .I1(correction[0]),
+       (.I0(\nco_inc_reg[31]_0 [0]),
+        .I1(\correction_reg[31]_0 [0]),
         .I2(nco_accum_reg[0]),
         .O(\nco_accum[0]_i_17_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[0]_i_2 
-       (.I0(in[3]),
+       (.I0(\nco_inc_reg[31]_0 [3]),
         .I1(ab_edge),
         .O(\nco_accum[0]_i_2_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[0]_i_3 
-       (.I0(in[2]),
+       (.I0(\nco_inc_reg[31]_0 [2]),
         .I1(ab_edge),
         .O(\nco_accum[0]_i_3_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[0]_i_4 
-       (.I0(in[1]),
+       (.I0(\nco_inc_reg[31]_0 [1]),
         .I1(ab_edge),
         .O(\nco_accum[0]_i_4_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[0]_i_5 
-       (.I0(in[0]),
+       (.I0(\nco_inc_reg[31]_0 [0]),
         .I1(ab_edge),
         .O(\nco_accum[0]_i_5_n_0 ));
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[0]_i_6 
-       (.I0(in[3]),
+       (.I0(\nco_inc_reg[31]_0 [3]),
         .I1(nco_accum_reg[3]),
         .I2(ab_edge),
         .I3(C[3]),
@@ -7903,7 +8007,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[0]_i_7 
-       (.I0(in[2]),
+       (.I0(\nco_inc_reg[31]_0 [2]),
         .I1(nco_accum_reg[2]),
         .I2(ab_edge),
         .I3(C[2]),
@@ -7911,7 +8015,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[0]_i_8 
-       (.I0(in[1]),
+       (.I0(\nco_inc_reg[31]_0 [1]),
         .I1(nco_accum_reg[1]),
         .I2(ab_edge),
         .I3(C[1]),
@@ -7919,7 +8023,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[0]_i_9 
-       (.I0(in[0]),
+       (.I0(\nco_inc_reg[31]_0 [0]),
         .I1(nco_accum_reg[0]),
         .I2(ab_edge),
         .I3(C[0]),
@@ -7929,40 +8033,40 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(8'hB2)) 
     \nco_accum[12]_i_11 
        (.I0(nco_accum_reg[14]),
-        .I1(correction[14]),
-        .I2(in[14]),
+        .I1(\correction_reg[31]_0 [14]),
+        .I2(\nco_inc_reg[31]_0 [14]),
         .O(\nco_accum[12]_i_11_n_0 ));
   (* HLUTNM = "lutpair13" *) 
   LUT3 #(
     .INIT(8'hB2)) 
     \nco_accum[12]_i_12 
        (.I0(nco_accum_reg[13]),
-        .I1(correction[13]),
-        .I2(in[13]),
+        .I1(\correction_reg[31]_0 [13]),
+        .I2(\nco_inc_reg[31]_0 [13]),
         .O(\nco_accum[12]_i_12_n_0 ));
   (* HLUTNM = "lutpair12" *) 
   LUT3 #(
     .INIT(8'hB2)) 
     \nco_accum[12]_i_13 
        (.I0(nco_accum_reg[12]),
-        .I1(correction[12]),
-        .I2(in[12]),
+        .I1(\correction_reg[31]_0 [12]),
+        .I2(\nco_inc_reg[31]_0 [12]),
         .O(\nco_accum[12]_i_13_n_0 ));
   (* HLUTNM = "lutpair11" *) 
   LUT3 #(
     .INIT(8'hB2)) 
     \nco_accum[12]_i_14 
        (.I0(nco_accum_reg[11]),
-        .I1(correction[11]),
-        .I2(in[11]),
+        .I1(\correction_reg[31]_0 [11]),
+        .I2(\nco_inc_reg[31]_0 [11]),
         .O(\nco_accum[12]_i_14_n_0 ));
   (* HLUTNM = "lutpair15" *) 
   LUT4 #(
     .INIT(16'h9669)) 
     \nco_accum[12]_i_15 
        (.I0(nco_accum_reg[15]),
-        .I1(correction[15]),
-        .I2(in[15]),
+        .I1(\correction_reg[31]_0 [15]),
+        .I2(\nco_inc_reg[31]_0 [15]),
         .I3(\nco_accum[12]_i_11_n_0 ),
         .O(\nco_accum[12]_i_15_n_0 ));
   (* HLUTNM = "lutpair14" *) 
@@ -7970,8 +8074,8 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(16'h9669)) 
     \nco_accum[12]_i_16 
        (.I0(nco_accum_reg[14]),
-        .I1(correction[14]),
-        .I2(in[14]),
+        .I1(\correction_reg[31]_0 [14]),
+        .I2(\nco_inc_reg[31]_0 [14]),
         .I3(\nco_accum[12]_i_12_n_0 ),
         .O(\nco_accum[12]_i_16_n_0 ));
   (* HLUTNM = "lutpair13" *) 
@@ -7979,8 +8083,8 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(16'h9669)) 
     \nco_accum[12]_i_17 
        (.I0(nco_accum_reg[13]),
-        .I1(correction[13]),
-        .I2(in[13]),
+        .I1(\correction_reg[31]_0 [13]),
+        .I2(\nco_inc_reg[31]_0 [13]),
         .I3(\nco_accum[12]_i_13_n_0 ),
         .O(\nco_accum[12]_i_17_n_0 ));
   (* HLUTNM = "lutpair12" *) 
@@ -7988,38 +8092,38 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(16'h9669)) 
     \nco_accum[12]_i_18 
        (.I0(nco_accum_reg[12]),
-        .I1(correction[12]),
-        .I2(in[12]),
+        .I1(\correction_reg[31]_0 [12]),
+        .I2(\nco_inc_reg[31]_0 [12]),
         .I3(\nco_accum[12]_i_14_n_0 ),
         .O(\nco_accum[12]_i_18_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[12]_i_2 
-       (.I0(in[15]),
+       (.I0(\nco_inc_reg[31]_0 [15]),
         .I1(ab_edge),
         .O(\nco_accum[12]_i_2_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[12]_i_3 
-       (.I0(in[14]),
+       (.I0(\nco_inc_reg[31]_0 [14]),
         .I1(ab_edge),
         .O(\nco_accum[12]_i_3_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[12]_i_4 
-       (.I0(in[13]),
+       (.I0(\nco_inc_reg[31]_0 [13]),
         .I1(ab_edge),
         .O(\nco_accum[12]_i_4_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[12]_i_5 
-       (.I0(in[12]),
+       (.I0(\nco_inc_reg[31]_0 [12]),
         .I1(ab_edge),
         .O(\nco_accum[12]_i_5_n_0 ));
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[12]_i_6 
-       (.I0(in[15]),
+       (.I0(\nco_inc_reg[31]_0 [15]),
         .I1(nco_accum_reg[15]),
         .I2(ab_edge),
         .I3(C[15]),
@@ -8027,7 +8131,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[12]_i_7 
-       (.I0(in[14]),
+       (.I0(\nco_inc_reg[31]_0 [14]),
         .I1(nco_accum_reg[14]),
         .I2(ab_edge),
         .I3(C[14]),
@@ -8035,7 +8139,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[12]_i_8 
-       (.I0(in[13]),
+       (.I0(\nco_inc_reg[31]_0 [13]),
         .I1(nco_accum_reg[13]),
         .I2(ab_edge),
         .I3(C[13]),
@@ -8043,7 +8147,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[12]_i_9 
-       (.I0(in[12]),
+       (.I0(\nco_inc_reg[31]_0 [12]),
         .I1(nco_accum_reg[12]),
         .I2(ab_edge),
         .I3(C[12]),
@@ -8053,40 +8157,40 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(8'hB2)) 
     \nco_accum[16]_i_11 
        (.I0(nco_accum_reg[18]),
-        .I1(correction[18]),
-        .I2(in[18]),
+        .I1(\correction_reg[31]_0 [18]),
+        .I2(\nco_inc_reg[31]_0 [18]),
         .O(\nco_accum[16]_i_11_n_0 ));
   (* HLUTNM = "lutpair17" *) 
   LUT3 #(
     .INIT(8'hB2)) 
     \nco_accum[16]_i_12 
        (.I0(nco_accum_reg[17]),
-        .I1(correction[17]),
-        .I2(in[17]),
+        .I1(\correction_reg[31]_0 [17]),
+        .I2(\nco_inc_reg[31]_0 [17]),
         .O(\nco_accum[16]_i_12_n_0 ));
   (* HLUTNM = "lutpair16" *) 
   LUT3 #(
     .INIT(8'hB2)) 
     \nco_accum[16]_i_13 
        (.I0(nco_accum_reg[16]),
-        .I1(correction[16]),
-        .I2(in[16]),
+        .I1(\correction_reg[31]_0 [16]),
+        .I2(\nco_inc_reg[31]_0 [16]),
         .O(\nco_accum[16]_i_13_n_0 ));
   (* HLUTNM = "lutpair15" *) 
   LUT3 #(
     .INIT(8'hB2)) 
     \nco_accum[16]_i_14 
        (.I0(nco_accum_reg[15]),
-        .I1(correction[15]),
-        .I2(in[15]),
+        .I1(\correction_reg[31]_0 [15]),
+        .I2(\nco_inc_reg[31]_0 [15]),
         .O(\nco_accum[16]_i_14_n_0 ));
   (* HLUTNM = "lutpair19" *) 
   LUT4 #(
     .INIT(16'h9669)) 
     \nco_accum[16]_i_15 
        (.I0(nco_accum_reg[19]),
-        .I1(correction[19]),
-        .I2(in[19]),
+        .I1(\correction_reg[31]_0 [19]),
+        .I2(\nco_inc_reg[31]_0 [19]),
         .I3(\nco_accum[16]_i_11_n_0 ),
         .O(\nco_accum[16]_i_15_n_0 ));
   (* HLUTNM = "lutpair18" *) 
@@ -8094,8 +8198,8 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(16'h9669)) 
     \nco_accum[16]_i_16 
        (.I0(nco_accum_reg[18]),
-        .I1(correction[18]),
-        .I2(in[18]),
+        .I1(\correction_reg[31]_0 [18]),
+        .I2(\nco_inc_reg[31]_0 [18]),
         .I3(\nco_accum[16]_i_12_n_0 ),
         .O(\nco_accum[16]_i_16_n_0 ));
   (* HLUTNM = "lutpair17" *) 
@@ -8103,8 +8207,8 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(16'h9669)) 
     \nco_accum[16]_i_17 
        (.I0(nco_accum_reg[17]),
-        .I1(correction[17]),
-        .I2(in[17]),
+        .I1(\correction_reg[31]_0 [17]),
+        .I2(\nco_inc_reg[31]_0 [17]),
         .I3(\nco_accum[16]_i_13_n_0 ),
         .O(\nco_accum[16]_i_17_n_0 ));
   (* HLUTNM = "lutpair16" *) 
@@ -8112,38 +8216,38 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(16'h9669)) 
     \nco_accum[16]_i_18 
        (.I0(nco_accum_reg[16]),
-        .I1(correction[16]),
-        .I2(in[16]),
+        .I1(\correction_reg[31]_0 [16]),
+        .I2(\nco_inc_reg[31]_0 [16]),
         .I3(\nco_accum[16]_i_14_n_0 ),
         .O(\nco_accum[16]_i_18_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[16]_i_2 
-       (.I0(in[19]),
+       (.I0(\nco_inc_reg[31]_0 [19]),
         .I1(ab_edge),
         .O(\nco_accum[16]_i_2_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[16]_i_3 
-       (.I0(in[18]),
+       (.I0(\nco_inc_reg[31]_0 [18]),
         .I1(ab_edge),
         .O(\nco_accum[16]_i_3_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[16]_i_4 
-       (.I0(in[17]),
+       (.I0(\nco_inc_reg[31]_0 [17]),
         .I1(ab_edge),
         .O(\nco_accum[16]_i_4_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[16]_i_5 
-       (.I0(in[16]),
+       (.I0(\nco_inc_reg[31]_0 [16]),
         .I1(ab_edge),
         .O(\nco_accum[16]_i_5_n_0 ));
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[16]_i_6 
-       (.I0(in[19]),
+       (.I0(\nco_inc_reg[31]_0 [19]),
         .I1(nco_accum_reg[19]),
         .I2(ab_edge),
         .I3(C[19]),
@@ -8151,7 +8255,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[16]_i_7 
-       (.I0(in[18]),
+       (.I0(\nco_inc_reg[31]_0 [18]),
         .I1(nco_accum_reg[18]),
         .I2(ab_edge),
         .I3(C[18]),
@@ -8159,7 +8263,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[16]_i_8 
-       (.I0(in[17]),
+       (.I0(\nco_inc_reg[31]_0 [17]),
         .I1(nco_accum_reg[17]),
         .I2(ab_edge),
         .I3(C[17]),
@@ -8167,7 +8271,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[16]_i_9 
-       (.I0(in[16]),
+       (.I0(\nco_inc_reg[31]_0 [16]),
         .I1(nco_accum_reg[16]),
         .I2(ab_edge),
         .I3(C[16]),
@@ -8177,40 +8281,40 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(8'hB2)) 
     \nco_accum[20]_i_11 
        (.I0(nco_accum_reg[22]),
-        .I1(correction[22]),
-        .I2(in[22]),
+        .I1(\correction_reg[31]_0 [22]),
+        .I2(\nco_inc_reg[31]_0 [22]),
         .O(\nco_accum[20]_i_11_n_0 ));
   (* HLUTNM = "lutpair21" *) 
   LUT3 #(
     .INIT(8'hB2)) 
     \nco_accum[20]_i_12 
        (.I0(nco_accum_reg[21]),
-        .I1(correction[21]),
-        .I2(in[21]),
+        .I1(\correction_reg[31]_0 [21]),
+        .I2(\nco_inc_reg[31]_0 [21]),
         .O(\nco_accum[20]_i_12_n_0 ));
   (* HLUTNM = "lutpair20" *) 
   LUT3 #(
     .INIT(8'hB2)) 
     \nco_accum[20]_i_13 
        (.I0(nco_accum_reg[20]),
-        .I1(correction[20]),
-        .I2(in[20]),
+        .I1(\correction_reg[31]_0 [20]),
+        .I2(\nco_inc_reg[31]_0 [20]),
         .O(\nco_accum[20]_i_13_n_0 ));
   (* HLUTNM = "lutpair19" *) 
   LUT3 #(
     .INIT(8'hB2)) 
     \nco_accum[20]_i_14 
        (.I0(nco_accum_reg[19]),
-        .I1(correction[19]),
-        .I2(in[19]),
+        .I1(\correction_reg[31]_0 [19]),
+        .I2(\nco_inc_reg[31]_0 [19]),
         .O(\nco_accum[20]_i_14_n_0 ));
   (* HLUTNM = "lutpair23" *) 
   LUT4 #(
     .INIT(16'h9669)) 
     \nco_accum[20]_i_15 
        (.I0(nco_accum_reg[23]),
-        .I1(correction[23]),
-        .I2(in[23]),
+        .I1(\correction_reg[31]_0 [23]),
+        .I2(\nco_inc_reg[31]_0 [23]),
         .I3(\nco_accum[20]_i_11_n_0 ),
         .O(\nco_accum[20]_i_15_n_0 ));
   (* HLUTNM = "lutpair22" *) 
@@ -8218,8 +8322,8 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(16'h9669)) 
     \nco_accum[20]_i_16 
        (.I0(nco_accum_reg[22]),
-        .I1(correction[22]),
-        .I2(in[22]),
+        .I1(\correction_reg[31]_0 [22]),
+        .I2(\nco_inc_reg[31]_0 [22]),
         .I3(\nco_accum[20]_i_12_n_0 ),
         .O(\nco_accum[20]_i_16_n_0 ));
   (* HLUTNM = "lutpair21" *) 
@@ -8227,8 +8331,8 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(16'h9669)) 
     \nco_accum[20]_i_17 
        (.I0(nco_accum_reg[21]),
-        .I1(correction[21]),
-        .I2(in[21]),
+        .I1(\correction_reg[31]_0 [21]),
+        .I2(\nco_inc_reg[31]_0 [21]),
         .I3(\nco_accum[20]_i_13_n_0 ),
         .O(\nco_accum[20]_i_17_n_0 ));
   (* HLUTNM = "lutpair20" *) 
@@ -8236,38 +8340,38 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(16'h9669)) 
     \nco_accum[20]_i_18 
        (.I0(nco_accum_reg[20]),
-        .I1(correction[20]),
-        .I2(in[20]),
+        .I1(\correction_reg[31]_0 [20]),
+        .I2(\nco_inc_reg[31]_0 [20]),
         .I3(\nco_accum[20]_i_14_n_0 ),
         .O(\nco_accum[20]_i_18_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[20]_i_2 
-       (.I0(in[23]),
+       (.I0(\nco_inc_reg[31]_0 [23]),
         .I1(ab_edge),
         .O(\nco_accum[20]_i_2_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[20]_i_3 
-       (.I0(in[22]),
+       (.I0(\nco_inc_reg[31]_0 [22]),
         .I1(ab_edge),
         .O(\nco_accum[20]_i_3_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[20]_i_4 
-       (.I0(in[21]),
+       (.I0(\nco_inc_reg[31]_0 [21]),
         .I1(ab_edge),
         .O(\nco_accum[20]_i_4_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[20]_i_5 
-       (.I0(in[20]),
+       (.I0(\nco_inc_reg[31]_0 [20]),
         .I1(ab_edge),
         .O(\nco_accum[20]_i_5_n_0 ));
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[20]_i_6 
-       (.I0(in[23]),
+       (.I0(\nco_inc_reg[31]_0 [23]),
         .I1(nco_accum_reg[23]),
         .I2(ab_edge),
         .I3(C[23]),
@@ -8275,7 +8379,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[20]_i_7 
-       (.I0(in[22]),
+       (.I0(\nco_inc_reg[31]_0 [22]),
         .I1(nco_accum_reg[22]),
         .I2(ab_edge),
         .I3(C[22]),
@@ -8283,7 +8387,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[20]_i_8 
-       (.I0(in[21]),
+       (.I0(\nco_inc_reg[31]_0 [21]),
         .I1(nco_accum_reg[21]),
         .I2(ab_edge),
         .I3(C[21]),
@@ -8291,7 +8395,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[20]_i_9 
-       (.I0(in[20]),
+       (.I0(\nco_inc_reg[31]_0 [20]),
         .I1(nco_accum_reg[20]),
         .I2(ab_edge),
         .I3(C[20]),
@@ -8301,40 +8405,40 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(8'hB2)) 
     \nco_accum[24]_i_11 
        (.I0(nco_accum_reg[26]),
-        .I1(correction[26]),
-        .I2(in[26]),
+        .I1(\correction_reg[31]_0 [26]),
+        .I2(\nco_inc_reg[31]_0 [26]),
         .O(\nco_accum[24]_i_11_n_0 ));
   (* HLUTNM = "lutpair25" *) 
   LUT3 #(
     .INIT(8'hB2)) 
     \nco_accum[24]_i_12 
        (.I0(nco_accum_reg[25]),
-        .I1(correction[25]),
-        .I2(in[25]),
+        .I1(\correction_reg[31]_0 [25]),
+        .I2(\nco_inc_reg[31]_0 [25]),
         .O(\nco_accum[24]_i_12_n_0 ));
   (* HLUTNM = "lutpair24" *) 
   LUT3 #(
     .INIT(8'hB2)) 
     \nco_accum[24]_i_13 
        (.I0(nco_accum_reg[24]),
-        .I1(correction[24]),
-        .I2(in[24]),
+        .I1(\correction_reg[31]_0 [24]),
+        .I2(\nco_inc_reg[31]_0 [24]),
         .O(\nco_accum[24]_i_13_n_0 ));
   (* HLUTNM = "lutpair23" *) 
   LUT3 #(
     .INIT(8'hB2)) 
     \nco_accum[24]_i_14 
        (.I0(nco_accum_reg[23]),
-        .I1(correction[23]),
-        .I2(in[23]),
+        .I1(\correction_reg[31]_0 [23]),
+        .I2(\nco_inc_reg[31]_0 [23]),
         .O(\nco_accum[24]_i_14_n_0 ));
   (* HLUTNM = "lutpair27" *) 
   LUT4 #(
     .INIT(16'h9669)) 
     \nco_accum[24]_i_15 
        (.I0(nco_accum_reg[27]),
-        .I1(correction[27]),
-        .I2(in[27]),
+        .I1(\correction_reg[31]_0 [27]),
+        .I2(\nco_inc_reg[31]_0 [27]),
         .I3(\nco_accum[24]_i_11_n_0 ),
         .O(\nco_accum[24]_i_15_n_0 ));
   (* HLUTNM = "lutpair26" *) 
@@ -8342,8 +8446,8 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(16'h9669)) 
     \nco_accum[24]_i_16 
        (.I0(nco_accum_reg[26]),
-        .I1(correction[26]),
-        .I2(in[26]),
+        .I1(\correction_reg[31]_0 [26]),
+        .I2(\nco_inc_reg[31]_0 [26]),
         .I3(\nco_accum[24]_i_12_n_0 ),
         .O(\nco_accum[24]_i_16_n_0 ));
   (* HLUTNM = "lutpair25" *) 
@@ -8351,8 +8455,8 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(16'h9669)) 
     \nco_accum[24]_i_17 
        (.I0(nco_accum_reg[25]),
-        .I1(correction[25]),
-        .I2(in[25]),
+        .I1(\correction_reg[31]_0 [25]),
+        .I2(\nco_inc_reg[31]_0 [25]),
         .I3(\nco_accum[24]_i_13_n_0 ),
         .O(\nco_accum[24]_i_17_n_0 ));
   (* HLUTNM = "lutpair24" *) 
@@ -8360,38 +8464,38 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(16'h9669)) 
     \nco_accum[24]_i_18 
        (.I0(nco_accum_reg[24]),
-        .I1(correction[24]),
-        .I2(in[24]),
+        .I1(\correction_reg[31]_0 [24]),
+        .I2(\nco_inc_reg[31]_0 [24]),
         .I3(\nco_accum[24]_i_14_n_0 ),
         .O(\nco_accum[24]_i_18_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[24]_i_2 
-       (.I0(in[27]),
+       (.I0(\nco_inc_reg[31]_0 [27]),
         .I1(ab_edge),
         .O(\nco_accum[24]_i_2_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[24]_i_3 
-       (.I0(in[26]),
+       (.I0(\nco_inc_reg[31]_0 [26]),
         .I1(ab_edge),
         .O(\nco_accum[24]_i_3_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[24]_i_4 
-       (.I0(in[25]),
+       (.I0(\nco_inc_reg[31]_0 [25]),
         .I1(ab_edge),
         .O(\nco_accum[24]_i_4_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[24]_i_5 
-       (.I0(in[24]),
+       (.I0(\nco_inc_reg[31]_0 [24]),
         .I1(ab_edge),
         .O(\nco_accum[24]_i_5_n_0 ));
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[24]_i_6 
-       (.I0(in[27]),
+       (.I0(\nco_inc_reg[31]_0 [27]),
         .I1(nco_accum_reg[27]),
         .I2(ab_edge),
         .I3(C[27]),
@@ -8399,7 +8503,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[24]_i_7 
-       (.I0(in[26]),
+       (.I0(\nco_inc_reg[31]_0 [26]),
         .I1(nco_accum_reg[26]),
         .I2(ab_edge),
         .I3(C[26]),
@@ -8407,7 +8511,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[24]_i_8 
-       (.I0(in[25]),
+       (.I0(\nco_inc_reg[31]_0 [25]),
         .I1(nco_accum_reg[25]),
         .I2(ab_edge),
         .I3(C[25]),
@@ -8415,7 +8519,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[24]_i_9 
-       (.I0(in[24]),
+       (.I0(\nco_inc_reg[31]_0 [24]),
         .I1(nco_accum_reg[24]),
         .I2(ab_edge),
         .I3(C[24]),
@@ -8425,50 +8529,50 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(8'hB2)) 
     \nco_accum[28]_i_10 
        (.I0(nco_accum_reg[29]),
-        .I1(correction[29]),
-        .I2(in[29]),
+        .I1(\correction_reg[31]_0 [29]),
+        .I2(\nco_inc_reg[31]_0 [29]),
         .O(\nco_accum[28]_i_10_n_0 ));
   (* HLUTNM = "lutpair28" *) 
   LUT3 #(
     .INIT(8'hB2)) 
     \nco_accum[28]_i_11 
        (.I0(nco_accum_reg[28]),
-        .I1(correction[28]),
-        .I2(in[28]),
+        .I1(\correction_reg[31]_0 [28]),
+        .I2(\nco_inc_reg[31]_0 [28]),
         .O(\nco_accum[28]_i_11_n_0 ));
   (* HLUTNM = "lutpair27" *) 
   LUT3 #(
     .INIT(8'hB2)) 
     \nco_accum[28]_i_12 
        (.I0(nco_accum_reg[27]),
-        .I1(correction[27]),
-        .I2(in[27]),
+        .I1(\correction_reg[31]_0 [27]),
+        .I2(\nco_inc_reg[31]_0 [27]),
         .O(\nco_accum[28]_i_12_n_0 ));
   LUT6 #(
     .INIT(64'h9669969669699669)) 
     \nco_accum[28]_i_13 
-       (.I0(nco_accum_reg[31]),
-        .I1(in[31]),
-        .I2(correction[31]),
+       (.I0(\nco_inc_reg[31]_0 [31]),
+        .I1(nco_accum_reg[31]),
+        .I2(\correction_reg[31]_0 [31]),
         .I3(nco_accum_reg[30]),
-        .I4(correction[30]),
-        .I5(in[30]),
+        .I4(\correction_reg[31]_0 [30]),
+        .I5(\nco_inc_reg[31]_0 [30]),
         .O(\nco_accum[28]_i_13_n_0 ));
   LUT4 #(
     .INIT(16'h9669)) 
     \nco_accum[28]_i_14 
        (.I0(\nco_accum[28]_i_10_n_0 ),
         .I1(nco_accum_reg[30]),
-        .I2(correction[30]),
-        .I3(in[30]),
+        .I2(\correction_reg[31]_0 [30]),
+        .I3(\nco_inc_reg[31]_0 [30]),
         .O(\nco_accum[28]_i_14_n_0 ));
   (* HLUTNM = "lutpair29" *) 
   LUT4 #(
     .INIT(16'h9669)) 
     \nco_accum[28]_i_15 
        (.I0(nco_accum_reg[29]),
-        .I1(correction[29]),
-        .I2(in[29]),
+        .I1(\correction_reg[31]_0 [29]),
+        .I2(\nco_inc_reg[31]_0 [29]),
         .I3(\nco_accum[28]_i_11_n_0 ),
         .O(\nco_accum[28]_i_15_n_0 ));
   (* HLUTNM = "lutpair28" *) 
@@ -8476,26 +8580,26 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(16'h9669)) 
     \nco_accum[28]_i_16 
        (.I0(nco_accum_reg[28]),
-        .I1(correction[28]),
-        .I2(in[28]),
+        .I1(\correction_reg[31]_0 [28]),
+        .I2(\nco_inc_reg[31]_0 [28]),
         .I3(\nco_accum[28]_i_12_n_0 ),
         .O(\nco_accum[28]_i_16_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[28]_i_2 
-       (.I0(in[30]),
+       (.I0(\nco_inc_reg[31]_0 [30]),
         .I1(ab_edge),
         .O(\nco_accum[28]_i_2_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[28]_i_3 
-       (.I0(in[29]),
+       (.I0(\nco_inc_reg[31]_0 [29]),
         .I1(ab_edge),
         .O(\nco_accum[28]_i_3_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[28]_i_4 
-       (.I0(in[28]),
+       (.I0(\nco_inc_reg[31]_0 [28]),
         .I1(ab_edge),
         .O(\nco_accum[28]_i_4_n_0 ));
   LUT4 #(
@@ -8503,13 +8607,13 @@ module pynq_z2_top_0_0_angle_engine
     \nco_accum[28]_i_5 
        (.I0(C[31]),
         .I1(ab_edge),
-        .I2(nco_accum_reg[31]),
-        .I3(in[31]),
+        .I2(\nco_inc_reg[31]_0 [31]),
+        .I3(nco_accum_reg[31]),
         .O(\nco_accum[28]_i_5_n_0 ));
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[28]_i_6 
-       (.I0(in[30]),
+       (.I0(\nco_inc_reg[31]_0 [30]),
         .I1(nco_accum_reg[30]),
         .I2(ab_edge),
         .I3(C[30]),
@@ -8517,7 +8621,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[28]_i_7 
-       (.I0(in[29]),
+       (.I0(\nco_inc_reg[31]_0 [29]),
         .I1(nco_accum_reg[29]),
         .I2(ab_edge),
         .I3(C[29]),
@@ -8525,7 +8629,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[28]_i_8 
-       (.I0(in[28]),
+       (.I0(\nco_inc_reg[31]_0 [28]),
         .I1(nco_accum_reg[28]),
         .I2(ab_edge),
         .I3(C[28]),
@@ -8535,40 +8639,40 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(8'hB2)) 
     \nco_accum[4]_i_11 
        (.I0(nco_accum_reg[6]),
-        .I1(correction[6]),
-        .I2(in[6]),
+        .I1(\correction_reg[31]_0 [6]),
+        .I2(\nco_inc_reg[31]_0 [6]),
         .O(\nco_accum[4]_i_11_n_0 ));
   (* HLUTNM = "lutpair5" *) 
   LUT3 #(
     .INIT(8'hB2)) 
     \nco_accum[4]_i_12 
        (.I0(nco_accum_reg[5]),
-        .I1(correction[5]),
-        .I2(in[5]),
+        .I1(\correction_reg[31]_0 [5]),
+        .I2(\nco_inc_reg[31]_0 [5]),
         .O(\nco_accum[4]_i_12_n_0 ));
   (* HLUTNM = "lutpair4" *) 
   LUT3 #(
     .INIT(8'hB2)) 
     \nco_accum[4]_i_13 
        (.I0(nco_accum_reg[4]),
-        .I1(correction[4]),
-        .I2(in[4]),
+        .I1(\correction_reg[31]_0 [4]),
+        .I2(\nco_inc_reg[31]_0 [4]),
         .O(\nco_accum[4]_i_13_n_0 ));
   (* HLUTNM = "lutpair3" *) 
   LUT3 #(
     .INIT(8'hB2)) 
     \nco_accum[4]_i_14 
        (.I0(nco_accum_reg[3]),
-        .I1(correction[3]),
-        .I2(in[3]),
+        .I1(\correction_reg[31]_0 [3]),
+        .I2(\nco_inc_reg[31]_0 [3]),
         .O(\nco_accum[4]_i_14_n_0 ));
   (* HLUTNM = "lutpair7" *) 
   LUT4 #(
     .INIT(16'h9669)) 
     \nco_accum[4]_i_15 
        (.I0(nco_accum_reg[7]),
-        .I1(correction[7]),
-        .I2(in[7]),
+        .I1(\correction_reg[31]_0 [7]),
+        .I2(\nco_inc_reg[31]_0 [7]),
         .I3(\nco_accum[4]_i_11_n_0 ),
         .O(\nco_accum[4]_i_15_n_0 ));
   (* HLUTNM = "lutpair6" *) 
@@ -8576,8 +8680,8 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(16'h9669)) 
     \nco_accum[4]_i_16 
        (.I0(nco_accum_reg[6]),
-        .I1(correction[6]),
-        .I2(in[6]),
+        .I1(\correction_reg[31]_0 [6]),
+        .I2(\nco_inc_reg[31]_0 [6]),
         .I3(\nco_accum[4]_i_12_n_0 ),
         .O(\nco_accum[4]_i_16_n_0 ));
   (* HLUTNM = "lutpair5" *) 
@@ -8585,8 +8689,8 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(16'h9669)) 
     \nco_accum[4]_i_17 
        (.I0(nco_accum_reg[5]),
-        .I1(correction[5]),
-        .I2(in[5]),
+        .I1(\correction_reg[31]_0 [5]),
+        .I2(\nco_inc_reg[31]_0 [5]),
         .I3(\nco_accum[4]_i_13_n_0 ),
         .O(\nco_accum[4]_i_17_n_0 ));
   (* HLUTNM = "lutpair4" *) 
@@ -8594,38 +8698,38 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(16'h9669)) 
     \nco_accum[4]_i_18 
        (.I0(nco_accum_reg[4]),
-        .I1(correction[4]),
-        .I2(in[4]),
+        .I1(\correction_reg[31]_0 [4]),
+        .I2(\nco_inc_reg[31]_0 [4]),
         .I3(\nco_accum[4]_i_14_n_0 ),
         .O(\nco_accum[4]_i_18_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[4]_i_2 
-       (.I0(in[7]),
+       (.I0(\nco_inc_reg[31]_0 [7]),
         .I1(ab_edge),
         .O(\nco_accum[4]_i_2_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[4]_i_3 
-       (.I0(in[6]),
+       (.I0(\nco_inc_reg[31]_0 [6]),
         .I1(ab_edge),
         .O(\nco_accum[4]_i_3_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[4]_i_4 
-       (.I0(in[5]),
+       (.I0(\nco_inc_reg[31]_0 [5]),
         .I1(ab_edge),
         .O(\nco_accum[4]_i_4_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[4]_i_5 
-       (.I0(in[4]),
+       (.I0(\nco_inc_reg[31]_0 [4]),
         .I1(ab_edge),
         .O(\nco_accum[4]_i_5_n_0 ));
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[4]_i_6 
-       (.I0(in[7]),
+       (.I0(\nco_inc_reg[31]_0 [7]),
         .I1(nco_accum_reg[7]),
         .I2(ab_edge),
         .I3(C[7]),
@@ -8633,7 +8737,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[4]_i_7 
-       (.I0(in[6]),
+       (.I0(\nco_inc_reg[31]_0 [6]),
         .I1(nco_accum_reg[6]),
         .I2(ab_edge),
         .I3(C[6]),
@@ -8641,7 +8745,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[4]_i_8 
-       (.I0(in[5]),
+       (.I0(\nco_inc_reg[31]_0 [5]),
         .I1(nco_accum_reg[5]),
         .I2(ab_edge),
         .I3(C[5]),
@@ -8649,7 +8753,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[4]_i_9 
-       (.I0(in[4]),
+       (.I0(\nco_inc_reg[31]_0 [4]),
         .I1(nco_accum_reg[4]),
         .I2(ab_edge),
         .I3(C[4]),
@@ -8659,40 +8763,40 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(8'hB2)) 
     \nco_accum[8]_i_11 
        (.I0(nco_accum_reg[10]),
-        .I1(correction[10]),
-        .I2(in[10]),
+        .I1(\correction_reg[31]_0 [10]),
+        .I2(\nco_inc_reg[31]_0 [10]),
         .O(\nco_accum[8]_i_11_n_0 ));
   (* HLUTNM = "lutpair9" *) 
   LUT3 #(
     .INIT(8'hB2)) 
     \nco_accum[8]_i_12 
        (.I0(nco_accum_reg[9]),
-        .I1(correction[9]),
-        .I2(in[9]),
+        .I1(\correction_reg[31]_0 [9]),
+        .I2(\nco_inc_reg[31]_0 [9]),
         .O(\nco_accum[8]_i_12_n_0 ));
   (* HLUTNM = "lutpair8" *) 
   LUT3 #(
     .INIT(8'hB2)) 
     \nco_accum[8]_i_13 
        (.I0(nco_accum_reg[8]),
-        .I1(correction[8]),
-        .I2(in[8]),
+        .I1(\correction_reg[31]_0 [8]),
+        .I2(\nco_inc_reg[31]_0 [8]),
         .O(\nco_accum[8]_i_13_n_0 ));
   (* HLUTNM = "lutpair7" *) 
   LUT3 #(
     .INIT(8'hB2)) 
     \nco_accum[8]_i_14 
        (.I0(nco_accum_reg[7]),
-        .I1(correction[7]),
-        .I2(in[7]),
+        .I1(\correction_reg[31]_0 [7]),
+        .I2(\nco_inc_reg[31]_0 [7]),
         .O(\nco_accum[8]_i_14_n_0 ));
   (* HLUTNM = "lutpair11" *) 
   LUT4 #(
     .INIT(16'h9669)) 
     \nco_accum[8]_i_15 
        (.I0(nco_accum_reg[11]),
-        .I1(correction[11]),
-        .I2(in[11]),
+        .I1(\correction_reg[31]_0 [11]),
+        .I2(\nco_inc_reg[31]_0 [11]),
         .I3(\nco_accum[8]_i_11_n_0 ),
         .O(\nco_accum[8]_i_15_n_0 ));
   (* HLUTNM = "lutpair10" *) 
@@ -8700,8 +8804,8 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(16'h9669)) 
     \nco_accum[8]_i_16 
        (.I0(nco_accum_reg[10]),
-        .I1(correction[10]),
-        .I2(in[10]),
+        .I1(\correction_reg[31]_0 [10]),
+        .I2(\nco_inc_reg[31]_0 [10]),
         .I3(\nco_accum[8]_i_12_n_0 ),
         .O(\nco_accum[8]_i_16_n_0 ));
   (* HLUTNM = "lutpair9" *) 
@@ -8709,8 +8813,8 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(16'h9669)) 
     \nco_accum[8]_i_17 
        (.I0(nco_accum_reg[9]),
-        .I1(correction[9]),
-        .I2(in[9]),
+        .I1(\correction_reg[31]_0 [9]),
+        .I2(\nco_inc_reg[31]_0 [9]),
         .I3(\nco_accum[8]_i_13_n_0 ),
         .O(\nco_accum[8]_i_17_n_0 ));
   (* HLUTNM = "lutpair8" *) 
@@ -8718,38 +8822,38 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(16'h9669)) 
     \nco_accum[8]_i_18 
        (.I0(nco_accum_reg[8]),
-        .I1(correction[8]),
-        .I2(in[8]),
+        .I1(\correction_reg[31]_0 [8]),
+        .I2(\nco_inc_reg[31]_0 [8]),
         .I3(\nco_accum[8]_i_14_n_0 ),
         .O(\nco_accum[8]_i_18_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[8]_i_2 
-       (.I0(in[11]),
+       (.I0(\nco_inc_reg[31]_0 [11]),
         .I1(ab_edge),
         .O(\nco_accum[8]_i_2_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[8]_i_3 
-       (.I0(in[10]),
+       (.I0(\nco_inc_reg[31]_0 [10]),
         .I1(ab_edge),
         .O(\nco_accum[8]_i_3_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[8]_i_4 
-       (.I0(in[9]),
+       (.I0(\nco_inc_reg[31]_0 [9]),
         .I1(ab_edge),
         .O(\nco_accum[8]_i_4_n_0 ));
   LUT2 #(
     .INIT(4'h2)) 
     \nco_accum[8]_i_5 
-       (.I0(in[8]),
+       (.I0(\nco_inc_reg[31]_0 [8]),
         .I1(ab_edge),
         .O(\nco_accum[8]_i_5_n_0 ));
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[8]_i_6 
-       (.I0(in[11]),
+       (.I0(\nco_inc_reg[31]_0 [11]),
         .I1(nco_accum_reg[11]),
         .I2(ab_edge),
         .I3(C[11]),
@@ -8757,7 +8861,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[8]_i_7 
-       (.I0(in[10]),
+       (.I0(\nco_inc_reg[31]_0 [10]),
         .I1(nco_accum_reg[10]),
         .I2(ab_edge),
         .I3(C[10]),
@@ -8765,7 +8869,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[8]_i_8 
-       (.I0(in[9]),
+       (.I0(\nco_inc_reg[31]_0 [9]),
         .I1(nco_accum_reg[9]),
         .I2(ab_edge),
         .I3(C[9]),
@@ -8773,7 +8877,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT4 #(
     .INIT(16'hF606)) 
     \nco_accum[8]_i_9 
-       (.I0(in[8]),
+       (.I0(\nco_inc_reg[31]_0 [8]),
         .I1(nco_accum_reg[8]),
         .I2(ab_edge),
         .I3(C[8]),
@@ -8782,7 +8886,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[0] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[0]_i_1_n_7 ),
         .Q(nco_accum_reg[0]),
         .R(phase_error1_i_2_n_0));
@@ -8808,7 +8912,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[10] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[8]_i_1_n_5 ),
         .Q(nco_accum_reg[10]),
         .R(phase_error1_i_2_n_0));
@@ -8816,7 +8920,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[11] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[8]_i_1_n_4 ),
         .Q(nco_accum_reg[11]),
         .R(phase_error1_i_2_n_0));
@@ -8824,7 +8928,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[12] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[12]_i_1_n_7 ),
         .Q(nco_accum_reg[12]),
         .R(phase_error1_i_2_n_0));
@@ -8850,7 +8954,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[13] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[12]_i_1_n_6 ),
         .Q(nco_accum_reg[13]),
         .R(phase_error1_i_2_n_0));
@@ -8858,7 +8962,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[14] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[12]_i_1_n_5 ),
         .Q(nco_accum_reg[14]),
         .R(phase_error1_i_2_n_0));
@@ -8866,7 +8970,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[15] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[12]_i_1_n_4 ),
         .Q(nco_accum_reg[15]),
         .R(phase_error1_i_2_n_0));
@@ -8874,7 +8978,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[16] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[16]_i_1_n_7 ),
         .Q(nco_accum_reg[16]),
         .R(phase_error1_i_2_n_0));
@@ -8900,7 +9004,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[17] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[16]_i_1_n_6 ),
         .Q(nco_accum_reg[17]),
         .R(phase_error1_i_2_n_0));
@@ -8908,7 +9012,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[18] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[16]_i_1_n_5 ),
         .Q(nco_accum_reg[18]),
         .R(phase_error1_i_2_n_0));
@@ -8916,7 +9020,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[19] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[16]_i_1_n_4 ),
         .Q(nco_accum_reg[19]),
         .R(phase_error1_i_2_n_0));
@@ -8924,7 +9028,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[1] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[0]_i_1_n_6 ),
         .Q(nco_accum_reg[1]),
         .R(phase_error1_i_2_n_0));
@@ -8932,7 +9036,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[20] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[20]_i_1_n_7 ),
         .Q(nco_accum_reg[20]),
         .R(phase_error1_i_2_n_0));
@@ -8958,7 +9062,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[21] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[20]_i_1_n_6 ),
         .Q(nco_accum_reg[21]),
         .R(phase_error1_i_2_n_0));
@@ -8966,7 +9070,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[22] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[20]_i_1_n_5 ),
         .Q(nco_accum_reg[22]),
         .R(phase_error1_i_2_n_0));
@@ -8974,7 +9078,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[23] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[20]_i_1_n_4 ),
         .Q(nco_accum_reg[23]),
         .R(phase_error1_i_2_n_0));
@@ -8982,7 +9086,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[24] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[24]_i_1_n_7 ),
         .Q(nco_accum_reg[24]),
         .R(phase_error1_i_2_n_0));
@@ -9008,7 +9112,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[25] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[24]_i_1_n_6 ),
         .Q(nco_accum_reg[25]),
         .R(phase_error1_i_2_n_0));
@@ -9016,7 +9120,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[26] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[24]_i_1_n_5 ),
         .Q(nco_accum_reg[26]),
         .R(phase_error1_i_2_n_0));
@@ -9024,7 +9128,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[27] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[24]_i_1_n_4 ),
         .Q(nco_accum_reg[27]),
         .R(phase_error1_i_2_n_0));
@@ -9032,7 +9136,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[28] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[28]_i_1_n_7 ),
         .Q(nco_accum_reg[28]),
         .R(phase_error1_i_2_n_0));
@@ -9058,7 +9162,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[29] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[28]_i_1_n_6 ),
         .Q(nco_accum_reg[29]),
         .R(phase_error1_i_2_n_0));
@@ -9066,7 +9170,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[2] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[0]_i_1_n_5 ),
         .Q(nco_accum_reg[2]),
         .R(phase_error1_i_2_n_0));
@@ -9074,7 +9178,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[30] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[28]_i_1_n_5 ),
         .Q(nco_accum_reg[30]),
         .R(phase_error1_i_2_n_0));
@@ -9082,7 +9186,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[31] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[28]_i_1_n_4 ),
         .Q(nco_accum_reg[31]),
         .R(phase_error1_i_2_n_0));
@@ -9090,7 +9194,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[3] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[0]_i_1_n_4 ),
         .Q(nco_accum_reg[3]),
         .R(phase_error1_i_2_n_0));
@@ -9098,7 +9202,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[4] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[4]_i_1_n_7 ),
         .Q(nco_accum_reg[4]),
         .R(phase_error1_i_2_n_0));
@@ -9124,7 +9228,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[5] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[4]_i_1_n_6 ),
         .Q(nco_accum_reg[5]),
         .R(phase_error1_i_2_n_0));
@@ -9132,7 +9236,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[6] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[4]_i_1_n_5 ),
         .Q(nco_accum_reg[6]),
         .R(phase_error1_i_2_n_0));
@@ -9140,7 +9244,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[7] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[4]_i_1_n_4 ),
         .Q(nco_accum_reg[7]),
         .R(phase_error1_i_2_n_0));
@@ -9148,7 +9252,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[8] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[8]_i_1_n_7 ),
         .Q(nco_accum_reg[8]),
         .R(phase_error1_i_2_n_0));
@@ -9174,7 +9278,7 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \nco_accum_reg[9] 
        (.C(clk),
-        .CE(sync_state),
+        .CE(\angle_temp_reg[32]_0 ),
         .D(\nco_accum_reg[8]_i_1_n_6 ),
         .Q(nco_accum_reg[9]),
         .R(phase_error1_i_2_n_0));
@@ -9184,7 +9288,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[0]),
-        .Q(in[0]),
+        .Q(\nco_inc_reg[31]_0 [0]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9192,7 +9296,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[10]),
-        .Q(in[10]),
+        .Q(\nco_inc_reg[31]_0 [10]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9200,7 +9304,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[11]),
-        .Q(in[11]),
+        .Q(\nco_inc_reg[31]_0 [11]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9208,7 +9312,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[12]),
-        .Q(in[12]),
+        .Q(\nco_inc_reg[31]_0 [12]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9216,7 +9320,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[13]),
-        .Q(in[13]),
+        .Q(\nco_inc_reg[31]_0 [13]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9224,7 +9328,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[14]),
-        .Q(in[14]),
+        .Q(\nco_inc_reg[31]_0 [14]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9232,7 +9336,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[15]),
-        .Q(in[15]),
+        .Q(\nco_inc_reg[31]_0 [15]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9240,7 +9344,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[16]),
-        .Q(in[16]),
+        .Q(\nco_inc_reg[31]_0 [16]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9248,7 +9352,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[17]),
-        .Q(in[17]),
+        .Q(\nco_inc_reg[31]_0 [17]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9256,7 +9360,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[18]),
-        .Q(in[18]),
+        .Q(\nco_inc_reg[31]_0 [18]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9264,7 +9368,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[19]),
-        .Q(in[19]),
+        .Q(\nco_inc_reg[31]_0 [19]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9272,7 +9376,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[1]),
-        .Q(in[1]),
+        .Q(\nco_inc_reg[31]_0 [1]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9280,7 +9384,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[20]),
-        .Q(in[20]),
+        .Q(\nco_inc_reg[31]_0 [20]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9288,7 +9392,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[21]),
-        .Q(in[21]),
+        .Q(\nco_inc_reg[31]_0 [21]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9296,7 +9400,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[22]),
-        .Q(in[22]),
+        .Q(\nco_inc_reg[31]_0 [22]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9304,7 +9408,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[23]),
-        .Q(in[23]),
+        .Q(\nco_inc_reg[31]_0 [23]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9312,7 +9416,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[24]),
-        .Q(in[24]),
+        .Q(\nco_inc_reg[31]_0 [24]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9320,7 +9424,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[25]),
-        .Q(in[25]),
+        .Q(\nco_inc_reg[31]_0 [25]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9328,7 +9432,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[26]),
-        .Q(in[26]),
+        .Q(\nco_inc_reg[31]_0 [26]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9336,7 +9440,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[27]),
-        .Q(in[27]),
+        .Q(\nco_inc_reg[31]_0 [27]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9344,7 +9448,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[28]),
-        .Q(in[28]),
+        .Q(\nco_inc_reg[31]_0 [28]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9352,7 +9456,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[29]),
-        .Q(in[29]),
+        .Q(\nco_inc_reg[31]_0 [29]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9360,7 +9464,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[2]),
-        .Q(in[2]),
+        .Q(\nco_inc_reg[31]_0 [2]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9368,7 +9472,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[30]),
-        .Q(in[30]),
+        .Q(\nco_inc_reg[31]_0 [30]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9376,7 +9480,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[31]),
-        .Q(in[31]),
+        .Q(\nco_inc_reg[31]_0 [31]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9384,7 +9488,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[3]),
-        .Q(in[3]),
+        .Q(\nco_inc_reg[31]_0 [3]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9392,7 +9496,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[4]),
-        .Q(in[4]),
+        .Q(\nco_inc_reg[31]_0 [4]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9400,7 +9504,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[5]),
-        .Q(in[5]),
+        .Q(\nco_inc_reg[31]_0 [5]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9408,7 +9512,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[6]),
-        .Q(in[6]),
+        .Q(\nco_inc_reg[31]_0 [6]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9416,7 +9520,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[7]),
-        .Q(in[7]),
+        .Q(\nco_inc_reg[31]_0 [7]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9424,7 +9528,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[8]),
-        .Q(in[8]),
+        .Q(\nco_inc_reg[31]_0 [8]),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -9432,7 +9536,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(nco_inc0),
         .D(div_quotient[9]),
-        .Q(in[9]),
+        .Q(\nco_inc_reg[31]_0 [9]),
         .R(rst));
   (* METHODOLOGY_DRC_VIOS = "{SYNTH-11 {cell *THIS*}}" *) 
   DSP48E1 #(
@@ -9623,241 +9727,13 @@ module pynq_z2_top_0_0_angle_engine
        (.I0(ab_edge_cnt_reg[0]),
         .I1(ab_edge_cnt_reg[1]),
         .O(phase_error1_i_9_n_0));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[11]_i_2 
-       (.I0(nco_accum_reg[11]),
-        .I1(phase_error1_n_94),
-        .O(\phase_error[11]_i_2_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[11]_i_3 
-       (.I0(nco_accum_reg[10]),
-        .I1(phase_error1_n_95),
-        .O(\phase_error[11]_i_3_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[11]_i_4 
-       (.I0(nco_accum_reg[9]),
-        .I1(phase_error1_n_96),
-        .O(\phase_error[11]_i_4_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[11]_i_5 
-       (.I0(nco_accum_reg[8]),
-        .I1(phase_error1_n_97),
-        .O(\phase_error[11]_i_5_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[15]_i_2 
-       (.I0(nco_accum_reg[15]),
-        .I1(phase_error1_n_90),
-        .O(\phase_error[15]_i_2_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[15]_i_3 
-       (.I0(nco_accum_reg[14]),
-        .I1(phase_error1_n_91),
-        .O(\phase_error[15]_i_3_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[15]_i_4 
-       (.I0(nco_accum_reg[13]),
-        .I1(phase_error1_n_92),
-        .O(\phase_error[15]_i_4_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[15]_i_5 
-       (.I0(nco_accum_reg[12]),
-        .I1(phase_error1_n_93),
-        .O(\phase_error[15]_i_5_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[19]_i_2 
-       (.I0(nco_accum_reg[19]),
-        .I1(phase_error1_n_86),
-        .O(\phase_error[19]_i_2_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[19]_i_3 
-       (.I0(nco_accum_reg[18]),
-        .I1(phase_error1_n_87),
-        .O(\phase_error[19]_i_3_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[19]_i_4 
-       (.I0(nco_accum_reg[17]),
-        .I1(phase_error1_n_88),
-        .O(\phase_error[19]_i_4_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[19]_i_5 
-       (.I0(nco_accum_reg[16]),
-        .I1(phase_error1_n_89),
-        .O(\phase_error[19]_i_5_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[23]_i_2 
-       (.I0(nco_accum_reg[23]),
-        .I1(phase_error1_n_82),
-        .O(\phase_error[23]_i_2_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[23]_i_3 
-       (.I0(nco_accum_reg[22]),
-        .I1(phase_error1_n_83),
-        .O(\phase_error[23]_i_3_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[23]_i_4 
-       (.I0(nco_accum_reg[21]),
-        .I1(phase_error1_n_84),
-        .O(\phase_error[23]_i_4_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[23]_i_5 
-       (.I0(nco_accum_reg[20]),
-        .I1(phase_error1_n_85),
-        .O(\phase_error[23]_i_5_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[27]_i_2 
-       (.I0(nco_accum_reg[27]),
-        .I1(phase_error10_out[3]),
-        .O(\phase_error[27]_i_2_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[27]_i_3 
-       (.I0(nco_accum_reg[26]),
-        .I1(phase_error10_out[2]),
-        .O(\phase_error[27]_i_3_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[27]_i_4 
-       (.I0(nco_accum_reg[25]),
-        .I1(phase_error10_out[1]),
-        .O(\phase_error[27]_i_4_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[27]_i_5 
-       (.I0(nco_accum_reg[24]),
-        .I1(phase_error1_n_81),
-        .O(\phase_error[27]_i_5_n_0 ));
-  LUT2 #(
-    .INIT(4'h6)) 
-    \phase_error[31]_i_10 
-       (.I0(phase_error1_n_76),
-        .I1(\phase_error1[-_n_0_1111111108] ),
-        .O(\phase_error[31]_i_10_n_0 ));
-  LUT2 #(
-    .INIT(4'h6)) 
-    \phase_error[31]_i_11 
-       (.I0(phase_error1_n_77),
-        .I1(\phase_error1[-_n_0_1111111109] ),
-        .O(\phase_error[31]_i_11_n_0 ));
-  LUT2 #(
-    .INIT(4'h6)) 
-    \phase_error[31]_i_12 
-       (.I0(phase_error1_n_78),
-        .I1(\phase_error1[-_n_0_1111111110] ),
-        .O(\phase_error[31]_i_12_n_0 ));
-  LUT2 #(
-    .INIT(4'h6)) 
-    \phase_error[31]_i_13 
-       (.I0(phase_error1_n_79),
-        .I1(\phase_error1[-_n_0_1111111111] ),
-        .O(\phase_error[31]_i_13_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[31]_i_2 
-       (.I0(nco_accum_reg[31]),
-        .I1(phase_error10_out[7]),
-        .O(\phase_error[31]_i_2_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[31]_i_3 
-       (.I0(nco_accum_reg[30]),
-        .I1(phase_error10_out[6]),
-        .O(\phase_error[31]_i_3_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[31]_i_4 
-       (.I0(nco_accum_reg[29]),
-        .I1(phase_error10_out[5]),
-        .O(\phase_error[31]_i_4_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[31]_i_5 
-       (.I0(nco_accum_reg[28]),
-        .I1(phase_error10_out[4]),
-        .O(\phase_error[31]_i_5_n_0 ));
-  LUT2 #(
-    .INIT(4'h6)) 
-    \phase_error[31]_i_8 
-       (.I0(\phase_error1[-_n_0_1111111106] ),
-        .I1(phase_error1_n_74),
-        .O(\phase_error[31]_i_8_n_0 ));
-  LUT2 #(
-    .INIT(4'h6)) 
-    \phase_error[31]_i_9 
-       (.I0(phase_error1_n_75),
-        .I1(\phase_error1[-_n_0_1111111107] ),
-        .O(\phase_error[31]_i_9_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[3]_i_2 
-       (.I0(nco_accum_reg[3]),
-        .I1(phase_error1_n_102),
-        .O(\phase_error[3]_i_2_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[3]_i_3 
-       (.I0(nco_accum_reg[2]),
-        .I1(phase_error1_n_103),
-        .O(\phase_error[3]_i_3_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[3]_i_4 
-       (.I0(nco_accum_reg[1]),
-        .I1(phase_error1_n_104),
-        .O(\phase_error[3]_i_4_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[3]_i_5 
-       (.I0(nco_accum_reg[0]),
-        .I1(phase_error1_n_105),
-        .O(\phase_error[3]_i_5_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[7]_i_2 
-       (.I0(nco_accum_reg[7]),
-        .I1(phase_error1_n_98),
-        .O(\phase_error[7]_i_2_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[7]_i_3 
-       (.I0(nco_accum_reg[6]),
-        .I1(phase_error1_n_99),
-        .O(\phase_error[7]_i_3_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[7]_i_4 
-       (.I0(nco_accum_reg[5]),
-        .I1(phase_error1_n_100),
-        .O(\phase_error[7]_i_4_n_0 ));
-  LUT2 #(
-    .INIT(4'h9)) 
-    \phase_error[7]_i_5 
-       (.I0(nco_accum_reg[4]),
-        .I1(phase_error1_n_101),
-        .O(\phase_error[7]_i_5_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \phase_error_reg[0] 
        (.C(clk),
         .CE(E),
         .D(phase_error0[0]),
-        .Q(phase_error[0]),
+        .Q(\phase_error_reg[31]_0 [0]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -9865,7 +9741,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(E),
         .D(phase_error0[10]),
-        .Q(phase_error[10]),
+        .Q(\phase_error_reg[31]_0 [10]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -9873,24 +9749,15 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(E),
         .D(phase_error0[11]),
-        .Q(phase_error[11]),
+        .Q(\phase_error_reg[31]_0 [11]),
         .R(phase_error1_i_2_n_0));
-  (* ADDER_THRESHOLD = "35" *) 
-  (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
-  CARRY4 \phase_error_reg[11]_i_1 
-       (.CI(\phase_error_reg[7]_i_1_n_0 ),
-        .CO({\phase_error_reg[11]_i_1_n_0 ,\phase_error_reg[11]_i_1_n_1 ,\phase_error_reg[11]_i_1_n_2 ,\phase_error_reg[11]_i_1_n_3 }),
-        .CYINIT(1'b0),
-        .DI(nco_accum_reg[11:8]),
-        .O(phase_error0[11:8]),
-        .S({\phase_error[11]_i_2_n_0 ,\phase_error[11]_i_3_n_0 ,\phase_error[11]_i_4_n_0 ,\phase_error[11]_i_5_n_0 }));
   FDRE #(
     .INIT(1'b0)) 
     \phase_error_reg[12] 
        (.C(clk),
         .CE(E),
         .D(phase_error0[12]),
-        .Q(phase_error[12]),
+        .Q(\phase_error_reg[31]_0 [12]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -9898,7 +9765,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(E),
         .D(phase_error0[13]),
-        .Q(phase_error[13]),
+        .Q(\phase_error_reg[31]_0 [13]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -9906,7 +9773,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(E),
         .D(phase_error0[14]),
-        .Q(phase_error[14]),
+        .Q(\phase_error_reg[31]_0 [14]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -9914,24 +9781,15 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(E),
         .D(phase_error0[15]),
-        .Q(phase_error[15]),
+        .Q(\phase_error_reg[31]_0 [15]),
         .R(phase_error1_i_2_n_0));
-  (* ADDER_THRESHOLD = "35" *) 
-  (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
-  CARRY4 \phase_error_reg[15]_i_1 
-       (.CI(\phase_error_reg[11]_i_1_n_0 ),
-        .CO({\phase_error_reg[15]_i_1_n_0 ,\phase_error_reg[15]_i_1_n_1 ,\phase_error_reg[15]_i_1_n_2 ,\phase_error_reg[15]_i_1_n_3 }),
-        .CYINIT(1'b0),
-        .DI(nco_accum_reg[15:12]),
-        .O(phase_error0[15:12]),
-        .S({\phase_error[15]_i_2_n_0 ,\phase_error[15]_i_3_n_0 ,\phase_error[15]_i_4_n_0 ,\phase_error[15]_i_5_n_0 }));
   FDRE #(
     .INIT(1'b0)) 
     \phase_error_reg[16] 
        (.C(clk),
         .CE(E),
         .D(phase_error0[16]),
-        .Q(phase_error[16]),
+        .Q(\phase_error_reg[31]_0 [16]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -9939,7 +9797,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(E),
         .D(phase_error0[17]),
-        .Q(phase_error[17]),
+        .Q(\phase_error_reg[31]_0 [17]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -9947,7 +9805,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(E),
         .D(phase_error0[18]),
-        .Q(phase_error[18]),
+        .Q(\phase_error_reg[31]_0 [18]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -9955,24 +9813,15 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(E),
         .D(phase_error0[19]),
-        .Q(phase_error[19]),
+        .Q(\phase_error_reg[31]_0 [19]),
         .R(phase_error1_i_2_n_0));
-  (* ADDER_THRESHOLD = "35" *) 
-  (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
-  CARRY4 \phase_error_reg[19]_i_1 
-       (.CI(\phase_error_reg[15]_i_1_n_0 ),
-        .CO({\phase_error_reg[19]_i_1_n_0 ,\phase_error_reg[19]_i_1_n_1 ,\phase_error_reg[19]_i_1_n_2 ,\phase_error_reg[19]_i_1_n_3 }),
-        .CYINIT(1'b0),
-        .DI(nco_accum_reg[19:16]),
-        .O(phase_error0[19:16]),
-        .S({\phase_error[19]_i_2_n_0 ,\phase_error[19]_i_3_n_0 ,\phase_error[19]_i_4_n_0 ,\phase_error[19]_i_5_n_0 }));
   FDRE #(
     .INIT(1'b0)) 
     \phase_error_reg[1] 
        (.C(clk),
         .CE(E),
         .D(phase_error0[1]),
-        .Q(phase_error[1]),
+        .Q(\phase_error_reg[31]_0 [1]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -9980,7 +9829,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(E),
         .D(phase_error0[20]),
-        .Q(phase_error[20]),
+        .Q(\phase_error_reg[31]_0 [20]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -9988,7 +9837,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(E),
         .D(phase_error0[21]),
-        .Q(phase_error[21]),
+        .Q(\phase_error_reg[31]_0 [21]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -9996,7 +9845,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(E),
         .D(phase_error0[22]),
-        .Q(phase_error[22]),
+        .Q(\phase_error_reg[31]_0 [22]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -10004,24 +9853,15 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(E),
         .D(phase_error0[23]),
-        .Q(phase_error[23]),
+        .Q(\phase_error_reg[31]_0 [23]),
         .R(phase_error1_i_2_n_0));
-  (* ADDER_THRESHOLD = "35" *) 
-  (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
-  CARRY4 \phase_error_reg[23]_i_1 
-       (.CI(\phase_error_reg[19]_i_1_n_0 ),
-        .CO({\phase_error_reg[23]_i_1_n_0 ,\phase_error_reg[23]_i_1_n_1 ,\phase_error_reg[23]_i_1_n_2 ,\phase_error_reg[23]_i_1_n_3 }),
-        .CYINIT(1'b0),
-        .DI(nco_accum_reg[23:20]),
-        .O(phase_error0[23:20]),
-        .S({\phase_error[23]_i_2_n_0 ,\phase_error[23]_i_3_n_0 ,\phase_error[23]_i_4_n_0 ,\phase_error[23]_i_5_n_0 }));
   FDRE #(
     .INIT(1'b0)) 
     \phase_error_reg[24] 
        (.C(clk),
         .CE(E),
         .D(phase_error0[24]),
-        .Q(phase_error[24]),
+        .Q(\phase_error_reg[31]_0 [24]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -10029,7 +9869,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(E),
         .D(phase_error0[25]),
-        .Q(phase_error[25]),
+        .Q(\phase_error_reg[31]_0 [25]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -10037,7 +9877,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(E),
         .D(phase_error0[26]),
-        .Q(phase_error[26]),
+        .Q(\phase_error_reg[31]_0 [26]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -10045,24 +9885,15 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(E),
         .D(phase_error0[27]),
-        .Q(phase_error[27]),
+        .Q(\phase_error_reg[31]_0 [27]),
         .R(phase_error1_i_2_n_0));
-  (* ADDER_THRESHOLD = "35" *) 
-  (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
-  CARRY4 \phase_error_reg[27]_i_1 
-       (.CI(\phase_error_reg[23]_i_1_n_0 ),
-        .CO({\phase_error_reg[27]_i_1_n_0 ,\phase_error_reg[27]_i_1_n_1 ,\phase_error_reg[27]_i_1_n_2 ,\phase_error_reg[27]_i_1_n_3 }),
-        .CYINIT(1'b0),
-        .DI(nco_accum_reg[27:24]),
-        .O(phase_error0[27:24]),
-        .S({\phase_error[27]_i_2_n_0 ,\phase_error[27]_i_3_n_0 ,\phase_error[27]_i_4_n_0 ,\phase_error[27]_i_5_n_0 }));
   FDRE #(
     .INIT(1'b0)) 
     \phase_error_reg[28] 
        (.C(clk),
         .CE(E),
         .D(phase_error0[28]),
-        .Q(phase_error[28]),
+        .Q(\phase_error_reg[31]_0 [28]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -10070,7 +9901,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(E),
         .D(phase_error0[29]),
-        .Q(phase_error[29]),
+        .Q(\phase_error_reg[31]_0 [29]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -10078,7 +9909,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(E),
         .D(phase_error0[2]),
-        .Q(phase_error[2]),
+        .Q(\phase_error_reg[31]_0 [2]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -10086,7 +9917,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(E),
         .D(phase_error0[30]),
-        .Q(phase_error[30]),
+        .Q(\phase_error_reg[31]_0 [30]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -10094,59 +9925,23 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(E),
         .D(phase_error0[31]),
-        .Q(phase_error[31]),
+        .Q(\phase_error_reg[31]_0 [31]),
         .R(phase_error1_i_2_n_0));
-  (* ADDER_THRESHOLD = "35" *) 
-  (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
-  CARRY4 \phase_error_reg[31]_i_1 
-       (.CI(\phase_error_reg[27]_i_1_n_0 ),
-        .CO({\NLW_phase_error_reg[31]_i_1_CO_UNCONNECTED [3],\phase_error_reg[31]_i_1_n_1 ,\phase_error_reg[31]_i_1_n_2 ,\phase_error_reg[31]_i_1_n_3 }),
-        .CYINIT(1'b0),
-        .DI({1'b0,nco_accum_reg[30:28]}),
-        .O(phase_error0[31:28]),
-        .S({\phase_error[31]_i_2_n_0 ,\phase_error[31]_i_3_n_0 ,\phase_error[31]_i_4_n_0 ,\phase_error[31]_i_5_n_0 }));
-  (* ADDER_THRESHOLD = "35" *) 
-  (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
-  CARRY4 \phase_error_reg[31]_i_6 
-       (.CI(\phase_error_reg[31]_i_7_n_0 ),
-        .CO({\NLW_phase_error_reg[31]_i_6_CO_UNCONNECTED [3:2],\phase_error_reg[31]_i_6_n_2 ,\phase_error_reg[31]_i_6_n_3 }),
-        .CYINIT(1'b0),
-        .DI({1'b0,1'b0,phase_error1_n_75,phase_error1_n_76}),
-        .O({\NLW_phase_error_reg[31]_i_6_O_UNCONNECTED [3],phase_error10_out[7:5]}),
-        .S({1'b0,\phase_error[31]_i_8_n_0 ,\phase_error[31]_i_9_n_0 ,\phase_error[31]_i_10_n_0 }));
-  (* ADDER_THRESHOLD = "35" *) 
-  (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
-  CARRY4 \phase_error_reg[31]_i_7 
-       (.CI(1'b0),
-        .CO({\phase_error_reg[31]_i_7_n_0 ,\phase_error_reg[31]_i_7_n_1 ,\phase_error_reg[31]_i_7_n_2 ,\phase_error_reg[31]_i_7_n_3 }),
-        .CYINIT(1'b0),
-        .DI({phase_error1_n_77,phase_error1_n_78,phase_error1_n_79,1'b0}),
-        .O(phase_error10_out[4:1]),
-        .S({\phase_error[31]_i_11_n_0 ,\phase_error[31]_i_12_n_0 ,\phase_error[31]_i_13_n_0 ,phase_error1_n_80}));
   FDRE #(
     .INIT(1'b0)) 
     \phase_error_reg[3] 
        (.C(clk),
         .CE(E),
         .D(phase_error0[3]),
-        .Q(phase_error[3]),
+        .Q(\phase_error_reg[31]_0 [3]),
         .R(phase_error1_i_2_n_0));
-  (* ADDER_THRESHOLD = "35" *) 
-  (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
-  CARRY4 \phase_error_reg[3]_i_1 
-       (.CI(1'b0),
-        .CO({\phase_error_reg[3]_i_1_n_0 ,\phase_error_reg[3]_i_1_n_1 ,\phase_error_reg[3]_i_1_n_2 ,\phase_error_reg[3]_i_1_n_3 }),
-        .CYINIT(1'b1),
-        .DI(nco_accum_reg[3:0]),
-        .O(phase_error0[3:0]),
-        .S({\phase_error[3]_i_2_n_0 ,\phase_error[3]_i_3_n_0 ,\phase_error[3]_i_4_n_0 ,\phase_error[3]_i_5_n_0 }));
   FDRE #(
     .INIT(1'b0)) 
     \phase_error_reg[4] 
        (.C(clk),
         .CE(E),
         .D(phase_error0[4]),
-        .Q(phase_error[4]),
+        .Q(\phase_error_reg[31]_0 [4]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -10154,7 +9949,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(E),
         .D(phase_error0[5]),
-        .Q(phase_error[5]),
+        .Q(\phase_error_reg[31]_0 [5]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -10162,7 +9957,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(E),
         .D(phase_error0[6]),
-        .Q(phase_error[6]),
+        .Q(\phase_error_reg[31]_0 [6]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -10170,24 +9965,15 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(E),
         .D(phase_error0[7]),
-        .Q(phase_error[7]),
+        .Q(\phase_error_reg[31]_0 [7]),
         .R(phase_error1_i_2_n_0));
-  (* ADDER_THRESHOLD = "35" *) 
-  (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
-  CARRY4 \phase_error_reg[7]_i_1 
-       (.CI(\phase_error_reg[3]_i_1_n_0 ),
-        .CO({\phase_error_reg[7]_i_1_n_0 ,\phase_error_reg[7]_i_1_n_1 ,\phase_error_reg[7]_i_1_n_2 ,\phase_error_reg[7]_i_1_n_3 }),
-        .CYINIT(1'b0),
-        .DI(nco_accum_reg[7:4]),
-        .O(phase_error0[7:4]),
-        .S({\phase_error[7]_i_2_n_0 ,\phase_error[7]_i_3_n_0 ,\phase_error[7]_i_4_n_0 ,\phase_error[7]_i_5_n_0 }));
   FDRE #(
     .INIT(1'b0)) 
     \phase_error_reg[8] 
        (.C(clk),
         .CE(E),
         .D(phase_error0[8]),
-        .Q(phase_error[8]),
+        .Q(\phase_error_reg[31]_0 [8]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -10195,7 +9981,7 @@ module pynq_z2_top_0_0_angle_engine
        (.C(clk),
         .CE(E),
         .D(phase_error0[9]),
-        .Q(phase_error[9]),
+        .Q(\phase_error_reg[31]_0 [9]),
         .R(phase_error1_i_2_n_0));
   (* METHODOLOGY_DRC_VIOS = "{SYNTH-11 {cell *THIS*}}" *) 
   DSP48E1 #(
@@ -10283,56 +10069,56 @@ module pynq_z2_top_0_0_angle_engine
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_11
-       (.I0(phase_error[31]),
+       (.I0(\phase_error_reg[31]_0 [31]),
         .I1(integrator_reg[32]),
         .O(pi_i_term0_i_11_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_12
-       (.I0(phase_error[31]),
+       (.I0(\phase_error_reg[31]_0 [31]),
         .I1(integrator_reg[31]),
         .O(pi_i_term0_i_12_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_13
        (.I0(integrator_reg[30]),
-        .I1(phase_error[30]),
+        .I1(\phase_error_reg[31]_0 [30]),
         .O(pi_i_term0_i_13_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_14
        (.I0(integrator_reg[29]),
-        .I1(phase_error[29]),
+        .I1(\phase_error_reg[31]_0 [29]),
         .O(pi_i_term0_i_14_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_15
        (.I0(integrator_reg[28]),
-        .I1(phase_error[28]),
+        .I1(\phase_error_reg[31]_0 [28]),
         .O(pi_i_term0_i_15_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_16
        (.I0(integrator_reg[27]),
-        .I1(phase_error[27]),
+        .I1(\phase_error_reg[31]_0 [27]),
         .O(pi_i_term0_i_16_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_17
        (.I0(integrator_reg[26]),
-        .I1(phase_error[26]),
+        .I1(\phase_error_reg[31]_0 [26]),
         .O(pi_i_term0_i_17_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_18
        (.I0(integrator_reg[25]),
-        .I1(phase_error[25]),
+        .I1(\phase_error_reg[31]_0 [25]),
         .O(pi_i_term0_i_18_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_19
        (.I0(integrator_reg[24]),
-        .I1(phase_error[24]),
+        .I1(\phase_error_reg[31]_0 [24]),
         .O(pi_i_term0_i_19_n_0));
   (* ADDER_THRESHOLD = "35" *) 
   (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
@@ -10347,25 +10133,25 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(4'h6)) 
     pi_i_term0_i_20
        (.I0(integrator_reg[23]),
-        .I1(phase_error[23]),
+        .I1(\phase_error_reg[31]_0 [23]),
         .O(pi_i_term0_i_20_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_21
        (.I0(integrator_reg[22]),
-        .I1(phase_error[22]),
+        .I1(\phase_error_reg[31]_0 [22]),
         .O(pi_i_term0_i_21_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_22
        (.I0(integrator_reg[21]),
-        .I1(phase_error[21]),
+        .I1(\phase_error_reg[31]_0 [21]),
         .O(pi_i_term0_i_22_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_23
        (.I0(integrator_reg[20]),
-        .I1(phase_error[20]),
+        .I1(\phase_error_reg[31]_0 [20]),
         .O(pi_i_term0_i_23_n_0));
   (* ADDER_THRESHOLD = "35" *) 
   (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
@@ -10380,25 +10166,25 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(4'h6)) 
     pi_i_term0_i_25
        (.I0(integrator_reg[19]),
-        .I1(phase_error[19]),
+        .I1(\phase_error_reg[31]_0 [19]),
         .O(pi_i_term0_i_25_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_26
        (.I0(integrator_reg[18]),
-        .I1(phase_error[18]),
+        .I1(\phase_error_reg[31]_0 [18]),
         .O(pi_i_term0_i_26_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_27
        (.I0(integrator_reg[17]),
-        .I1(phase_error[17]),
+        .I1(\phase_error_reg[31]_0 [17]),
         .O(pi_i_term0_i_27_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_28
        (.I0(integrator_reg[16]),
-        .I1(phase_error[16]),
+        .I1(\phase_error_reg[31]_0 [16]),
         .O(pi_i_term0_i_28_n_0));
   (* ADDER_THRESHOLD = "35" *) 
   (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
@@ -10415,32 +10201,32 @@ module pynq_z2_top_0_0_angle_engine
        (.CI(pi_i_term0_i_4_n_0),
         .CO({pi_i_term0_i_3_n_0,pi_i_term0_i_3_n_1,pi_i_term0_i_3_n_2,pi_i_term0_i_3_n_3}),
         .CYINIT(1'b0),
-        .DI({phase_error[31],integrator_reg[30:28]}),
+        .DI({\phase_error_reg[31]_0 [31],integrator_reg[30:28]}),
         .O({pi_i_term0_i_3_n_4,pi_i_term0_i_3_n_5,pi_i_term0_i_3_n_6,pi_i_term0_i_3_n_7}),
         .S({pi_i_term0_i_12_n_0,pi_i_term0_i_13_n_0,pi_i_term0_i_14_n_0,pi_i_term0_i_15_n_0}));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_30
        (.I0(integrator_reg[15]),
-        .I1(phase_error[15]),
+        .I1(\phase_error_reg[31]_0 [15]),
         .O(pi_i_term0_i_30_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_31
        (.I0(integrator_reg[14]),
-        .I1(phase_error[14]),
+        .I1(\phase_error_reg[31]_0 [14]),
         .O(pi_i_term0_i_31_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_32
        (.I0(integrator_reg[13]),
-        .I1(phase_error[13]),
+        .I1(\phase_error_reg[31]_0 [13]),
         .O(pi_i_term0_i_32_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_33
        (.I0(integrator_reg[12]),
-        .I1(phase_error[12]),
+        .I1(\phase_error_reg[31]_0 [12]),
         .O(pi_i_term0_i_33_n_0));
   (* ADDER_THRESHOLD = "35" *) 
   (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
@@ -10455,25 +10241,25 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(4'h6)) 
     pi_i_term0_i_35
        (.I0(integrator_reg[11]),
-        .I1(phase_error[11]),
+        .I1(\phase_error_reg[31]_0 [11]),
         .O(pi_i_term0_i_35_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_36
        (.I0(integrator_reg[10]),
-        .I1(phase_error[10]),
+        .I1(\phase_error_reg[31]_0 [10]),
         .O(pi_i_term0_i_36_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_37
        (.I0(integrator_reg[9]),
-        .I1(phase_error[9]),
+        .I1(\phase_error_reg[31]_0 [9]),
         .O(pi_i_term0_i_37_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_38
        (.I0(integrator_reg[8]),
-        .I1(phase_error[8]),
+        .I1(\phase_error_reg[31]_0 [8]),
         .O(pi_i_term0_i_38_n_0));
   (* ADDER_THRESHOLD = "35" *) 
   (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
@@ -10497,49 +10283,49 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(4'h6)) 
     pi_i_term0_i_40
        (.I0(integrator_reg[7]),
-        .I1(phase_error[7]),
+        .I1(\phase_error_reg[31]_0 [7]),
         .O(pi_i_term0_i_40_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_41
        (.I0(integrator_reg[6]),
-        .I1(phase_error[6]),
+        .I1(\phase_error_reg[31]_0 [6]),
         .O(pi_i_term0_i_41_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_42
        (.I0(integrator_reg[5]),
-        .I1(phase_error[5]),
+        .I1(\phase_error_reg[31]_0 [5]),
         .O(pi_i_term0_i_42_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_43
        (.I0(integrator_reg[4]),
-        .I1(phase_error[4]),
+        .I1(\phase_error_reg[31]_0 [4]),
         .O(pi_i_term0_i_43_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_44
        (.I0(integrator_reg[3]),
-        .I1(phase_error[3]),
+        .I1(\phase_error_reg[31]_0 [3]),
         .O(pi_i_term0_i_44_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_45
        (.I0(integrator_reg[2]),
-        .I1(phase_error[2]),
+        .I1(\phase_error_reg[31]_0 [2]),
         .O(pi_i_term0_i_45_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_46
        (.I0(integrator_reg[1]),
-        .I1(phase_error[1]),
+        .I1(\phase_error_reg[31]_0 [1]),
         .O(pi_i_term0_i_46_n_0));
   LUT2 #(
     .INIT(4'h6)) 
     pi_i_term0_i_47
        (.I0(integrator_reg[0]),
-        .I1(phase_error[0]),
+        .I1(\phase_error_reg[31]_0 [0]),
         .O(pi_i_term0_i_47_n_0));
   (* ADDER_THRESHOLD = "35" *) 
   (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
@@ -10562,7 +10348,7 @@ module pynq_z2_top_0_0_angle_engine
   LUT1 #(
     .INIT(2'h1)) 
     pi_i_term0_i_7
-       (.I0(phase_error[31]),
+       (.I0(\phase_error_reg[31]_0 [31]),
         .O(pi_i_term0_i_7_n_0));
   LUT2 #(
     .INIT(4'h9)) 
@@ -11058,6 +10844,171 @@ module pynq_z2_top_0_0_angle_engine
         .RSTM(1'b0),
         .RSTP(1'b0),
         .UNDERFLOW(NLW_pi_p_term0_UNDERFLOW_UNCONNECTED));
+  (* ADDER_THRESHOLD = "35" *) 
+  (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
+  CARRY4 pi_p_term0_i_1
+       (.CI(pi_p_term0_i_2_n_0),
+        .CO({pi_p_term0_i_1_n_0,pi_p_term0_i_1_n_1,pi_p_term0_i_1_n_2,pi_p_term0_i_1_n_3}),
+        .CYINIT(1'b0),
+        .DI(nco_accum_reg[19:16]),
+        .O(phase_error0[19:16]),
+        .S({pi_p_term0_i_6_n_0,pi_p_term0_i_7_n_0,pi_p_term0_i_8_n_0,pi_p_term0_i_9_n_0}));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term0_i_10
+       (.I0(nco_accum_reg[15]),
+        .I1(phase_error1_n_90),
+        .O(pi_p_term0_i_10_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term0_i_11
+       (.I0(nco_accum_reg[14]),
+        .I1(phase_error1_n_91),
+        .O(pi_p_term0_i_11_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term0_i_12
+       (.I0(nco_accum_reg[13]),
+        .I1(phase_error1_n_92),
+        .O(pi_p_term0_i_12_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term0_i_13
+       (.I0(nco_accum_reg[12]),
+        .I1(phase_error1_n_93),
+        .O(pi_p_term0_i_13_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term0_i_14
+       (.I0(nco_accum_reg[11]),
+        .I1(phase_error1_n_94),
+        .O(pi_p_term0_i_14_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term0_i_15
+       (.I0(nco_accum_reg[10]),
+        .I1(phase_error1_n_95),
+        .O(pi_p_term0_i_15_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term0_i_16
+       (.I0(nco_accum_reg[9]),
+        .I1(phase_error1_n_96),
+        .O(pi_p_term0_i_16_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term0_i_17
+       (.I0(nco_accum_reg[8]),
+        .I1(phase_error1_n_97),
+        .O(pi_p_term0_i_17_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term0_i_18
+       (.I0(nco_accum_reg[7]),
+        .I1(phase_error1_n_98),
+        .O(pi_p_term0_i_18_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term0_i_19
+       (.I0(nco_accum_reg[6]),
+        .I1(phase_error1_n_99),
+        .O(pi_p_term0_i_19_n_0));
+  (* ADDER_THRESHOLD = "35" *) 
+  (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
+  CARRY4 pi_p_term0_i_2
+       (.CI(pi_p_term0_i_3_n_0),
+        .CO({pi_p_term0_i_2_n_0,pi_p_term0_i_2_n_1,pi_p_term0_i_2_n_2,pi_p_term0_i_2_n_3}),
+        .CYINIT(1'b0),
+        .DI(nco_accum_reg[15:12]),
+        .O(phase_error0[15:12]),
+        .S({pi_p_term0_i_10_n_0,pi_p_term0_i_11_n_0,pi_p_term0_i_12_n_0,pi_p_term0_i_13_n_0}));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term0_i_20
+       (.I0(nco_accum_reg[5]),
+        .I1(phase_error1_n_100),
+        .O(pi_p_term0_i_20_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term0_i_21
+       (.I0(nco_accum_reg[4]),
+        .I1(phase_error1_n_101),
+        .O(pi_p_term0_i_21_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term0_i_22
+       (.I0(nco_accum_reg[3]),
+        .I1(phase_error1_n_102),
+        .O(pi_p_term0_i_22_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term0_i_23
+       (.I0(nco_accum_reg[2]),
+        .I1(phase_error1_n_103),
+        .O(pi_p_term0_i_23_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term0_i_24
+       (.I0(nco_accum_reg[1]),
+        .I1(phase_error1_n_104),
+        .O(pi_p_term0_i_24_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term0_i_25
+       (.I0(nco_accum_reg[0]),
+        .I1(phase_error1_n_105),
+        .O(pi_p_term0_i_25_n_0));
+  (* ADDER_THRESHOLD = "35" *) 
+  (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
+  CARRY4 pi_p_term0_i_3
+       (.CI(pi_p_term0_i_4_n_0),
+        .CO({pi_p_term0_i_3_n_0,pi_p_term0_i_3_n_1,pi_p_term0_i_3_n_2,pi_p_term0_i_3_n_3}),
+        .CYINIT(1'b0),
+        .DI(nco_accum_reg[11:8]),
+        .O(phase_error0[11:8]),
+        .S({pi_p_term0_i_14_n_0,pi_p_term0_i_15_n_0,pi_p_term0_i_16_n_0,pi_p_term0_i_17_n_0}));
+  (* ADDER_THRESHOLD = "35" *) 
+  (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
+  CARRY4 pi_p_term0_i_4
+       (.CI(pi_p_term0_i_5_n_0),
+        .CO({pi_p_term0_i_4_n_0,pi_p_term0_i_4_n_1,pi_p_term0_i_4_n_2,pi_p_term0_i_4_n_3}),
+        .CYINIT(1'b0),
+        .DI(nco_accum_reg[7:4]),
+        .O(phase_error0[7:4]),
+        .S({pi_p_term0_i_18_n_0,pi_p_term0_i_19_n_0,pi_p_term0_i_20_n_0,pi_p_term0_i_21_n_0}));
+  (* ADDER_THRESHOLD = "35" *) 
+  (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
+  CARRY4 pi_p_term0_i_5
+       (.CI(1'b0),
+        .CO({pi_p_term0_i_5_n_0,pi_p_term0_i_5_n_1,pi_p_term0_i_5_n_2,pi_p_term0_i_5_n_3}),
+        .CYINIT(1'b1),
+        .DI(nco_accum_reg[3:0]),
+        .O(phase_error0[3:0]),
+        .S({pi_p_term0_i_22_n_0,pi_p_term0_i_23_n_0,pi_p_term0_i_24_n_0,pi_p_term0_i_25_n_0}));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term0_i_6
+       (.I0(nco_accum_reg[19]),
+        .I1(phase_error1_n_86),
+        .O(pi_p_term0_i_6_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term0_i_7
+       (.I0(nco_accum_reg[18]),
+        .I1(phase_error1_n_87),
+        .O(pi_p_term0_i_7_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term0_i_8
+       (.I0(nco_accum_reg[17]),
+        .I1(phase_error1_n_88),
+        .O(pi_p_term0_i_8_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term0_i_9
+       (.I0(nco_accum_reg[16]),
+        .I1(phase_error1_n_89),
+        .O(pi_p_term0_i_9_n_0));
   DSP48E1 #(
     .ACASCREG(1),
     .ADREG(1),
@@ -11236,6 +11187,159 @@ module pynq_z2_top_0_0_angle_engine
         .D(pi_p_term0_n_96),
         .Q(pi_p_term_reg__0[9]),
         .R(SR));
+  (* ADDER_THRESHOLD = "35" *) 
+  (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
+  CARRY4 pi_p_term_reg_i_1
+       (.CI(pi_p_term_reg_i_2_n_0),
+        .CO({NLW_pi_p_term_reg_i_1_CO_UNCONNECTED[3],pi_p_term_reg_i_1_n_1,pi_p_term_reg_i_1_n_2,pi_p_term_reg_i_1_n_3}),
+        .CYINIT(1'b0),
+        .DI({1'b0,nco_accum_reg[30:28]}),
+        .O(phase_error0[31:28]),
+        .S({pi_p_term_reg_i_4_n_0,pi_p_term_reg_i_5_n_0,pi_p_term_reg_i_6_n_0,pi_p_term_reg_i_7_n_0}));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term_reg_i_10
+       (.I0(nco_accum_reg[25]),
+        .I1(phase_error10_out[1]),
+        .O(pi_p_term_reg_i_10_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term_reg_i_11
+       (.I0(nco_accum_reg[24]),
+        .I1(phase_error1_n_81),
+        .O(pi_p_term_reg_i_11_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term_reg_i_12
+       (.I0(nco_accum_reg[23]),
+        .I1(phase_error1_n_82),
+        .O(pi_p_term_reg_i_12_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term_reg_i_13
+       (.I0(nco_accum_reg[22]),
+        .I1(phase_error1_n_83),
+        .O(pi_p_term_reg_i_13_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term_reg_i_14
+       (.I0(nco_accum_reg[21]),
+        .I1(phase_error1_n_84),
+        .O(pi_p_term_reg_i_14_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term_reg_i_15
+       (.I0(nco_accum_reg[20]),
+        .I1(phase_error1_n_85),
+        .O(pi_p_term_reg_i_15_n_0));
+  (* ADDER_THRESHOLD = "35" *) 
+  (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
+  CARRY4 pi_p_term_reg_i_16
+       (.CI(pi_p_term_reg_i_17_n_0),
+        .CO({NLW_pi_p_term_reg_i_16_CO_UNCONNECTED[3:2],pi_p_term_reg_i_16_n_2,pi_p_term_reg_i_16_n_3}),
+        .CYINIT(1'b0),
+        .DI({1'b0,1'b0,phase_error1_n_75,phase_error1_n_76}),
+        .O({NLW_pi_p_term_reg_i_16_O_UNCONNECTED[3],phase_error10_out[7:5]}),
+        .S({1'b0,pi_p_term_reg_i_18_n_0,pi_p_term_reg_i_19_n_0,pi_p_term_reg_i_20_n_0}));
+  (* ADDER_THRESHOLD = "35" *) 
+  (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
+  CARRY4 pi_p_term_reg_i_17
+       (.CI(1'b0),
+        .CO({pi_p_term_reg_i_17_n_0,pi_p_term_reg_i_17_n_1,pi_p_term_reg_i_17_n_2,pi_p_term_reg_i_17_n_3}),
+        .CYINIT(1'b0),
+        .DI({phase_error1_n_77,phase_error1_n_78,phase_error1_n_79,1'b0}),
+        .O(phase_error10_out[4:1]),
+        .S({pi_p_term_reg_i_21_n_0,pi_p_term_reg_i_22_n_0,pi_p_term_reg_i_23_n_0,phase_error1_n_80}));
+  LUT2 #(
+    .INIT(4'h6)) 
+    pi_p_term_reg_i_18
+       (.I0(\phase_error1[-_n_0_1111111106] ),
+        .I1(phase_error1_n_74),
+        .O(pi_p_term_reg_i_18_n_0));
+  LUT2 #(
+    .INIT(4'h6)) 
+    pi_p_term_reg_i_19
+       (.I0(phase_error1_n_75),
+        .I1(\phase_error1[-_n_0_1111111107] ),
+        .O(pi_p_term_reg_i_19_n_0));
+  (* ADDER_THRESHOLD = "35" *) 
+  (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
+  CARRY4 pi_p_term_reg_i_2
+       (.CI(pi_p_term_reg_i_3_n_0),
+        .CO({pi_p_term_reg_i_2_n_0,pi_p_term_reg_i_2_n_1,pi_p_term_reg_i_2_n_2,pi_p_term_reg_i_2_n_3}),
+        .CYINIT(1'b0),
+        .DI(nco_accum_reg[27:24]),
+        .O(phase_error0[27:24]),
+        .S({pi_p_term_reg_i_8_n_0,pi_p_term_reg_i_9_n_0,pi_p_term_reg_i_10_n_0,pi_p_term_reg_i_11_n_0}));
+  LUT2 #(
+    .INIT(4'h6)) 
+    pi_p_term_reg_i_20
+       (.I0(phase_error1_n_76),
+        .I1(\phase_error1[-_n_0_1111111108] ),
+        .O(pi_p_term_reg_i_20_n_0));
+  LUT2 #(
+    .INIT(4'h6)) 
+    pi_p_term_reg_i_21
+       (.I0(phase_error1_n_77),
+        .I1(\phase_error1[-_n_0_1111111109] ),
+        .O(pi_p_term_reg_i_21_n_0));
+  LUT2 #(
+    .INIT(4'h6)) 
+    pi_p_term_reg_i_22
+       (.I0(phase_error1_n_78),
+        .I1(\phase_error1[-_n_0_1111111110] ),
+        .O(pi_p_term_reg_i_22_n_0));
+  LUT2 #(
+    .INIT(4'h6)) 
+    pi_p_term_reg_i_23
+       (.I0(phase_error1_n_79),
+        .I1(\phase_error1[-_n_0_1111111111] ),
+        .O(pi_p_term_reg_i_23_n_0));
+  (* ADDER_THRESHOLD = "35" *) 
+  (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
+  CARRY4 pi_p_term_reg_i_3
+       (.CI(pi_p_term0_i_1_n_0),
+        .CO({pi_p_term_reg_i_3_n_0,pi_p_term_reg_i_3_n_1,pi_p_term_reg_i_3_n_2,pi_p_term_reg_i_3_n_3}),
+        .CYINIT(1'b0),
+        .DI(nco_accum_reg[23:20]),
+        .O(phase_error0[23:20]),
+        .S({pi_p_term_reg_i_12_n_0,pi_p_term_reg_i_13_n_0,pi_p_term_reg_i_14_n_0,pi_p_term_reg_i_15_n_0}));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term_reg_i_4
+       (.I0(nco_accum_reg[31]),
+        .I1(phase_error10_out[7]),
+        .O(pi_p_term_reg_i_4_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term_reg_i_5
+       (.I0(nco_accum_reg[30]),
+        .I1(phase_error10_out[6]),
+        .O(pi_p_term_reg_i_5_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term_reg_i_6
+       (.I0(nco_accum_reg[29]),
+        .I1(phase_error10_out[5]),
+        .O(pi_p_term_reg_i_6_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term_reg_i_7
+       (.I0(nco_accum_reg[28]),
+        .I1(phase_error10_out[4]),
+        .O(pi_p_term_reg_i_7_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term_reg_i_8
+       (.I0(nco_accum_reg[27]),
+        .I1(phase_error10_out[3]),
+        .O(pi_p_term_reg_i_8_n_0));
+  LUT2 #(
+    .INIT(4'h9)) 
+    pi_p_term_reg_i_9
+       (.I0(nco_accum_reg[26]),
+        .I1(phase_error10_out[2]),
+        .O(pi_p_term_reg_i_9_n_0));
   FDRE #(
     .INIT(1'b0)) 
     pi_stage2_reg
@@ -11248,104 +11352,104 @@ module pynq_z2_top_0_0_angle_engine
     .INIT(1'b0)) 
     \raw_angle_int_reg[0] 
        (.C(clk),
-        .CE(sync_state),
-        .D(p_0_in[0]),
+        .CE(\angle_temp_reg[32]_0 ),
+        .D(angle_temp[32]),
         .Q(\raw_angle_int_reg[12]_0 [0]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
     \raw_angle_int_reg[10] 
        (.C(clk),
-        .CE(sync_state),
-        .D(p_0_in[10]),
+        .CE(\angle_temp_reg[32]_0 ),
+        .D(angle_temp[42]),
         .Q(\raw_angle_int_reg[12]_0 [10]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
     \raw_angle_int_reg[11] 
        (.C(clk),
-        .CE(sync_state),
-        .D(p_0_in[11]),
+        .CE(\angle_temp_reg[32]_0 ),
+        .D(angle_temp[43]),
         .Q(\raw_angle_int_reg[12]_0 [11]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
     \raw_angle_int_reg[12] 
        (.C(clk),
-        .CE(sync_state),
-        .D(p_0_in[12]),
+        .CE(\angle_temp_reg[32]_0 ),
+        .D(angle_temp[44]),
         .Q(\raw_angle_int_reg[12]_0 [12]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
     \raw_angle_int_reg[1] 
        (.C(clk),
-        .CE(sync_state),
-        .D(p_0_in[1]),
+        .CE(\angle_temp_reg[32]_0 ),
+        .D(angle_temp[33]),
         .Q(\raw_angle_int_reg[12]_0 [1]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
     \raw_angle_int_reg[2] 
        (.C(clk),
-        .CE(sync_state),
-        .D(p_0_in[2]),
+        .CE(\angle_temp_reg[32]_0 ),
+        .D(angle_temp[34]),
         .Q(\raw_angle_int_reg[12]_0 [2]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
     \raw_angle_int_reg[3] 
        (.C(clk),
-        .CE(sync_state),
-        .D(p_0_in[3]),
+        .CE(\angle_temp_reg[32]_0 ),
+        .D(angle_temp[35]),
         .Q(\raw_angle_int_reg[12]_0 [3]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
     \raw_angle_int_reg[4] 
        (.C(clk),
-        .CE(sync_state),
-        .D(p_0_in[4]),
+        .CE(\angle_temp_reg[32]_0 ),
+        .D(angle_temp[36]),
         .Q(\raw_angle_int_reg[12]_0 [4]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
     \raw_angle_int_reg[5] 
        (.C(clk),
-        .CE(sync_state),
-        .D(p_0_in[5]),
+        .CE(\angle_temp_reg[32]_0 ),
+        .D(angle_temp[37]),
         .Q(\raw_angle_int_reg[12]_0 [5]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
     \raw_angle_int_reg[6] 
        (.C(clk),
-        .CE(sync_state),
-        .D(p_0_in[6]),
+        .CE(\angle_temp_reg[32]_0 ),
+        .D(angle_temp[38]),
         .Q(\raw_angle_int_reg[12]_0 [6]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
     \raw_angle_int_reg[7] 
        (.C(clk),
-        .CE(sync_state),
-        .D(p_0_in[7]),
+        .CE(\angle_temp_reg[32]_0 ),
+        .D(angle_temp[39]),
         .Q(\raw_angle_int_reg[12]_0 [7]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
     \raw_angle_int_reg[8] 
        (.C(clk),
-        .CE(sync_state),
-        .D(p_0_in[8]),
+        .CE(\angle_temp_reg[32]_0 ),
+        .D(angle_temp[40]),
         .Q(\raw_angle_int_reg[12]_0 [8]),
         .R(phase_error1_i_2_n_0));
   FDRE #(
     .INIT(1'b0)) 
     \raw_angle_int_reg[9] 
        (.C(clk),
-        .CE(sync_state),
-        .D(p_0_in[9]),
+        .CE(\angle_temp_reg[32]_0 ),
+        .D(angle_temp[41]),
         .Q(\raw_angle_int_reg[12]_0 [9]),
         .R(phase_error1_i_2_n_0));
   LUT2 #(
@@ -11353,133 +11457,133 @@ module pynq_z2_top_0_0_angle_engine
     ref_det_i_112
        (.I0(\raw_angle_int_reg[12]_0 [11]),
         .I1(expected_phase_angle[11]),
-        .O(\raw_angle_int_reg[11]_1 [3]));
+        .O(\raw_angle_int_reg[11]_2 [3]));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_113
        (.I0(\raw_angle_int_reg[12]_0 [10]),
         .I1(expected_phase_angle[10]),
-        .O(\raw_angle_int_reg[11]_1 [2]));
+        .O(\raw_angle_int_reg[11]_2 [2]));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_114
        (.I0(\raw_angle_int_reg[12]_0 [9]),
         .I1(expected_phase_angle[9]),
-        .O(\raw_angle_int_reg[11]_1 [1]));
+        .O(\raw_angle_int_reg[11]_2 [1]));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_115
        (.I0(\raw_angle_int_reg[12]_0 [8]),
         .I1(expected_phase_angle[8]),
-        .O(\raw_angle_int_reg[11]_1 [0]));
+        .O(\raw_angle_int_reg[11]_2 [0]));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_124
        (.I0(\raw_angle_int_reg[12]_0 [7]),
         .I1(ref_det_reg_i_34[0]),
-        .O(\raw_angle_int_reg[7]_2 [3]));
+        .O(\raw_angle_int_reg[7]_1 [3]));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_125
        (.I0(\raw_angle_int_reg[12]_0 [6]),
         .I1(ref_det_reg_i_57[3]),
-        .O(\raw_angle_int_reg[7]_2 [2]));
+        .O(\raw_angle_int_reg[7]_1 [2]));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_126
        (.I0(\raw_angle_int_reg[12]_0 [5]),
         .I1(ref_det_reg_i_57[2]),
-        .O(\raw_angle_int_reg[7]_2 [1]));
+        .O(\raw_angle_int_reg[7]_1 [1]));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_127
        (.I0(\raw_angle_int_reg[12]_0 [4]),
         .I1(ref_det_reg_i_57[1]),
-        .O(\raw_angle_int_reg[7]_2 [0]));
+        .O(\raw_angle_int_reg[7]_1 [0]));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_137
        (.I0(\raw_angle_int_reg[12]_0 [3]),
         .I1(ref_det_reg_i_57[0]),
-        .O(\raw_angle_int_reg[3]_1 [3]));
+        .O(\raw_angle_int_reg[3]_0 [3]));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_138
        (.I0(\raw_angle_int_reg[12]_0 [2]),
         .I1(expected_phase_angle[2]),
-        .O(\raw_angle_int_reg[3]_1 [2]));
+        .O(\raw_angle_int_reg[3]_0 [2]));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_139
        (.I0(\raw_angle_int_reg[12]_0 [1]),
         .I1(expected_phase_angle[1]),
-        .O(\raw_angle_int_reg[3]_1 [1]));
+        .O(\raw_angle_int_reg[3]_0 [1]));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_140
        (.I0(\raw_angle_int_reg[12]_0 [0]),
         .I1(expected_phase_angle[0]),
-        .O(\raw_angle_int_reg[3]_1 [0]));
+        .O(\raw_angle_int_reg[3]_0 [0]));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_147
        (.I0(\raw_angle_int_reg[12]_0 [12]),
         .I1(ref_det_reg_i_74[1]),
-        .O(\raw_angle_int_reg[12]_2 ));
+        .O(\raw_angle_int_reg[12]_1 ));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_155
        (.I0(\raw_angle_int_reg[12]_0 [7]),
         .I1(expected_phase_angle[7]),
-        .O(\raw_angle_int_reg[7]_1 [3]));
+        .O(\raw_angle_int_reg[7]_2 [3]));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_156
        (.I0(\raw_angle_int_reg[12]_0 [6]),
         .I1(expected_phase_angle[6]),
-        .O(\raw_angle_int_reg[7]_1 [2]));
+        .O(\raw_angle_int_reg[7]_2 [2]));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_157
        (.I0(\raw_angle_int_reg[12]_0 [5]),
         .I1(expected_phase_angle[5]),
-        .O(\raw_angle_int_reg[7]_1 [1]));
+        .O(\raw_angle_int_reg[7]_2 [1]));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_158
        (.I0(\raw_angle_int_reg[12]_0 [4]),
         .I1(expected_phase_angle[4]),
-        .O(\raw_angle_int_reg[7]_1 [0]));
+        .O(\raw_angle_int_reg[7]_2 [0]));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_168
        (.I0(\raw_angle_int_reg[12]_0 [3]),
         .I1(expected_phase_angle[3]),
-        .O(\raw_angle_int_reg[3]_0 [3]));
+        .O(\raw_angle_int_reg[3]_1 [3]));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_169
        (.I0(\raw_angle_int_reg[12]_0 [2]),
         .I1(expected_phase_angle[2]),
-        .O(\raw_angle_int_reg[3]_0 [2]));
+        .O(\raw_angle_int_reg[3]_1 [2]));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_170
        (.I0(\raw_angle_int_reg[12]_0 [1]),
         .I1(expected_phase_angle[1]),
-        .O(\raw_angle_int_reg[3]_0 [1]));
+        .O(\raw_angle_int_reg[3]_1 [1]));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_171
        (.I0(\raw_angle_int_reg[12]_0 [0]),
         .I1(expected_phase_angle[0]),
-        .O(\raw_angle_int_reg[3]_0 [0]));
+        .O(\raw_angle_int_reg[3]_1 [0]));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_178
        (.I0(\raw_angle_int_reg[12]_0 [12]),
         .I1(expected_phase_angle[12]),
-        .O(\raw_angle_int_reg[12]_1 ));
+        .O(\raw_angle_int_reg[12]_2 ));
   LUT4 #(
     .INIT(16'h22B2)) 
     ref_det_i_184
@@ -11581,25 +11685,25 @@ module pynq_z2_top_0_0_angle_engine
     ref_det_i_80
        (.I0(\raw_angle_int_reg[12]_0 [11]),
         .I1(ref_det_reg_i_74[0]),
-        .O(\raw_angle_int_reg[11]_2 [3]));
+        .O(\raw_angle_int_reg[11]_1 [3]));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_81
        (.I0(\raw_angle_int_reg[12]_0 [10]),
         .I1(ref_det_reg_i_34[3]),
-        .O(\raw_angle_int_reg[11]_2 [2]));
+        .O(\raw_angle_int_reg[11]_1 [2]));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_82
        (.I0(\raw_angle_int_reg[12]_0 [9]),
         .I1(ref_det_reg_i_34[2]),
-        .O(\raw_angle_int_reg[11]_2 [1]));
+        .O(\raw_angle_int_reg[11]_1 [1]));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_83
        (.I0(\raw_angle_int_reg[12]_0 [8]),
         .I1(ref_det_reg_i_34[1]),
-        .O(\raw_angle_int_reg[11]_2 [0]));
+        .O(\raw_angle_int_reg[11]_1 [0]));
   (* COMPARATOR_THRESHOLD = "11" *) 
   (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
   CARRY4 ref_det_reg_i_182
@@ -11626,13 +11730,14 @@ module pynq_z2_top_0_0_angle_engine
         .\dividend_op_reg[3]_0 (\dividend_op_reg[3] ),
         .\divisor_op_reg[0]_0 (\divisor_op_reg[0] ),
         .\gen_vld_en.valid_en_reg_0 (\gen_vld_en.valid_en_reg ),
+        .\gen_vld_en.valid_en_reg_1 (\gen_vld_en.valid_en_reg_0 ),
         .\quotient_reg_reg[31]_0 (div_quotient),
         .rst(rst),
-        .sync_state(sync_state),
         .tooth_period(tooth_period),
         .valid_en(valid_en),
         .zero_divide(zero_divide),
-        .zero_err_r_reg_0(ab_edge));
+        .zero_err_r_reg_0(ab_edge),
+        .zero_err_r_reg_1(\angle_temp_reg[32]_0 ));
   FDRE #(
     .INIT(1'b0)) 
     z_edge_reg
@@ -11646,7 +11751,7 @@ module pynq_z2_top_0_0_angle_engine
     z_prev_reg
        (.C(clk),
         .CE(1'b1),
-        .D(z),
+        .D(z_prev_reg_0),
         .Q(z_prev),
         .R(rst));
 endmodule
@@ -11655,8 +11760,8 @@ endmodule
 module pynq_z2_top_0_0_axi_lite_regs
    (Q,
     \reg_phase_ang_reg[13]_0 ,
-    ref_det5_out,
     stable_int_reg,
+    ref_det5_out,
     S,
     \raw_angle_int_reg[7] ,
     \reg_phase_ang_reg[5]_0 ,
@@ -11673,12 +11778,14 @@ module pynq_z2_top_0_0_axi_lite_regs
     \reg_ki_reg[15]_0 ,
     \reg_max_corr_reg[15]_0 ,
     \reg_tdc_off_reg[15]_0 ,
+    \read_addr_reg[3]_0 ,
+    \read_addr_reg[2]_rep_0 ,
     s_axi_rdata,
     s_axi_rvalid,
     s_axi_bvalid,
     fault_clear,
-    ref_det_reg_i_74_0,
-    cam_clean,
+    ref_det_reg_i_106_0,
+    ref_det_reg,
     ref_prev,
     sync_offset,
     rst_n,
@@ -11700,25 +11807,48 @@ module pynq_z2_top_0_0_axi_lite_regs
     s_axi_awaddr,
     s_axi_wdata,
     s_axi_araddr,
-    D,
     crank_angle,
     overflow_count,
     packet_count,
+    \axi_rdata_reg[4]_i_3_0 ,
+    \axi_rdata_reg[5]_i_3_0 ,
+    \axi_rdata_reg[6]_i_3_0 ,
+    \axi_rdata_reg[7]_i_3_0 ,
+    \axi_rdata_reg[8]_i_3_0 ,
+    \axi_rdata_reg[9]_i_3_0 ,
+    \axi_rdata_reg[10]_i_3_0 ,
+    \axi_rdata_reg[11]_i_3_0 ,
+    \axi_rdata_reg[12]_i_3_0 ,
+    \axi_rdata_reg[3]_0 ,
+    \axi_rdata_reg[0]_0 ,
+    \axi_rdata_reg[1]_0 ,
+    \axi_rdata_reg[2]_0 ,
+    ab_count_out,
     \axi_rdata_reg[4]_i_2_0 ,
+    \axi_rdata_reg[4]_i_2_1 ,
     \axi_rdata_reg[5]_i_2_0 ,
+    \axi_rdata_reg[5]_i_2_1 ,
     \axi_rdata_reg[6]_i_2_0 ,
+    \axi_rdata_reg[6]_i_2_1 ,
     \axi_rdata_reg[7]_i_2_0 ,
-    \axi_rdata_reg[8]_i_2_0 ,
-    \axi_rdata_reg[9]_i_2_0 ,
-    \axi_rdata_reg[10]_i_2_0 ,
+    \axi_rdata_reg[7]_i_2_1 ,
+    engine_angle1,
     \axi_rdata_reg[11]_i_2_0 ,
-    \axi_rdata_reg[12]_i_2_0 ,
+    \axi_rdata_reg[15]_i_2_0 ,
+    O,
+    gap_period,
+    tooth_period,
+    D,
+    \axi_rdata[31]_i_3_0 ,
+    \axi_rdata[31]_i_3_1 ,
+    \axi_rdata[31]_i_3_2 ,
     phase_fault_count,
     sync_loss_count,
-    signal_present,
+    \axi_rdata_reg[12]_i_2_0 ,
+    \axi_rdata_reg[5]_i_3_1 ,
+    \axi_rdata_reg[4]_i_3_1 ,
     phase_fault,
     sync_state,
-    O,
     s_axi_aresetn,
     s_axi_wvalid,
     s_axi_awvalid,
@@ -11727,8 +11857,8 @@ module pynq_z2_top_0_0_axi_lite_regs
     s_axi_rready);
   output [12:0]Q;
   output [1:0]\reg_phase_ang_reg[13]_0 ;
-  output ref_det5_out;
   output stable_int_reg;
+  output ref_det5_out;
   output [2:0]S;
   output [2:0]\raw_angle_int_reg[7] ;
   output [3:0]\reg_phase_ang_reg[5]_0 ;
@@ -11745,12 +11875,14 @@ module pynq_z2_top_0_0_axi_lite_regs
   output [15:0]\reg_ki_reg[15]_0 ;
   output [15:0]\reg_max_corr_reg[15]_0 ;
   output [15:0]\reg_tdc_off_reg[15]_0 ;
+  output [1:0]\read_addr_reg[3]_0 ;
+  output \read_addr_reg[2]_rep_0 ;
   output [31:0]s_axi_rdata;
   output s_axi_rvalid;
   output s_axi_bvalid;
   output fault_clear;
-  input [12:0]ref_det_reg_i_74_0;
-  input cam_clean;
+  input [12:0]ref_det_reg_i_106_0;
+  input ref_det_reg;
   input ref_prev;
   input sync_offset;
   input rst_n;
@@ -11772,25 +11904,48 @@ module pynq_z2_top_0_0_axi_lite_regs
   input [4:0]s_axi_awaddr;
   input [31:0]s_axi_wdata;
   input [4:0]s_axi_araddr;
-  input [11:0]D;
   input [2:0]crank_angle;
   input [15:0]overflow_count;
   input [31:0]packet_count;
+  input \axi_rdata_reg[4]_i_3_0 ;
+  input \axi_rdata_reg[5]_i_3_0 ;
+  input \axi_rdata_reg[6]_i_3_0 ;
+  input \axi_rdata_reg[7]_i_3_0 ;
+  input \axi_rdata_reg[8]_i_3_0 ;
+  input \axi_rdata_reg[9]_i_3_0 ;
+  input \axi_rdata_reg[10]_i_3_0 ;
+  input \axi_rdata_reg[11]_i_3_0 ;
+  input \axi_rdata_reg[12]_i_3_0 ;
+  input \axi_rdata_reg[3]_0 ;
+  input \axi_rdata_reg[0]_0 ;
+  input \axi_rdata_reg[1]_0 ;
+  input \axi_rdata_reg[2]_0 ;
+  input [3:0]ab_count_out;
   input \axi_rdata_reg[4]_i_2_0 ;
+  input \axi_rdata_reg[4]_i_2_1 ;
   input \axi_rdata_reg[5]_i_2_0 ;
+  input \axi_rdata_reg[5]_i_2_1 ;
   input \axi_rdata_reg[6]_i_2_0 ;
+  input \axi_rdata_reg[6]_i_2_1 ;
   input \axi_rdata_reg[7]_i_2_0 ;
-  input \axi_rdata_reg[8]_i_2_0 ;
-  input \axi_rdata_reg[9]_i_2_0 ;
-  input \axi_rdata_reg[10]_i_2_0 ;
-  input \axi_rdata_reg[11]_i_2_0 ;
-  input \axi_rdata_reg[12]_i_2_0 ;
+  input \axi_rdata_reg[7]_i_2_1 ;
+  input engine_angle1;
+  input [3:0]\axi_rdata_reg[11]_i_2_0 ;
+  input [6:0]\axi_rdata_reg[15]_i_2_0 ;
+  input [2:0]O;
+  input [27:0]gap_period;
+  input [27:0]tooth_period;
+  input [0:0]D;
+  input [31:0]\axi_rdata[31]_i_3_0 ;
+  input [31:0]\axi_rdata[31]_i_3_1 ;
+  input [31:0]\axi_rdata[31]_i_3_2 ;
   input [15:0]phase_fault_count;
   input [15:0]sync_loss_count;
-  input signal_present;
+  input [12:0]\axi_rdata_reg[12]_i_2_0 ;
+  input \axi_rdata_reg[5]_i_3_1 ;
+  input \axi_rdata_reg[4]_i_3_1 ;
   input phase_fault;
-  input [1:0]sync_state;
-  input [3:0]O;
+  input [0:0]sync_state;
   input s_axi_aresetn;
   input s_axi_wvalid;
   input s_axi_awvalid;
@@ -11799,225 +11954,345 @@ module pynq_z2_top_0_0_axi_lite_regs
   input s_axi_rready;
 
   wire [0:0]CO;
-  wire [11:0]D;
+  wire [0:0]D;
   wire [1:0]DI;
-  wire [3:0]O;
+  wire [2:0]O;
   wire [12:0]Q;
   wire [2:0]S;
+  wire [3:0]ab_count_out;
   wire aw_en_i_1_n_0;
   wire aw_en_reg_n_0;
   wire axi_arready0;
   wire axi_awready0;
   wire axi_bvalid_i_1_n_0;
+  wire \axi_rdata[0]_i_10_n_0 ;
   wire \axi_rdata[0]_i_1_n_0 ;
-  wire \axi_rdata[0]_i_5_n_0 ;
-  wire \axi_rdata[0]_i_6_n_0 ;
+  wire \axi_rdata[0]_i_3_n_0 ;
   wire \axi_rdata[0]_i_7_n_0 ;
   wire \axi_rdata[0]_i_8_n_0 ;
+  wire \axi_rdata[0]_i_9_n_0 ;
+  wire \axi_rdata[10]_i_10_n_0 ;
+  wire \axi_rdata[10]_i_11_n_0 ;
+  wire \axi_rdata[10]_i_13_n_0 ;
   wire \axi_rdata[10]_i_1_n_0 ;
-  wire \axi_rdata[10]_i_4_n_0 ;
   wire \axi_rdata[10]_i_5_n_0 ;
   wire \axi_rdata[10]_i_6_n_0 ;
   wire \axi_rdata[10]_i_7_n_0 ;
+  wire \axi_rdata[10]_i_8_n_0 ;
   wire \axi_rdata[10]_i_9_n_0 ;
+  wire \axi_rdata[11]_i_10_n_0 ;
+  wire \axi_rdata[11]_i_11_n_0 ;
+  wire \axi_rdata[11]_i_13_n_0 ;
   wire \axi_rdata[11]_i_1_n_0 ;
-  wire \axi_rdata[11]_i_4_n_0 ;
   wire \axi_rdata[11]_i_5_n_0 ;
   wire \axi_rdata[11]_i_6_n_0 ;
   wire \axi_rdata[11]_i_7_n_0 ;
+  wire \axi_rdata[11]_i_8_n_0 ;
   wire \axi_rdata[11]_i_9_n_0 ;
+  wire \axi_rdata[12]_i_10_n_0 ;
+  wire \axi_rdata[12]_i_11_n_0 ;
+  wire \axi_rdata[12]_i_13_n_0 ;
   wire \axi_rdata[12]_i_1_n_0 ;
-  wire \axi_rdata[12]_i_4_n_0 ;
   wire \axi_rdata[12]_i_5_n_0 ;
   wire \axi_rdata[12]_i_6_n_0 ;
   wire \axi_rdata[12]_i_7_n_0 ;
+  wire \axi_rdata[12]_i_8_n_0 ;
   wire \axi_rdata[12]_i_9_n_0 ;
+  wire \axi_rdata[13]_i_10_n_0 ;
   wire \axi_rdata[13]_i_1_n_0 ;
-  wire \axi_rdata[13]_i_4_n_0 ;
   wire \axi_rdata[13]_i_5_n_0 ;
   wire \axi_rdata[13]_i_6_n_0 ;
   wire \axi_rdata[13]_i_7_n_0 ;
+  wire \axi_rdata[13]_i_8_n_0 ;
+  wire \axi_rdata[13]_i_9_n_0 ;
+  wire \axi_rdata[14]_i_10_n_0 ;
+  wire \axi_rdata[14]_i_11_n_0 ;
   wire \axi_rdata[14]_i_1_n_0 ;
-  wire \axi_rdata[14]_i_4_n_0 ;
   wire \axi_rdata[14]_i_5_n_0 ;
   wire \axi_rdata[14]_i_6_n_0 ;
   wire \axi_rdata[14]_i_7_n_0 ;
+  wire \axi_rdata[14]_i_8_n_0 ;
+  wire \axi_rdata[14]_i_9_n_0 ;
+  wire \axi_rdata[15]_i_10_n_0 ;
+  wire \axi_rdata[15]_i_11_n_0 ;
   wire \axi_rdata[15]_i_1_n_0 ;
-  wire \axi_rdata[15]_i_2_n_0 ;
   wire \axi_rdata[15]_i_5_n_0 ;
   wire \axi_rdata[15]_i_6_n_0 ;
   wire \axi_rdata[15]_i_7_n_0 ;
   wire \axi_rdata[15]_i_8_n_0 ;
+  wire \axi_rdata[15]_i_9_n_0 ;
   wire \axi_rdata[16]_i_1_n_0 ;
   wire \axi_rdata[16]_i_2_n_0 ;
   wire \axi_rdata[16]_i_3_n_0 ;
-  wire \axi_rdata[16]_i_4_n_0 ;
+  wire \axi_rdata[16]_i_5_n_0 ;
+  wire \axi_rdata[16]_i_6_n_0 ;
+  wire \axi_rdata[16]_i_7_n_0 ;
   wire \axi_rdata[17]_i_1_n_0 ;
   wire \axi_rdata[17]_i_2_n_0 ;
   wire \axi_rdata[17]_i_3_n_0 ;
-  wire \axi_rdata[17]_i_4_n_0 ;
+  wire \axi_rdata[17]_i_5_n_0 ;
+  wire \axi_rdata[17]_i_6_n_0 ;
+  wire \axi_rdata[17]_i_7_n_0 ;
   wire \axi_rdata[18]_i_1_n_0 ;
   wire \axi_rdata[18]_i_2_n_0 ;
   wire \axi_rdata[18]_i_3_n_0 ;
-  wire \axi_rdata[18]_i_4_n_0 ;
+  wire \axi_rdata[18]_i_5_n_0 ;
+  wire \axi_rdata[18]_i_6_n_0 ;
+  wire \axi_rdata[18]_i_7_n_0 ;
   wire \axi_rdata[19]_i_1_n_0 ;
   wire \axi_rdata[19]_i_2_n_0 ;
   wire \axi_rdata[19]_i_3_n_0 ;
-  wire \axi_rdata[19]_i_4_n_0 ;
+  wire \axi_rdata[19]_i_5_n_0 ;
+  wire \axi_rdata[19]_i_6_n_0 ;
+  wire \axi_rdata[19]_i_7_n_0 ;
+  wire \axi_rdata[1]_i_10_n_0 ;
   wire \axi_rdata[1]_i_1_n_0 ;
-  wire \axi_rdata[1]_i_5_n_0 ;
-  wire \axi_rdata[1]_i_6_n_0 ;
+  wire \axi_rdata[1]_i_3_n_0 ;
   wire \axi_rdata[1]_i_7_n_0 ;
   wire \axi_rdata[1]_i_8_n_0 ;
+  wire \axi_rdata[1]_i_9_n_0 ;
   wire \axi_rdata[20]_i_1_n_0 ;
   wire \axi_rdata[20]_i_2_n_0 ;
   wire \axi_rdata[20]_i_3_n_0 ;
-  wire \axi_rdata[20]_i_4_n_0 ;
+  wire \axi_rdata[20]_i_5_n_0 ;
+  wire \axi_rdata[20]_i_6_n_0 ;
+  wire \axi_rdata[20]_i_7_n_0 ;
   wire \axi_rdata[21]_i_1_n_0 ;
   wire \axi_rdata[21]_i_2_n_0 ;
   wire \axi_rdata[21]_i_3_n_0 ;
-  wire \axi_rdata[21]_i_4_n_0 ;
+  wire \axi_rdata[21]_i_5_n_0 ;
+  wire \axi_rdata[21]_i_6_n_0 ;
+  wire \axi_rdata[21]_i_7_n_0 ;
   wire \axi_rdata[22]_i_1_n_0 ;
   wire \axi_rdata[22]_i_2_n_0 ;
   wire \axi_rdata[22]_i_3_n_0 ;
-  wire \axi_rdata[22]_i_4_n_0 ;
+  wire \axi_rdata[22]_i_5_n_0 ;
+  wire \axi_rdata[22]_i_6_n_0 ;
+  wire \axi_rdata[22]_i_7_n_0 ;
   wire \axi_rdata[23]_i_1_n_0 ;
   wire \axi_rdata[23]_i_2_n_0 ;
   wire \axi_rdata[23]_i_3_n_0 ;
-  wire \axi_rdata[23]_i_4_n_0 ;
+  wire \axi_rdata[23]_i_5_n_0 ;
+  wire \axi_rdata[23]_i_6_n_0 ;
+  wire \axi_rdata[23]_i_7_n_0 ;
   wire \axi_rdata[24]_i_1_n_0 ;
   wire \axi_rdata[24]_i_2_n_0 ;
   wire \axi_rdata[24]_i_3_n_0 ;
-  wire \axi_rdata[24]_i_4_n_0 ;
+  wire \axi_rdata[24]_i_5_n_0 ;
+  wire \axi_rdata[24]_i_6_n_0 ;
+  wire \axi_rdata[24]_i_7_n_0 ;
   wire \axi_rdata[25]_i_1_n_0 ;
   wire \axi_rdata[25]_i_2_n_0 ;
   wire \axi_rdata[25]_i_3_n_0 ;
-  wire \axi_rdata[25]_i_4_n_0 ;
+  wire \axi_rdata[25]_i_5_n_0 ;
+  wire \axi_rdata[25]_i_6_n_0 ;
+  wire \axi_rdata[25]_i_7_n_0 ;
   wire \axi_rdata[26]_i_1_n_0 ;
   wire \axi_rdata[26]_i_2_n_0 ;
   wire \axi_rdata[26]_i_3_n_0 ;
-  wire \axi_rdata[26]_i_4_n_0 ;
+  wire \axi_rdata[26]_i_5_n_0 ;
+  wire \axi_rdata[26]_i_6_n_0 ;
+  wire \axi_rdata[26]_i_7_n_0 ;
   wire \axi_rdata[27]_i_1_n_0 ;
   wire \axi_rdata[27]_i_2_n_0 ;
   wire \axi_rdata[27]_i_3_n_0 ;
-  wire \axi_rdata[27]_i_4_n_0 ;
+  wire \axi_rdata[27]_i_5_n_0 ;
+  wire \axi_rdata[27]_i_6_n_0 ;
+  wire \axi_rdata[27]_i_7_n_0 ;
   wire \axi_rdata[28]_i_1_n_0 ;
   wire \axi_rdata[28]_i_2_n_0 ;
   wire \axi_rdata[28]_i_3_n_0 ;
-  wire \axi_rdata[28]_i_4_n_0 ;
+  wire \axi_rdata[28]_i_5_n_0 ;
+  wire \axi_rdata[28]_i_6_n_0 ;
+  wire \axi_rdata[28]_i_7_n_0 ;
   wire \axi_rdata[29]_i_1_n_0 ;
   wire \axi_rdata[29]_i_2_n_0 ;
   wire \axi_rdata[29]_i_3_n_0 ;
-  wire \axi_rdata[29]_i_4_n_0 ;
+  wire \axi_rdata[29]_i_5_n_0 ;
+  wire \axi_rdata[29]_i_6_n_0 ;
+  wire \axi_rdata[29]_i_7_n_0 ;
+  wire \axi_rdata[2]_i_10_n_0 ;
   wire \axi_rdata[2]_i_1_n_0 ;
-  wire \axi_rdata[2]_i_5_n_0 ;
-  wire \axi_rdata[2]_i_6_n_0 ;
+  wire \axi_rdata[2]_i_3_n_0 ;
   wire \axi_rdata[2]_i_7_n_0 ;
   wire \axi_rdata[2]_i_8_n_0 ;
+  wire \axi_rdata[2]_i_9_n_0 ;
   wire \axi_rdata[30]_i_1_n_0 ;
   wire \axi_rdata[30]_i_2_n_0 ;
   wire \axi_rdata[30]_i_3_n_0 ;
-  wire \axi_rdata[30]_i_4_n_0 ;
+  wire \axi_rdata[30]_i_5_n_0 ;
+  wire \axi_rdata[30]_i_6_n_0 ;
+  wire \axi_rdata[30]_i_7_n_0 ;
   wire \axi_rdata[31]_i_2_n_0 ;
+  wire [31:0]\axi_rdata[31]_i_3_0 ;
+  wire [31:0]\axi_rdata[31]_i_3_1 ;
+  wire [31:0]\axi_rdata[31]_i_3_2 ;
   wire \axi_rdata[31]_i_3_n_0 ;
   wire \axi_rdata[31]_i_4_n_0 ;
-  wire \axi_rdata[31]_i_5_n_0 ;
-  wire \axi_rdata[3]_i_11_n_0 ;
-  wire \axi_rdata[3]_i_12_n_0 ;
-  wire \axi_rdata[3]_i_13_n_0 ;
-  wire \axi_rdata[3]_i_14_n_0 ;
+  wire \axi_rdata[31]_i_6_n_0 ;
+  wire \axi_rdata[31]_i_7_n_0 ;
+  wire \axi_rdata[31]_i_8_n_0 ;
+  wire \axi_rdata[3]_i_10_n_0 ;
   wire \axi_rdata[3]_i_1_n_0 ;
+  wire \axi_rdata[3]_i_3_n_0 ;
+  wire \axi_rdata[3]_i_7_n_0 ;
+  wire \axi_rdata[3]_i_8_n_0 ;
+  wire \axi_rdata[3]_i_9_n_0 ;
+  wire \axi_rdata[4]_i_10_n_0 ;
+  wire \axi_rdata[4]_i_11_n_0 ;
+  wire \axi_rdata[4]_i_15_n_0 ;
   wire \axi_rdata[4]_i_1_n_0 ;
-  wire \axi_rdata[4]_i_4_n_0 ;
   wire \axi_rdata[4]_i_5_n_0 ;
   wire \axi_rdata[4]_i_6_n_0 ;
   wire \axi_rdata[4]_i_7_n_0 ;
+  wire \axi_rdata[4]_i_8_n_0 ;
   wire \axi_rdata[4]_i_9_n_0 ;
+  wire \axi_rdata[5]_i_10_n_0 ;
+  wire \axi_rdata[5]_i_11_n_0 ;
+  wire \axi_rdata[5]_i_15_n_0 ;
   wire \axi_rdata[5]_i_1_n_0 ;
-  wire \axi_rdata[5]_i_4_n_0 ;
   wire \axi_rdata[5]_i_5_n_0 ;
   wire \axi_rdata[5]_i_6_n_0 ;
   wire \axi_rdata[5]_i_7_n_0 ;
+  wire \axi_rdata[5]_i_8_n_0 ;
   wire \axi_rdata[5]_i_9_n_0 ;
+  wire \axi_rdata[6]_i_10_n_0 ;
+  wire \axi_rdata[6]_i_11_n_0 ;
+  wire \axi_rdata[6]_i_15_n_0 ;
   wire \axi_rdata[6]_i_1_n_0 ;
-  wire \axi_rdata[6]_i_4_n_0 ;
   wire \axi_rdata[6]_i_5_n_0 ;
   wire \axi_rdata[6]_i_6_n_0 ;
   wire \axi_rdata[6]_i_7_n_0 ;
+  wire \axi_rdata[6]_i_8_n_0 ;
   wire \axi_rdata[6]_i_9_n_0 ;
+  wire \axi_rdata[7]_i_10_n_0 ;
+  wire \axi_rdata[7]_i_11_n_0 ;
+  wire \axi_rdata[7]_i_15_n_0 ;
   wire \axi_rdata[7]_i_1_n_0 ;
-  wire \axi_rdata[7]_i_4_n_0 ;
   wire \axi_rdata[7]_i_5_n_0 ;
   wire \axi_rdata[7]_i_6_n_0 ;
   wire \axi_rdata[7]_i_7_n_0 ;
+  wire \axi_rdata[7]_i_8_n_0 ;
   wire \axi_rdata[7]_i_9_n_0 ;
+  wire \axi_rdata[8]_i_10_n_0 ;
+  wire \axi_rdata[8]_i_11_n_0 ;
+  wire \axi_rdata[8]_i_13_n_0 ;
   wire \axi_rdata[8]_i_1_n_0 ;
-  wire \axi_rdata[8]_i_4_n_0 ;
   wire \axi_rdata[8]_i_5_n_0 ;
   wire \axi_rdata[8]_i_6_n_0 ;
   wire \axi_rdata[8]_i_7_n_0 ;
+  wire \axi_rdata[8]_i_8_n_0 ;
   wire \axi_rdata[8]_i_9_n_0 ;
+  wire \axi_rdata[9]_i_10_n_0 ;
+  wire \axi_rdata[9]_i_11_n_0 ;
+  wire \axi_rdata[9]_i_13_n_0 ;
   wire \axi_rdata[9]_i_1_n_0 ;
-  wire \axi_rdata[9]_i_4_n_0 ;
   wire \axi_rdata[9]_i_5_n_0 ;
   wire \axi_rdata[9]_i_6_n_0 ;
   wire \axi_rdata[9]_i_7_n_0 ;
+  wire \axi_rdata[9]_i_8_n_0 ;
   wire \axi_rdata[9]_i_9_n_0 ;
-  wire \axi_rdata_reg[0]_i_2_n_0 ;
-  wire \axi_rdata_reg[0]_i_3_n_0 ;
+  wire \axi_rdata_reg[0]_0 ;
   wire \axi_rdata_reg[0]_i_4_n_0 ;
-  wire \axi_rdata_reg[10]_i_2_0 ;
+  wire \axi_rdata_reg[0]_i_5_n_0 ;
+  wire \axi_rdata_reg[0]_i_6_n_0 ;
   wire \axi_rdata_reg[10]_i_2_n_0 ;
+  wire \axi_rdata_reg[10]_i_3_0 ;
   wire \axi_rdata_reg[10]_i_3_n_0 ;
-  wire \axi_rdata_reg[11]_i_2_0 ;
+  wire \axi_rdata_reg[10]_i_4_n_0 ;
+  wire [3:0]\axi_rdata_reg[11]_i_2_0 ;
   wire \axi_rdata_reg[11]_i_2_n_0 ;
+  wire \axi_rdata_reg[11]_i_3_0 ;
   wire \axi_rdata_reg[11]_i_3_n_0 ;
-  wire \axi_rdata_reg[12]_i_2_0 ;
+  wire \axi_rdata_reg[11]_i_4_n_0 ;
+  wire [12:0]\axi_rdata_reg[12]_i_2_0 ;
   wire \axi_rdata_reg[12]_i_2_n_0 ;
+  wire \axi_rdata_reg[12]_i_3_0 ;
   wire \axi_rdata_reg[12]_i_3_n_0 ;
+  wire \axi_rdata_reg[12]_i_4_n_0 ;
   wire \axi_rdata_reg[13]_i_2_n_0 ;
   wire \axi_rdata_reg[13]_i_3_n_0 ;
+  wire \axi_rdata_reg[13]_i_4_n_0 ;
   wire \axi_rdata_reg[14]_i_2_n_0 ;
   wire \axi_rdata_reg[14]_i_3_n_0 ;
+  wire \axi_rdata_reg[14]_i_4_n_0 ;
+  wire [6:0]\axi_rdata_reg[15]_i_2_0 ;
+  wire \axi_rdata_reg[15]_i_2_n_0 ;
   wire \axi_rdata_reg[15]_i_3_n_0 ;
   wire \axi_rdata_reg[15]_i_4_n_0 ;
-  wire \axi_rdata_reg[1]_i_2_n_0 ;
-  wire \axi_rdata_reg[1]_i_3_n_0 ;
+  wire \axi_rdata_reg[16]_i_4_n_0 ;
+  wire \axi_rdata_reg[17]_i_4_n_0 ;
+  wire \axi_rdata_reg[18]_i_4_n_0 ;
+  wire \axi_rdata_reg[19]_i_4_n_0 ;
+  wire \axi_rdata_reg[1]_0 ;
   wire \axi_rdata_reg[1]_i_4_n_0 ;
-  wire \axi_rdata_reg[2]_i_2_n_0 ;
-  wire \axi_rdata_reg[2]_i_3_n_0 ;
+  wire \axi_rdata_reg[1]_i_5_n_0 ;
+  wire \axi_rdata_reg[1]_i_6_n_0 ;
+  wire \axi_rdata_reg[20]_i_4_n_0 ;
+  wire \axi_rdata_reg[21]_i_4_n_0 ;
+  wire \axi_rdata_reg[22]_i_4_n_0 ;
+  wire \axi_rdata_reg[23]_i_4_n_0 ;
+  wire \axi_rdata_reg[24]_i_4_n_0 ;
+  wire \axi_rdata_reg[25]_i_4_n_0 ;
+  wire \axi_rdata_reg[26]_i_4_n_0 ;
+  wire \axi_rdata_reg[27]_i_4_n_0 ;
+  wire \axi_rdata_reg[28]_i_4_n_0 ;
+  wire \axi_rdata_reg[29]_i_4_n_0 ;
+  wire \axi_rdata_reg[2]_0 ;
   wire \axi_rdata_reg[2]_i_4_n_0 ;
-  wire \axi_rdata_reg[3]_i_3_n_0 ;
-  wire \axi_rdata_reg[3]_i_8_n_0 ;
-  wire \axi_rdata_reg[3]_i_9_n_0 ;
+  wire \axi_rdata_reg[2]_i_5_n_0 ;
+  wire \axi_rdata_reg[2]_i_6_n_0 ;
+  wire \axi_rdata_reg[30]_i_4_n_0 ;
+  wire \axi_rdata_reg[31]_i_5_n_0 ;
+  wire \axi_rdata_reg[3]_0 ;
+  wire \axi_rdata_reg[3]_i_4_n_0 ;
+  wire \axi_rdata_reg[3]_i_5_n_0 ;
+  wire \axi_rdata_reg[3]_i_6_n_0 ;
   wire \axi_rdata_reg[4]_i_2_0 ;
+  wire \axi_rdata_reg[4]_i_2_1 ;
   wire \axi_rdata_reg[4]_i_2_n_0 ;
+  wire \axi_rdata_reg[4]_i_3_0 ;
+  wire \axi_rdata_reg[4]_i_3_1 ;
   wire \axi_rdata_reg[4]_i_3_n_0 ;
+  wire \axi_rdata_reg[4]_i_4_n_0 ;
   wire \axi_rdata_reg[5]_i_2_0 ;
+  wire \axi_rdata_reg[5]_i_2_1 ;
   wire \axi_rdata_reg[5]_i_2_n_0 ;
+  wire \axi_rdata_reg[5]_i_3_0 ;
+  wire \axi_rdata_reg[5]_i_3_1 ;
   wire \axi_rdata_reg[5]_i_3_n_0 ;
+  wire \axi_rdata_reg[5]_i_4_n_0 ;
   wire \axi_rdata_reg[6]_i_2_0 ;
+  wire \axi_rdata_reg[6]_i_2_1 ;
   wire \axi_rdata_reg[6]_i_2_n_0 ;
+  wire \axi_rdata_reg[6]_i_3_0 ;
   wire \axi_rdata_reg[6]_i_3_n_0 ;
+  wire \axi_rdata_reg[6]_i_4_n_0 ;
   wire \axi_rdata_reg[7]_i_2_0 ;
+  wire \axi_rdata_reg[7]_i_2_1 ;
   wire \axi_rdata_reg[7]_i_2_n_0 ;
+  wire \axi_rdata_reg[7]_i_3_0 ;
   wire \axi_rdata_reg[7]_i_3_n_0 ;
-  wire \axi_rdata_reg[8]_i_2_0 ;
+  wire \axi_rdata_reg[7]_i_4_n_0 ;
   wire \axi_rdata_reg[8]_i_2_n_0 ;
+  wire \axi_rdata_reg[8]_i_3_0 ;
   wire \axi_rdata_reg[8]_i_3_n_0 ;
-  wire \axi_rdata_reg[9]_i_2_0 ;
+  wire \axi_rdata_reg[8]_i_4_n_0 ;
   wire \axi_rdata_reg[9]_i_2_n_0 ;
+  wire \axi_rdata_reg[9]_i_3_0 ;
   wire \axi_rdata_reg[9]_i_3_n_0 ;
+  wire \axi_rdata_reg[9]_i_4_n_0 ;
   wire axi_rvalid02_out;
   wire axi_rvalid_i_1_n_0;
-  wire cam_clean;
   wire [2:0]crank_angle;
   wire \decim_cnt_reg[3] ;
   wire [7:3]decimation;
+  wire engine_angle1;
   wire [15:13]expected_phase_angle;
   wire fault_clear;
   wire fault_clear_int_i_1_n_0;
   wire fault_clear_int_i_2_n_0;
+  wire [27:0]gap_period;
   wire [15:0]overflow_count;
   wire p_0_in;
   wire [4:0]p_0_in__0;
@@ -12027,6 +12302,8 @@ module pynq_z2_top_0_0_axi_lite_regs
   wire [15:0]phase_tolerance;
   wire [2:0]\raw_angle_int_reg[7] ;
   wire read_addr;
+  wire \read_addr_reg[2]_rep_0 ;
+  wire [1:0]\read_addr_reg[3]_0 ;
   wire ref_det5_out;
   wire ref_det_i_100_n_0;
   wire ref_det_i_101_n_0;
@@ -12190,6 +12467,8 @@ module pynq_z2_top_0_0_axi_lite_regs
   wire ref_det_i_98_n_0;
   wire ref_det_i_99_n_0;
   wire ref_det_i_9_n_0;
+  wire ref_det_reg;
+  wire [12:0]ref_det_reg_i_106_0;
   wire ref_det_reg_i_106_n_1;
   wire ref_det_reg_i_106_n_2;
   wire ref_det_reg_i_106_n_3;
@@ -12307,7 +12586,6 @@ module pynq_z2_top_0_0_axi_lite_regs
   wire ref_det_reg_i_61_n_5;
   wire ref_det_reg_i_61_n_6;
   wire ref_det_reg_i_61_n_7;
-  wire [12:0]ref_det_reg_i_74_0;
   wire ref_det_reg_i_74_n_1;
   wire ref_det_reg_i_74_n_2;
   wire ref_det_reg_i_74_n_3;
@@ -12556,12 +12834,12 @@ module pynq_z2_top_0_0_axi_lite_regs
   wire sample_pulse_int_i_7_n_0;
   wire sample_pulse_int_i_8_n_0;
   wire sample_pulse_int_reg;
-  wire [4:0]sel0;
-  wire signal_present;
+  wire [4:2]sel0;
   wire stable_int_reg;
   wire [15:0]sync_loss_count;
   wire sync_offset;
-  wire [1:0]sync_state;
+  wire [0:0]sync_state;
+  wire [27:0]tooth_period;
   wire [15:1]\u_phase_detector/diff0 ;
   wire \u_phase_detector/in_band ;
   wire \u_phase_detector/in_band1_in ;
@@ -12651,1057 +12929,1502 @@ module pynq_z2_top_0_0_axi_lite_regs
         .D(axi_bvalid_i_1_n_0),
         .Q(s_axi_bvalid),
         .R(p_0_in));
-  LUT5 #(
-    .INIT(32'h08FF0800)) 
+  LUT6 #(
+    .INIT(64'h00E2FFFF00E20000)) 
     \axi_rdata[0]_i_1 
-       (.I0(O[0]),
-        .I1(\axi_rdata[15]_i_2_n_0 ),
-        .I2(sel0[3]),
-        .I3(sel0[4]),
-        .I4(\axi_rdata_reg[0]_i_2_n_0 ),
+       (.I0(\axi_rdata_reg[0]_0 ),
+        .I1(sel0[2]),
+        .I2(\axi_rdata[0]_i_3_n_0 ),
+        .I3(sel0[3]),
+        .I4(sel0[4]),
+        .I5(\axi_rdata_reg[0]_i_4_n_0 ),
         .O(\axi_rdata[0]_i_1_n_0 ));
+  LUT5 #(
+    .INIT(32'hB8BBB888)) 
+    \axi_rdata[0]_i_10 
+       (.I0(ref_det_reg_i_106_0[0]),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(overflow_count[0]),
+        .I3(\read_addr_reg[3]_0 [0]),
+        .I4(packet_count[0]),
+        .O(\axi_rdata[0]_i_10_n_0 ));
   LUT6 #(
     .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[0]_i_5 
-       (.I0(\reg_ki_reg[15]_0 [0]),
-        .I1(\reg_kp_reg[15]_0 [0]),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg[7]_0 [0]),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg[0]_0 ),
-        .O(\axi_rdata[0]_i_5_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[0]_i_6 
-       (.I0(\reg_tdc_off_reg[15]_0 [0]),
-        .I1(phase_tolerance[0]),
-        .I2(sel0[1]),
-        .I3(Q[0]),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg[15]_0 [0]),
-        .O(\axi_rdata[0]_i_6_n_0 ));
+    \axi_rdata[0]_i_3 
+       (.I0(\axi_rdata_reg[12]_i_2_0 [0]),
+        .I1(\axi_rdata[31]_i_3_0 [0]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\axi_rdata[31]_i_3_1 [0]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\axi_rdata[31]_i_3_2 [0]),
+        .O(\axi_rdata[0]_i_3_n_0 ));
   LUT6 #(
     .INIT(64'hAFA0CFCFAFA0C0C0)) 
     \axi_rdata[0]_i_7 
-       (.I0(phase_fault_count[0]),
-        .I1(sync_loss_count[0]),
-        .I2(sel0[1]),
-        .I3(sync_state[0]),
-        .I4(sel0[0]),
-        .I5(\reg_decimation_reg[2]_0 [0]),
+       (.I0(\reg_ki_reg[15]_0 [0]),
+        .I1(\reg_kp_reg[15]_0 [0]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg[7]_0 [0]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_control_reg[0]_0 ),
         .O(\axi_rdata[0]_i_7_n_0 ));
-  LUT5 #(
-    .INIT(32'hB8BBB888)) 
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
     \axi_rdata[0]_i_8 
-       (.I0(ref_det_reg_i_74_0[0]),
-        .I1(sel0[1]),
-        .I2(overflow_count[0]),
-        .I3(sel0[0]),
-        .I4(packet_count[0]),
+       (.I0(\reg_tdc_off_reg[15]_0 [0]),
+        .I1(phase_tolerance[0]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(Q[0]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_max_corr_reg[15]_0 [0]),
         .O(\axi_rdata[0]_i_8_n_0 ));
   LUT6 #(
-    .INIT(64'h0F008F8F0F008080)) 
-    \axi_rdata[10]_i_1 
-       (.I0(D[6]),
-        .I1(\axi_rdata[15]_i_2_n_0 ),
-        .I2(sel0[4]),
-        .I3(\axi_rdata_reg[10]_i_2_n_0 ),
-        .I4(sel0[3]),
-        .I5(\axi_rdata_reg[10]_i_3_n_0 ),
-        .O(\axi_rdata[10]_i_1_n_0 ));
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[0]_i_9 
+       (.I0(phase_fault_count[0]),
+        .I1(sync_loss_count[0]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(sync_state),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_decimation_reg[2]_0 [0]),
+        .O(\axi_rdata[0]_i_9_n_0 ));
   LUT5 #(
-    .INIT(32'hA0A0CFC0)) 
-    \axi_rdata[10]_i_4 
-       (.I0(phase_fault_count[10]),
-        .I1(sync_loss_count[10]),
-        .I2(sel0[1]),
-        .I3(\reg_decimation_reg_n_0_[10] ),
-        .I4(sel0[0]),
-        .O(\axi_rdata[10]_i_4_n_0 ));
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[10]_i_1 
+       (.I0(\axi_rdata_reg[10]_i_2_n_0 ),
+        .I1(sel0[4]),
+        .I2(\axi_rdata_reg[10]_i_3_n_0 ),
+        .I3(sel0[3]),
+        .I4(\axi_rdata_reg[10]_i_4_n_0 ),
+        .O(\axi_rdata[10]_i_1_n_0 ));
   LUT6 #(
-    .INIT(64'hBF80FFFFBF800000)) 
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[10]_i_10 
+       (.I0(\reg_tdc_off_reg[15]_0 [10]),
+        .I1(phase_tolerance[10]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(Q[10]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_max_corr_reg[15]_0 [10]),
+        .O(\axi_rdata[10]_i_10_n_0 ));
+  (* SOFT_HLUTNM = "soft_lutpair38" *) 
+  LUT3 #(
+    .INIT(8'hB8)) 
+    \axi_rdata[10]_i_11 
+       (.I0(gap_period[6]),
+        .I1(\read_addr_reg[3]_0 [0]),
+        .I2(tooth_period[6]),
+        .O(\axi_rdata[10]_i_11_n_0 ));
+  (* SOFT_HLUTNM = "soft_lutpair38" *) 
+  LUT3 #(
+    .INIT(8'hB8)) 
+    \axi_rdata[10]_i_13 
+       (.I0(overflow_count[10]),
+        .I1(\read_addr_reg[3]_0 [0]),
+        .I2(packet_count[10]),
+        .O(\axi_rdata[10]_i_13_n_0 ));
+  LUT6 #(
+    .INIT(64'h88888888BBB88B88)) 
     \axi_rdata[10]_i_5 
-       (.I0(\axi_rdata_reg[10]_i_2_0 ),
-        .I1(sync_offset),
-        .I2(sel0[0]),
-        .I3(ref_det_reg_i_74_0[10]),
-        .I4(sel0[1]),
-        .I5(\axi_rdata[10]_i_9_n_0 ),
+       (.I0(\axi_rdata[10]_i_11_n_0 ),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(engine_angle1),
+        .I3(\axi_rdata_reg[11]_i_2_0 [2]),
+        .I4(\axi_rdata_reg[15]_i_2_0 [2]),
+        .I5(\read_addr_reg[3]_0 [0]),
         .O(\axi_rdata[10]_i_5_n_0 ));
   LUT6 #(
     .INIT(64'hAFA0CFCFAFA0C0C0)) 
     \axi_rdata[10]_i_6 
-       (.I0(\reg_ki_reg[15]_0 [10]),
-        .I1(\reg_kp_reg[15]_0 [10]),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg_n_0_[10] ),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[10] ),
+       (.I0(\axi_rdata_reg[12]_i_2_0 [10]),
+        .I1(\axi_rdata[31]_i_3_0 [10]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\axi_rdata[31]_i_3_1 [10]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\axi_rdata[31]_i_3_2 [10]),
         .O(\axi_rdata[10]_i_6_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[10]_i_7 
-       (.I0(\reg_tdc_off_reg[15]_0 [10]),
-        .I1(phase_tolerance[10]),
-        .I2(sel0[1]),
-        .I3(Q[10]),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg[15]_0 [10]),
-        .O(\axi_rdata[10]_i_7_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair36" *) 
-  LUT3 #(
-    .INIT(8'hB8)) 
-    \axi_rdata[10]_i_9 
-       (.I0(overflow_count[10]),
-        .I1(sel0[0]),
-        .I2(packet_count[10]),
-        .O(\axi_rdata[10]_i_9_n_0 ));
-  LUT6 #(
-    .INIT(64'h0F008F8F0F008080)) 
-    \axi_rdata[11]_i_1 
-       (.I0(D[7]),
-        .I1(\axi_rdata[15]_i_2_n_0 ),
-        .I2(sel0[4]),
-        .I3(\axi_rdata_reg[11]_i_2_n_0 ),
-        .I4(sel0[3]),
-        .I5(\axi_rdata_reg[11]_i_3_n_0 ),
-        .O(\axi_rdata[11]_i_1_n_0 ));
   LUT5 #(
     .INIT(32'hA0A0CFC0)) 
-    \axi_rdata[11]_i_4 
-       (.I0(phase_fault_count[11]),
-        .I1(sync_loss_count[11]),
-        .I2(sel0[1]),
-        .I3(\reg_decimation_reg_n_0_[11] ),
-        .I4(sel0[0]),
-        .O(\axi_rdata[11]_i_4_n_0 ));
+    \axi_rdata[10]_i_7 
+       (.I0(phase_fault_count[10]),
+        .I1(sync_loss_count[10]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_decimation_reg_n_0_[10] ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .O(\axi_rdata[10]_i_7_n_0 ));
   LUT6 #(
     .INIT(64'hBF80FFFFBF800000)) 
-    \axi_rdata[11]_i_5 
-       (.I0(\axi_rdata_reg[11]_i_2_0 ),
+    \axi_rdata[10]_i_8 
+       (.I0(\axi_rdata_reg[10]_i_3_0 ),
         .I1(sync_offset),
-        .I2(sel0[0]),
-        .I3(ref_det_reg_i_74_0[11]),
-        .I4(sel0[1]),
-        .I5(\axi_rdata[11]_i_9_n_0 ),
+        .I2(\read_addr_reg[3]_0 [0]),
+        .I3(ref_det_reg_i_106_0[10]),
+        .I4(\read_addr_reg[3]_0 [1]),
+        .I5(\axi_rdata[10]_i_13_n_0 ),
+        .O(\axi_rdata[10]_i_8_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[10]_i_9 
+       (.I0(\reg_ki_reg[15]_0 [10]),
+        .I1(\reg_kp_reg[15]_0 [10]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg_n_0_[10] ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_control_reg_n_0_[10] ),
+        .O(\axi_rdata[10]_i_9_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[11]_i_1 
+       (.I0(\axi_rdata_reg[11]_i_2_n_0 ),
+        .I1(sel0[4]),
+        .I2(\axi_rdata_reg[11]_i_3_n_0 ),
+        .I3(sel0[3]),
+        .I4(\axi_rdata_reg[11]_i_4_n_0 ),
+        .O(\axi_rdata[11]_i_1_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[11]_i_10 
+       (.I0(\reg_tdc_off_reg[15]_0 [11]),
+        .I1(phase_tolerance[11]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(Q[11]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_max_corr_reg[15]_0 [11]),
+        .O(\axi_rdata[11]_i_10_n_0 ));
+  (* SOFT_HLUTNM = "soft_lutpair37" *) 
+  LUT3 #(
+    .INIT(8'hB8)) 
+    \axi_rdata[11]_i_11 
+       (.I0(gap_period[7]),
+        .I1(\read_addr_reg[3]_0 [0]),
+        .I2(tooth_period[7]),
+        .O(\axi_rdata[11]_i_11_n_0 ));
+  (* SOFT_HLUTNM = "soft_lutpair37" *) 
+  LUT3 #(
+    .INIT(8'hB8)) 
+    \axi_rdata[11]_i_13 
+       (.I0(overflow_count[11]),
+        .I1(\read_addr_reg[3]_0 [0]),
+        .I2(packet_count[11]),
+        .O(\axi_rdata[11]_i_13_n_0 ));
+  LUT6 #(
+    .INIT(64'h88888888BBB88B88)) 
+    \axi_rdata[11]_i_5 
+       (.I0(\axi_rdata[11]_i_11_n_0 ),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(engine_angle1),
+        .I3(\axi_rdata_reg[11]_i_2_0 [3]),
+        .I4(\axi_rdata_reg[15]_i_2_0 [3]),
+        .I5(\read_addr_reg[3]_0 [0]),
         .O(\axi_rdata[11]_i_5_n_0 ));
   LUT6 #(
     .INIT(64'hAFA0CFCFAFA0C0C0)) 
     \axi_rdata[11]_i_6 
-       (.I0(\reg_ki_reg[15]_0 [11]),
-        .I1(\reg_kp_reg[15]_0 [11]),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg_n_0_[11] ),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[11] ),
+       (.I0(\axi_rdata_reg[12]_i_2_0 [11]),
+        .I1(\axi_rdata[31]_i_3_0 [11]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\axi_rdata[31]_i_3_1 [11]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\axi_rdata[31]_i_3_2 [11]),
         .O(\axi_rdata[11]_i_6_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[11]_i_7 
-       (.I0(\reg_tdc_off_reg[15]_0 [11]),
-        .I1(phase_tolerance[11]),
-        .I2(sel0[1]),
-        .I3(Q[11]),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg[15]_0 [11]),
-        .O(\axi_rdata[11]_i_7_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair35" *) 
-  LUT3 #(
-    .INIT(8'hB8)) 
-    \axi_rdata[11]_i_9 
-       (.I0(overflow_count[11]),
-        .I1(sel0[0]),
-        .I2(packet_count[11]),
-        .O(\axi_rdata[11]_i_9_n_0 ));
-  LUT6 #(
-    .INIT(64'h0F008F8F0F008080)) 
-    \axi_rdata[12]_i_1 
-       (.I0(D[8]),
-        .I1(\axi_rdata[15]_i_2_n_0 ),
-        .I2(sel0[4]),
-        .I3(\axi_rdata_reg[12]_i_2_n_0 ),
-        .I4(sel0[3]),
-        .I5(\axi_rdata_reg[12]_i_3_n_0 ),
-        .O(\axi_rdata[12]_i_1_n_0 ));
   LUT5 #(
     .INIT(32'hA0A0CFC0)) 
-    \axi_rdata[12]_i_4 
-       (.I0(phase_fault_count[12]),
-        .I1(sync_loss_count[12]),
-        .I2(sel0[1]),
-        .I3(\reg_decimation_reg_n_0_[12] ),
-        .I4(sel0[0]),
-        .O(\axi_rdata[12]_i_4_n_0 ));
+    \axi_rdata[11]_i_7 
+       (.I0(phase_fault_count[11]),
+        .I1(sync_loss_count[11]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_decimation_reg_n_0_[11] ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .O(\axi_rdata[11]_i_7_n_0 ));
   LUT6 #(
     .INIT(64'hBF80FFFFBF800000)) 
-    \axi_rdata[12]_i_5 
-       (.I0(\axi_rdata_reg[12]_i_2_0 ),
+    \axi_rdata[11]_i_8 
+       (.I0(\axi_rdata_reg[11]_i_3_0 ),
         .I1(sync_offset),
-        .I2(sel0[0]),
-        .I3(ref_det_reg_i_74_0[12]),
-        .I4(sel0[1]),
-        .I5(\axi_rdata[12]_i_9_n_0 ),
+        .I2(\read_addr_reg[3]_0 [0]),
+        .I3(ref_det_reg_i_106_0[11]),
+        .I4(\read_addr_reg[3]_0 [1]),
+        .I5(\axi_rdata[11]_i_13_n_0 ),
+        .O(\axi_rdata[11]_i_8_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[11]_i_9 
+       (.I0(\reg_ki_reg[15]_0 [11]),
+        .I1(\reg_kp_reg[15]_0 [11]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg_n_0_[11] ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_control_reg_n_0_[11] ),
+        .O(\axi_rdata[11]_i_9_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[12]_i_1 
+       (.I0(\axi_rdata_reg[12]_i_2_n_0 ),
+        .I1(sel0[4]),
+        .I2(\axi_rdata_reg[12]_i_3_n_0 ),
+        .I3(sel0[3]),
+        .I4(\axi_rdata_reg[12]_i_4_n_0 ),
+        .O(\axi_rdata[12]_i_1_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[12]_i_10 
+       (.I0(\reg_tdc_off_reg[15]_0 [12]),
+        .I1(phase_tolerance[12]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(Q[12]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_max_corr_reg[15]_0 [12]),
+        .O(\axi_rdata[12]_i_10_n_0 ));
+  (* SOFT_HLUTNM = "soft_lutpair36" *) 
+  LUT3 #(
+    .INIT(8'hB8)) 
+    \axi_rdata[12]_i_11 
+       (.I0(gap_period[8]),
+        .I1(\read_addr_reg[3]_0 [0]),
+        .I2(tooth_period[8]),
+        .O(\axi_rdata[12]_i_11_n_0 ));
+  (* SOFT_HLUTNM = "soft_lutpair36" *) 
+  LUT3 #(
+    .INIT(8'hB8)) 
+    \axi_rdata[12]_i_13 
+       (.I0(overflow_count[12]),
+        .I1(\read_addr_reg[3]_0 [0]),
+        .I2(packet_count[12]),
+        .O(\axi_rdata[12]_i_13_n_0 ));
+  LUT6 #(
+    .INIT(64'h88888888BBB88B88)) 
+    \axi_rdata[12]_i_5 
+       (.I0(\axi_rdata[12]_i_11_n_0 ),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(engine_angle1),
+        .I3(O[0]),
+        .I4(\axi_rdata_reg[15]_i_2_0 [4]),
+        .I5(\read_addr_reg[3]_0 [0]),
         .O(\axi_rdata[12]_i_5_n_0 ));
   LUT6 #(
     .INIT(64'hAFA0CFCFAFA0C0C0)) 
     \axi_rdata[12]_i_6 
-       (.I0(\reg_ki_reg[15]_0 [12]),
-        .I1(\reg_kp_reg[15]_0 [12]),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg_n_0_[12] ),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[12] ),
+       (.I0(\axi_rdata_reg[12]_i_2_0 [12]),
+        .I1(\axi_rdata[31]_i_3_0 [12]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\axi_rdata[31]_i_3_1 [12]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\axi_rdata[31]_i_3_2 [12]),
         .O(\axi_rdata[12]_i_6_n_0 ));
+  LUT5 #(
+    .INIT(32'hA0A0CFC0)) 
+    \axi_rdata[12]_i_7 
+       (.I0(phase_fault_count[12]),
+        .I1(sync_loss_count[12]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_decimation_reg_n_0_[12] ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .O(\axi_rdata[12]_i_7_n_0 ));
+  LUT6 #(
+    .INIT(64'hBF80FFFFBF800000)) 
+    \axi_rdata[12]_i_8 
+       (.I0(\axi_rdata_reg[12]_i_3_0 ),
+        .I1(sync_offset),
+        .I2(\read_addr_reg[3]_0 [0]),
+        .I3(ref_det_reg_i_106_0[12]),
+        .I4(\read_addr_reg[3]_0 [1]),
+        .I5(\axi_rdata[12]_i_13_n_0 ),
+        .O(\axi_rdata[12]_i_8_n_0 ));
   LUT6 #(
     .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[12]_i_7 
-       (.I0(\reg_tdc_off_reg[15]_0 [12]),
-        .I1(phase_tolerance[12]),
-        .I2(sel0[1]),
-        .I3(Q[12]),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg[15]_0 [12]),
-        .O(\axi_rdata[12]_i_7_n_0 ));
+    \axi_rdata[12]_i_9 
+       (.I0(\reg_ki_reg[15]_0 [12]),
+        .I1(\reg_kp_reg[15]_0 [12]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg_n_0_[12] ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_control_reg_n_0_[12] ),
+        .O(\axi_rdata[12]_i_9_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[13]_i_1 
+       (.I0(\axi_rdata_reg[13]_i_2_n_0 ),
+        .I1(sel0[4]),
+        .I2(\axi_rdata_reg[13]_i_3_n_0 ),
+        .I3(sel0[3]),
+        .I4(\axi_rdata_reg[13]_i_4_n_0 ),
+        .O(\axi_rdata[13]_i_1_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[13]_i_10 
+       (.I0(\reg_tdc_off_reg[15]_0 [13]),
+        .I1(phase_tolerance[13]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(expected_phase_angle[13]),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_max_corr_reg[15]_0 [13]),
+        .O(\axi_rdata[13]_i_10_n_0 ));
+  LUT5 #(
+    .INIT(32'hA0A0CFC0)) 
+    \axi_rdata[13]_i_5 
+       (.I0(gap_period[9]),
+        .I1(tooth_period[9]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(D),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .O(\axi_rdata[13]_i_5_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[13]_i_6 
+       (.I0(\axi_rdata[31]_i_3_0 [13]),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(\axi_rdata[31]_i_3_1 [13]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(\axi_rdata[31]_i_3_2 [13]),
+        .O(\axi_rdata[13]_i_6_n_0 ));
+  LUT5 #(
+    .INIT(32'hA0A0CFC0)) 
+    \axi_rdata[13]_i_7 
+       (.I0(phase_fault_count[13]),
+        .I1(sync_loss_count[13]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_decimation_reg_n_0_[13] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .O(\axi_rdata[13]_i_7_n_0 ));
+  LUT5 #(
+    .INIT(32'hB833B800)) 
+    \axi_rdata[13]_i_8 
+       (.I0(crank_angle[1]),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(overflow_count[13]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(packet_count[13]),
+        .O(\axi_rdata[13]_i_8_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[13]_i_9 
+       (.I0(\reg_ki_reg[15]_0 [13]),
+        .I1(\reg_kp_reg[15]_0 [13]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg_n_0_[13] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_control_reg_n_0_[13] ),
+        .O(\axi_rdata[13]_i_9_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[14]_i_1 
+       (.I0(\axi_rdata_reg[14]_i_2_n_0 ),
+        .I1(sel0[4]),
+        .I2(\axi_rdata_reg[14]_i_3_n_0 ),
+        .I3(sel0[3]),
+        .I4(\axi_rdata_reg[14]_i_4_n_0 ),
+        .O(\axi_rdata[14]_i_1_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[14]_i_10 
+       (.I0(\reg_tdc_off_reg[15]_0 [14]),
+        .I1(phase_tolerance[14]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(expected_phase_angle[14]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_max_corr_reg[15]_0 [14]),
+        .O(\axi_rdata[14]_i_10_n_0 ));
   (* SOFT_HLUTNM = "soft_lutpair35" *) 
   LUT3 #(
     .INIT(8'hB8)) 
-    \axi_rdata[12]_i_9 
-       (.I0(overflow_count[12]),
-        .I1(sel0[0]),
-        .I2(packet_count[12]),
-        .O(\axi_rdata[12]_i_9_n_0 ));
+    \axi_rdata[14]_i_11 
+       (.I0(gap_period[10]),
+        .I1(\read_addr_reg[3]_0 [0]),
+        .I2(tooth_period[10]),
+        .O(\axi_rdata[14]_i_11_n_0 ));
   LUT6 #(
-    .INIT(64'h0F008F8F0F008080)) 
-    \axi_rdata[13]_i_1 
-       (.I0(D[9]),
-        .I1(\axi_rdata[15]_i_2_n_0 ),
-        .I2(sel0[4]),
-        .I3(\axi_rdata_reg[13]_i_2_n_0 ),
-        .I4(sel0[3]),
-        .I5(\axi_rdata_reg[13]_i_3_n_0 ),
-        .O(\axi_rdata[13]_i_1_n_0 ));
+    .INIT(64'h88888888BBB88B88)) 
+    \axi_rdata[14]_i_5 
+       (.I0(\axi_rdata[14]_i_11_n_0 ),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(engine_angle1),
+        .I3(O[1]),
+        .I4(\axi_rdata_reg[15]_i_2_0 [5]),
+        .I5(\read_addr_reg[3]_0 [0]),
+        .O(\axi_rdata[14]_i_5_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[14]_i_6 
+       (.I0(\axi_rdata[31]_i_3_0 [14]),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(\axi_rdata[31]_i_3_1 [14]),
+        .I3(\read_addr_reg[3]_0 [0]),
+        .I4(\axi_rdata[31]_i_3_2 [14]),
+        .O(\axi_rdata[14]_i_6_n_0 ));
   LUT5 #(
     .INIT(32'hA0A0CFC0)) 
-    \axi_rdata[13]_i_4 
-       (.I0(phase_fault_count[13]),
-        .I1(sync_loss_count[13]),
-        .I2(sel0[1]),
-        .I3(\reg_decimation_reg_n_0_[13] ),
-        .I4(sel0[0]),
-        .O(\axi_rdata[13]_i_4_n_0 ));
-  LUT5 #(
-    .INIT(32'hB833B800)) 
-    \axi_rdata[13]_i_5 
-       (.I0(crank_angle[1]),
-        .I1(sel0[1]),
-        .I2(overflow_count[13]),
-        .I3(sel0[0]),
-        .I4(packet_count[13]),
-        .O(\axi_rdata[13]_i_5_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[13]_i_6 
-       (.I0(\reg_ki_reg[15]_0 [13]),
-        .I1(\reg_kp_reg[15]_0 [13]),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg_n_0_[13] ),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[13] ),
-        .O(\axi_rdata[13]_i_6_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[13]_i_7 
-       (.I0(\reg_tdc_off_reg[15]_0 [13]),
-        .I1(phase_tolerance[13]),
-        .I2(sel0[1]),
-        .I3(expected_phase_angle[13]),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg[15]_0 [13]),
-        .O(\axi_rdata[13]_i_7_n_0 ));
-  LUT6 #(
-    .INIT(64'h0F008F8F0F008080)) 
-    \axi_rdata[14]_i_1 
-       (.I0(D[10]),
-        .I1(\axi_rdata[15]_i_2_n_0 ),
-        .I2(sel0[4]),
-        .I3(\axi_rdata_reg[14]_i_2_n_0 ),
-        .I4(sel0[3]),
-        .I5(\axi_rdata_reg[14]_i_3_n_0 ),
-        .O(\axi_rdata[14]_i_1_n_0 ));
-  LUT5 #(
-    .INIT(32'hA0A0CFC0)) 
-    \axi_rdata[14]_i_4 
+    \axi_rdata[14]_i_7 
        (.I0(phase_fault_count[14]),
         .I1(sync_loss_count[14]),
-        .I2(sel0[1]),
+        .I2(\read_addr_reg[3]_0 [1]),
         .I3(\reg_decimation_reg_n_0_[14] ),
-        .I4(sel0[0]),
-        .O(\axi_rdata[14]_i_4_n_0 ));
+        .I4(\read_addr_reg[3]_0 [0]),
+        .O(\axi_rdata[14]_i_7_n_0 ));
   LUT5 #(
     .INIT(32'hB833B800)) 
-    \axi_rdata[14]_i_5 
+    \axi_rdata[14]_i_8 
        (.I0(crank_angle[2]),
-        .I1(sel0[1]),
+        .I1(\read_addr_reg[3]_0 [1]),
         .I2(overflow_count[14]),
-        .I3(sel0[0]),
+        .I3(\read_addr_reg[3]_0 [0]),
         .I4(packet_count[14]),
-        .O(\axi_rdata[14]_i_5_n_0 ));
+        .O(\axi_rdata[14]_i_8_n_0 ));
   LUT6 #(
     .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[14]_i_6 
+    \axi_rdata[14]_i_9 
        (.I0(\reg_ki_reg[15]_0 [14]),
         .I1(\reg_kp_reg[15]_0 [14]),
-        .I2(sel0[1]),
+        .I2(\read_addr_reg[3]_0 [1]),
         .I3(\reg_gap_thresh_reg_n_0_[14] ),
-        .I4(sel0[0]),
+        .I4(\read_addr_reg[3]_0 [0]),
         .I5(\reg_control_reg_n_0_[14] ),
-        .O(\axi_rdata[14]_i_6_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[14]_i_7 
-       (.I0(\reg_tdc_off_reg[15]_0 [14]),
-        .I1(phase_tolerance[14]),
-        .I2(sel0[1]),
-        .I3(expected_phase_angle[14]),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg[15]_0 [14]),
-        .O(\axi_rdata[14]_i_7_n_0 ));
-  LUT6 #(
-    .INIT(64'h0F008F8F0F008080)) 
+        .O(\axi_rdata[14]_i_9_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
     \axi_rdata[15]_i_1 
-       (.I0(D[11]),
-        .I1(\axi_rdata[15]_i_2_n_0 ),
-        .I2(sel0[4]),
-        .I3(\axi_rdata_reg[15]_i_3_n_0 ),
-        .I4(sel0[3]),
-        .I5(\axi_rdata_reg[15]_i_4_n_0 ),
+       (.I0(\axi_rdata_reg[15]_i_2_n_0 ),
+        .I1(sel0[4]),
+        .I2(\axi_rdata_reg[15]_i_3_n_0 ),
+        .I3(sel0[3]),
+        .I4(\axi_rdata_reg[15]_i_4_n_0 ),
         .O(\axi_rdata[15]_i_1_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair21" *) 
-  LUT3 #(
-    .INIT(8'h01)) 
-    \axi_rdata[15]_i_2 
-       (.I0(sel0[1]),
-        .I1(sel0[0]),
-        .I2(sel0[2]),
-        .O(\axi_rdata[15]_i_2_n_0 ));
-  LUT5 #(
-    .INIT(32'hA0A0CFC0)) 
-    \axi_rdata[15]_i_5 
-       (.I0(phase_fault_count[15]),
-        .I1(sync_loss_count[15]),
-        .I2(sel0[1]),
-        .I3(\reg_decimation_reg_n_0_[15] ),
-        .I4(sel0[0]),
-        .O(\axi_rdata[15]_i_5_n_0 ));
-  LUT5 #(
-    .INIT(32'hB833B800)) 
-    \axi_rdata[15]_i_6 
-       (.I0(crank_angle[2]),
-        .I1(sel0[1]),
-        .I2(overflow_count[15]),
-        .I3(sel0[0]),
-        .I4(packet_count[15]),
-        .O(\axi_rdata[15]_i_6_n_0 ));
   LUT6 #(
     .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[15]_i_7 
-       (.I0(\reg_ki_reg[15]_0 [15]),
-        .I1(\reg_kp_reg[15]_0 [15]),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg_n_0_[15] ),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[15] ),
-        .O(\axi_rdata[15]_i_7_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[15]_i_8 
+    \axi_rdata[15]_i_10 
        (.I0(\reg_tdc_off_reg[15]_0 [15]),
         .I1(phase_tolerance[15]),
-        .I2(sel0[1]),
+        .I2(\read_addr_reg[3]_0 [1]),
         .I3(expected_phase_angle[15]),
-        .I4(sel0[0]),
+        .I4(\read_addr_reg[3]_0 [0]),
         .I5(\reg_max_corr_reg[15]_0 [15]),
+        .O(\axi_rdata[15]_i_10_n_0 ));
+  (* SOFT_HLUTNM = "soft_lutpair35" *) 
+  LUT3 #(
+    .INIT(8'hB8)) 
+    \axi_rdata[15]_i_11 
+       (.I0(gap_period[11]),
+        .I1(\read_addr_reg[3]_0 [0]),
+        .I2(tooth_period[11]),
+        .O(\axi_rdata[15]_i_11_n_0 ));
+  LUT6 #(
+    .INIT(64'h88888888BBB88B88)) 
+    \axi_rdata[15]_i_5 
+       (.I0(\axi_rdata[15]_i_11_n_0 ),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(engine_angle1),
+        .I3(O[2]),
+        .I4(\axi_rdata_reg[15]_i_2_0 [6]),
+        .I5(\read_addr_reg[3]_0 [0]),
+        .O(\axi_rdata[15]_i_5_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[15]_i_6 
+       (.I0(\axi_rdata[31]_i_3_0 [15]),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(\axi_rdata[31]_i_3_1 [15]),
+        .I3(\read_addr_reg[3]_0 [0]),
+        .I4(\axi_rdata[31]_i_3_2 [15]),
+        .O(\axi_rdata[15]_i_6_n_0 ));
+  LUT5 #(
+    .INIT(32'hA0A0CFC0)) 
+    \axi_rdata[15]_i_7 
+       (.I0(phase_fault_count[15]),
+        .I1(sync_loss_count[15]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_decimation_reg_n_0_[15] ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .O(\axi_rdata[15]_i_7_n_0 ));
+  LUT5 #(
+    .INIT(32'hB833B800)) 
+    \axi_rdata[15]_i_8 
+       (.I0(crank_angle[2]),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(overflow_count[15]),
+        .I3(\read_addr_reg[3]_0 [0]),
+        .I4(packet_count[15]),
         .O(\axi_rdata[15]_i_8_n_0 ));
   LUT6 #(
-    .INIT(64'h00000000FFE200E2)) 
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[15]_i_9 
+       (.I0(\reg_ki_reg[15]_0 [15]),
+        .I1(\reg_kp_reg[15]_0 [15]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg_n_0_[15] ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_control_reg_n_0_[15] ),
+        .O(\axi_rdata[15]_i_9_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
     \axi_rdata[16]_i_1 
        (.I0(\axi_rdata[16]_i_2_n_0 ),
-        .I1(sel0[2]),
+        .I1(sel0[4]),
         .I2(\axi_rdata[16]_i_3_n_0 ),
         .I3(sel0[3]),
-        .I4(\axi_rdata[16]_i_4_n_0 ),
-        .I5(sel0[4]),
+        .I4(\axi_rdata_reg[16]_i_4_n_0 ),
         .O(\axi_rdata[16]_i_1_n_0 ));
   LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    .INIT(64'hBBB888B888888888)) 
     \axi_rdata[16]_i_2 
-       (.I0(\reg_ki_reg_n_0_[16] ),
-        .I1(\reg_kp_reg_n_0_[16] ),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg_n_0_[16] ),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[16] ),
+       (.I0(\axi_rdata[16]_i_5_n_0 ),
+        .I1(sel0[2]),
+        .I2(tooth_period[12]),
+        .I3(\read_addr_reg[3]_0 [0]),
+        .I4(gap_period[12]),
+        .I5(\read_addr_reg[3]_0 [1]),
         .O(\axi_rdata[16]_i_2_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[16]_i_3 
-       (.I0(\reg_tdc_off_reg_n_0_[16] ),
-        .I1(\reg_phase_tol_reg_n_0_[16] ),
-        .I2(sel0[1]),
-        .I3(\reg_phase_ang_reg_n_0_[16] ),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg_n_0_[16] ),
-        .O(\axi_rdata[16]_i_3_n_0 ));
   LUT5 #(
     .INIT(32'h00000B08)) 
-    \axi_rdata[16]_i_4 
+    \axi_rdata[16]_i_3 
        (.I0(packet_count[16]),
         .I1(sel0[2]),
-        .I2(sel0[0]),
+        .I2(\read_addr_reg[3]_0 [0]),
         .I3(\reg_decimation_reg_n_0_[16] ),
-        .I4(sel0[1]),
-        .O(\axi_rdata[16]_i_4_n_0 ));
+        .I4(\read_addr_reg[3]_0 [1]),
+        .O(\axi_rdata[16]_i_3_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[16]_i_5 
+       (.I0(\axi_rdata[31]_i_3_0 [16]),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(\axi_rdata[31]_i_3_1 [16]),
+        .I3(\read_addr_reg[3]_0 [0]),
+        .I4(\axi_rdata[31]_i_3_2 [16]),
+        .O(\axi_rdata[16]_i_5_n_0 ));
   LUT6 #(
-    .INIT(64'h00000000FFE200E2)) 
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[16]_i_6 
+       (.I0(\reg_ki_reg_n_0_[16] ),
+        .I1(\reg_kp_reg_n_0_[16] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg_n_0_[16] ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_control_reg_n_0_[16] ),
+        .O(\axi_rdata[16]_i_6_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[16]_i_7 
+       (.I0(\reg_tdc_off_reg_n_0_[16] ),
+        .I1(\reg_phase_tol_reg_n_0_[16] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_phase_ang_reg_n_0_[16] ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_max_corr_reg_n_0_[16] ),
+        .O(\axi_rdata[16]_i_7_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
     \axi_rdata[17]_i_1 
        (.I0(\axi_rdata[17]_i_2_n_0 ),
-        .I1(sel0[2]),
+        .I1(sel0[4]),
         .I2(\axi_rdata[17]_i_3_n_0 ),
         .I3(sel0[3]),
-        .I4(\axi_rdata[17]_i_4_n_0 ),
-        .I5(sel0[4]),
+        .I4(\axi_rdata_reg[17]_i_4_n_0 ),
         .O(\axi_rdata[17]_i_1_n_0 ));
   LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    .INIT(64'hBBB888B888888888)) 
     \axi_rdata[17]_i_2 
-       (.I0(\reg_ki_reg_n_0_[17] ),
-        .I1(\reg_kp_reg_n_0_[17] ),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg_n_0_[17] ),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[17] ),
+       (.I0(\axi_rdata[17]_i_5_n_0 ),
+        .I1(sel0[2]),
+        .I2(tooth_period[13]),
+        .I3(\read_addr_reg[3]_0 [0]),
+        .I4(gap_period[13]),
+        .I5(\read_addr_reg[3]_0 [1]),
         .O(\axi_rdata[17]_i_2_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[17]_i_3 
-       (.I0(\reg_tdc_off_reg_n_0_[17] ),
-        .I1(\reg_phase_tol_reg_n_0_[17] ),
-        .I2(sel0[1]),
-        .I3(\reg_phase_ang_reg_n_0_[17] ),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg_n_0_[17] ),
-        .O(\axi_rdata[17]_i_3_n_0 ));
   LUT5 #(
     .INIT(32'h00000B08)) 
-    \axi_rdata[17]_i_4 
+    \axi_rdata[17]_i_3 
        (.I0(packet_count[17]),
         .I1(sel0[2]),
-        .I2(sel0[0]),
+        .I2(\read_addr_reg[3]_0 [0]),
         .I3(\reg_decimation_reg_n_0_[17] ),
-        .I4(sel0[1]),
-        .O(\axi_rdata[17]_i_4_n_0 ));
+        .I4(\read_addr_reg[3]_0 [1]),
+        .O(\axi_rdata[17]_i_3_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[17]_i_5 
+       (.I0(\axi_rdata[31]_i_3_0 [17]),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(\axi_rdata[31]_i_3_1 [17]),
+        .I3(\read_addr_reg[3]_0 [0]),
+        .I4(\axi_rdata[31]_i_3_2 [17]),
+        .O(\axi_rdata[17]_i_5_n_0 ));
   LUT6 #(
-    .INIT(64'h00000000FFE200E2)) 
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[17]_i_6 
+       (.I0(\reg_ki_reg_n_0_[17] ),
+        .I1(\reg_kp_reg_n_0_[17] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg_n_0_[17] ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_control_reg_n_0_[17] ),
+        .O(\axi_rdata[17]_i_6_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[17]_i_7 
+       (.I0(\reg_tdc_off_reg_n_0_[17] ),
+        .I1(\reg_phase_tol_reg_n_0_[17] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_phase_ang_reg_n_0_[17] ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_max_corr_reg_n_0_[17] ),
+        .O(\axi_rdata[17]_i_7_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
     \axi_rdata[18]_i_1 
        (.I0(\axi_rdata[18]_i_2_n_0 ),
-        .I1(sel0[2]),
+        .I1(sel0[4]),
         .I2(\axi_rdata[18]_i_3_n_0 ),
         .I3(sel0[3]),
-        .I4(\axi_rdata[18]_i_4_n_0 ),
-        .I5(sel0[4]),
+        .I4(\axi_rdata_reg[18]_i_4_n_0 ),
         .O(\axi_rdata[18]_i_1_n_0 ));
   LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    .INIT(64'hBBB888B888888888)) 
     \axi_rdata[18]_i_2 
-       (.I0(\reg_ki_reg_n_0_[18] ),
-        .I1(\reg_kp_reg_n_0_[18] ),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg_n_0_[18] ),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[18] ),
+       (.I0(\axi_rdata[18]_i_5_n_0 ),
+        .I1(sel0[2]),
+        .I2(tooth_period[14]),
+        .I3(\read_addr_reg[3]_0 [0]),
+        .I4(gap_period[14]),
+        .I5(\read_addr_reg[3]_0 [1]),
         .O(\axi_rdata[18]_i_2_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[18]_i_3 
-       (.I0(\reg_tdc_off_reg_n_0_[18] ),
-        .I1(\reg_phase_tol_reg_n_0_[18] ),
-        .I2(sel0[1]),
-        .I3(\reg_phase_ang_reg_n_0_[18] ),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg_n_0_[18] ),
-        .O(\axi_rdata[18]_i_3_n_0 ));
   LUT5 #(
     .INIT(32'h00000B08)) 
-    \axi_rdata[18]_i_4 
+    \axi_rdata[18]_i_3 
        (.I0(packet_count[18]),
         .I1(sel0[2]),
-        .I2(sel0[0]),
+        .I2(\read_addr_reg[3]_0 [0]),
         .I3(\reg_decimation_reg_n_0_[18] ),
-        .I4(sel0[1]),
-        .O(\axi_rdata[18]_i_4_n_0 ));
+        .I4(\read_addr_reg[3]_0 [1]),
+        .O(\axi_rdata[18]_i_3_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[18]_i_5 
+       (.I0(\axi_rdata[31]_i_3_0 [18]),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(\axi_rdata[31]_i_3_1 [18]),
+        .I3(\read_addr_reg[3]_0 [0]),
+        .I4(\axi_rdata[31]_i_3_2 [18]),
+        .O(\axi_rdata[18]_i_5_n_0 ));
   LUT6 #(
-    .INIT(64'h00000000FFE200E2)) 
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[18]_i_6 
+       (.I0(\reg_ki_reg_n_0_[18] ),
+        .I1(\reg_kp_reg_n_0_[18] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg_n_0_[18] ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_control_reg_n_0_[18] ),
+        .O(\axi_rdata[18]_i_6_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[18]_i_7 
+       (.I0(\reg_tdc_off_reg_n_0_[18] ),
+        .I1(\reg_phase_tol_reg_n_0_[18] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_phase_ang_reg_n_0_[18] ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_max_corr_reg_n_0_[18] ),
+        .O(\axi_rdata[18]_i_7_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
     \axi_rdata[19]_i_1 
        (.I0(\axi_rdata[19]_i_2_n_0 ),
-        .I1(sel0[2]),
+        .I1(sel0[4]),
         .I2(\axi_rdata[19]_i_3_n_0 ),
         .I3(sel0[3]),
-        .I4(\axi_rdata[19]_i_4_n_0 ),
-        .I5(sel0[4]),
+        .I4(\axi_rdata_reg[19]_i_4_n_0 ),
         .O(\axi_rdata[19]_i_1_n_0 ));
   LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    .INIT(64'hBBB888B888888888)) 
     \axi_rdata[19]_i_2 
-       (.I0(\reg_ki_reg_n_0_[19] ),
-        .I1(\reg_kp_reg_n_0_[19] ),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg_n_0_[19] ),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[19] ),
+       (.I0(\axi_rdata[19]_i_5_n_0 ),
+        .I1(sel0[2]),
+        .I2(tooth_period[15]),
+        .I3(\read_addr_reg[3]_0 [0]),
+        .I4(gap_period[15]),
+        .I5(\read_addr_reg[3]_0 [1]),
         .O(\axi_rdata[19]_i_2_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[19]_i_3 
-       (.I0(\reg_tdc_off_reg_n_0_[19] ),
-        .I1(\reg_phase_tol_reg_n_0_[19] ),
-        .I2(sel0[1]),
-        .I3(\reg_phase_ang_reg_n_0_[19] ),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg_n_0_[19] ),
-        .O(\axi_rdata[19]_i_3_n_0 ));
   LUT5 #(
     .INIT(32'h00000B08)) 
-    \axi_rdata[19]_i_4 
+    \axi_rdata[19]_i_3 
        (.I0(packet_count[19]),
         .I1(sel0[2]),
-        .I2(sel0[0]),
+        .I2(\read_addr_reg[3]_0 [0]),
         .I3(\reg_decimation_reg_n_0_[19] ),
-        .I4(sel0[1]),
-        .O(\axi_rdata[19]_i_4_n_0 ));
+        .I4(\read_addr_reg[3]_0 [1]),
+        .O(\axi_rdata[19]_i_3_n_0 ));
   LUT5 #(
-    .INIT(32'h08FF0800)) 
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[19]_i_5 
+       (.I0(\axi_rdata[31]_i_3_0 [19]),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(\axi_rdata[31]_i_3_1 [19]),
+        .I3(\read_addr_reg[3]_0 [0]),
+        .I4(\axi_rdata[31]_i_3_2 [19]),
+        .O(\axi_rdata[19]_i_5_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[19]_i_6 
+       (.I0(\reg_ki_reg_n_0_[19] ),
+        .I1(\reg_kp_reg_n_0_[19] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg_n_0_[19] ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_control_reg_n_0_[19] ),
+        .O(\axi_rdata[19]_i_6_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[19]_i_7 
+       (.I0(\reg_tdc_off_reg_n_0_[19] ),
+        .I1(\reg_phase_tol_reg_n_0_[19] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_phase_ang_reg_n_0_[19] ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_max_corr_reg_n_0_[19] ),
+        .O(\axi_rdata[19]_i_7_n_0 ));
+  LUT6 #(
+    .INIT(64'h00E2FFFF00E20000)) 
     \axi_rdata[1]_i_1 
-       (.I0(O[1]),
-        .I1(\axi_rdata[15]_i_2_n_0 ),
-        .I2(sel0[3]),
-        .I3(sel0[4]),
-        .I4(\axi_rdata_reg[1]_i_2_n_0 ),
+       (.I0(\axi_rdata_reg[1]_0 ),
+        .I1(sel0[2]),
+        .I2(\axi_rdata[1]_i_3_n_0 ),
+        .I3(sel0[3]),
+        .I4(sel0[4]),
+        .I5(\axi_rdata_reg[1]_i_4_n_0 ),
         .O(\axi_rdata[1]_i_1_n_0 ));
+  LUT5 #(
+    .INIT(32'hB8BBB888)) 
+    \axi_rdata[1]_i_10 
+       (.I0(ref_det_reg_i_106_0[1]),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(overflow_count[1]),
+        .I3(\read_addr_reg[3]_0 [0]),
+        .I4(packet_count[1]),
+        .O(\axi_rdata[1]_i_10_n_0 ));
   LUT6 #(
     .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[1]_i_5 
-       (.I0(\reg_ki_reg[15]_0 [1]),
-        .I1(\reg_kp_reg[15]_0 [1]),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg[7]_0 [1]),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[1] ),
-        .O(\axi_rdata[1]_i_5_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[1]_i_6 
-       (.I0(\reg_tdc_off_reg[15]_0 [1]),
-        .I1(phase_tolerance[1]),
-        .I2(sel0[1]),
-        .I3(Q[1]),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg[15]_0 [1]),
-        .O(\axi_rdata[1]_i_6_n_0 ));
+    \axi_rdata[1]_i_3 
+       (.I0(\axi_rdata_reg[12]_i_2_0 [1]),
+        .I1(\axi_rdata[31]_i_3_0 [1]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\axi_rdata[31]_i_3_1 [1]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\axi_rdata[31]_i_3_2 [1]),
+        .O(\axi_rdata[1]_i_3_n_0 ));
   LUT6 #(
     .INIT(64'hAFA0CFCFAFA0C0C0)) 
     \axi_rdata[1]_i_7 
-       (.I0(phase_fault_count[1]),
-        .I1(sync_loss_count[1]),
-        .I2(sel0[1]),
-        .I3(sync_state[1]),
-        .I4(sel0[0]),
-        .I5(\reg_decimation_reg[2]_0 [1]),
+       (.I0(\reg_ki_reg[15]_0 [1]),
+        .I1(\reg_kp_reg[15]_0 [1]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg[7]_0 [1]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_control_reg_n_0_[1] ),
         .O(\axi_rdata[1]_i_7_n_0 ));
-  LUT5 #(
-    .INIT(32'hB8BBB888)) 
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
     \axi_rdata[1]_i_8 
-       (.I0(ref_det_reg_i_74_0[1]),
-        .I1(sel0[1]),
-        .I2(overflow_count[1]),
-        .I3(sel0[0]),
-        .I4(packet_count[1]),
+       (.I0(\reg_tdc_off_reg[15]_0 [1]),
+        .I1(phase_tolerance[1]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(Q[1]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_max_corr_reg[15]_0 [1]),
         .O(\axi_rdata[1]_i_8_n_0 ));
   LUT6 #(
-    .INIT(64'h00000000FFE200E2)) 
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[1]_i_9 
+       (.I0(phase_fault_count[1]),
+        .I1(sync_loss_count[1]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\axi_rdata_reg[5]_i_3_1 ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_decimation_reg[2]_0 [1]),
+        .O(\axi_rdata[1]_i_9_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
     \axi_rdata[20]_i_1 
        (.I0(\axi_rdata[20]_i_2_n_0 ),
-        .I1(sel0[2]),
+        .I1(sel0[4]),
         .I2(\axi_rdata[20]_i_3_n_0 ),
         .I3(sel0[3]),
-        .I4(\axi_rdata[20]_i_4_n_0 ),
-        .I5(sel0[4]),
+        .I4(\axi_rdata_reg[20]_i_4_n_0 ),
         .O(\axi_rdata[20]_i_1_n_0 ));
   LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    .INIT(64'hBBB888B888888888)) 
     \axi_rdata[20]_i_2 
-       (.I0(\reg_ki_reg_n_0_[20] ),
-        .I1(\reg_kp_reg_n_0_[20] ),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg_n_0_[20] ),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[20] ),
+       (.I0(\axi_rdata[20]_i_5_n_0 ),
+        .I1(sel0[2]),
+        .I2(tooth_period[16]),
+        .I3(\read_addr_reg[3]_0 [0]),
+        .I4(gap_period[16]),
+        .I5(\read_addr_reg[3]_0 [1]),
         .O(\axi_rdata[20]_i_2_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[20]_i_3 
-       (.I0(\reg_tdc_off_reg_n_0_[20] ),
-        .I1(\reg_phase_tol_reg_n_0_[20] ),
-        .I2(sel0[1]),
-        .I3(\reg_phase_ang_reg_n_0_[20] ),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg_n_0_[20] ),
-        .O(\axi_rdata[20]_i_3_n_0 ));
   LUT5 #(
     .INIT(32'h00000B08)) 
-    \axi_rdata[20]_i_4 
+    \axi_rdata[20]_i_3 
        (.I0(packet_count[20]),
         .I1(sel0[2]),
-        .I2(sel0[0]),
+        .I2(\read_addr_reg[3]_0 [0]),
         .I3(\reg_decimation_reg_n_0_[20] ),
-        .I4(sel0[1]),
-        .O(\axi_rdata[20]_i_4_n_0 ));
+        .I4(\read_addr_reg[3]_0 [1]),
+        .O(\axi_rdata[20]_i_3_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[20]_i_5 
+       (.I0(\axi_rdata[31]_i_3_0 [20]),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(\axi_rdata[31]_i_3_1 [20]),
+        .I3(\read_addr_reg[3]_0 [0]),
+        .I4(\axi_rdata[31]_i_3_2 [20]),
+        .O(\axi_rdata[20]_i_5_n_0 ));
   LUT6 #(
-    .INIT(64'h00000000FFE200E2)) 
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[20]_i_6 
+       (.I0(\reg_ki_reg_n_0_[20] ),
+        .I1(\reg_kp_reg_n_0_[20] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg_n_0_[20] ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_control_reg_n_0_[20] ),
+        .O(\axi_rdata[20]_i_6_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[20]_i_7 
+       (.I0(\reg_tdc_off_reg_n_0_[20] ),
+        .I1(\reg_phase_tol_reg_n_0_[20] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_phase_ang_reg_n_0_[20] ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_max_corr_reg_n_0_[20] ),
+        .O(\axi_rdata[20]_i_7_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
     \axi_rdata[21]_i_1 
        (.I0(\axi_rdata[21]_i_2_n_0 ),
-        .I1(sel0[2]),
+        .I1(sel0[4]),
         .I2(\axi_rdata[21]_i_3_n_0 ),
         .I3(sel0[3]),
-        .I4(\axi_rdata[21]_i_4_n_0 ),
-        .I5(sel0[4]),
+        .I4(\axi_rdata_reg[21]_i_4_n_0 ),
         .O(\axi_rdata[21]_i_1_n_0 ));
   LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    .INIT(64'hBBB888B888888888)) 
     \axi_rdata[21]_i_2 
-       (.I0(\reg_ki_reg_n_0_[21] ),
-        .I1(\reg_kp_reg_n_0_[21] ),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg_n_0_[21] ),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[21] ),
+       (.I0(\axi_rdata[21]_i_5_n_0 ),
+        .I1(sel0[2]),
+        .I2(tooth_period[17]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(gap_period[17]),
+        .I5(\read_addr_reg[3]_0 [1]),
         .O(\axi_rdata[21]_i_2_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[21]_i_3 
-       (.I0(\reg_tdc_off_reg_n_0_[21] ),
-        .I1(\reg_phase_tol_reg_n_0_[21] ),
-        .I2(sel0[1]),
-        .I3(\reg_phase_ang_reg_n_0_[21] ),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg_n_0_[21] ),
-        .O(\axi_rdata[21]_i_3_n_0 ));
   LUT5 #(
     .INIT(32'h00000B08)) 
-    \axi_rdata[21]_i_4 
+    \axi_rdata[21]_i_3 
        (.I0(packet_count[21]),
         .I1(sel0[2]),
-        .I2(sel0[0]),
+        .I2(\read_addr_reg[2]_rep_0 ),
         .I3(\reg_decimation_reg_n_0_[21] ),
-        .I4(sel0[1]),
-        .O(\axi_rdata[21]_i_4_n_0 ));
+        .I4(\read_addr_reg[3]_0 [1]),
+        .O(\axi_rdata[21]_i_3_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[21]_i_5 
+       (.I0(\axi_rdata[31]_i_3_0 [21]),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(\axi_rdata[31]_i_3_1 [21]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(\axi_rdata[31]_i_3_2 [21]),
+        .O(\axi_rdata[21]_i_5_n_0 ));
   LUT6 #(
-    .INIT(64'h00000000FFE200E2)) 
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[21]_i_6 
+       (.I0(\reg_ki_reg_n_0_[21] ),
+        .I1(\reg_kp_reg_n_0_[21] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg_n_0_[21] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_control_reg_n_0_[21] ),
+        .O(\axi_rdata[21]_i_6_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[21]_i_7 
+       (.I0(\reg_tdc_off_reg_n_0_[21] ),
+        .I1(\reg_phase_tol_reg_n_0_[21] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_phase_ang_reg_n_0_[21] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_max_corr_reg_n_0_[21] ),
+        .O(\axi_rdata[21]_i_7_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
     \axi_rdata[22]_i_1 
        (.I0(\axi_rdata[22]_i_2_n_0 ),
-        .I1(sel0[2]),
+        .I1(sel0[4]),
         .I2(\axi_rdata[22]_i_3_n_0 ),
         .I3(sel0[3]),
-        .I4(\axi_rdata[22]_i_4_n_0 ),
-        .I5(sel0[4]),
+        .I4(\axi_rdata_reg[22]_i_4_n_0 ),
         .O(\axi_rdata[22]_i_1_n_0 ));
   LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    .INIT(64'hBBB888B888888888)) 
     \axi_rdata[22]_i_2 
-       (.I0(\reg_ki_reg_n_0_[22] ),
-        .I1(\reg_kp_reg_n_0_[22] ),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg_n_0_[22] ),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[22] ),
+       (.I0(\axi_rdata[22]_i_5_n_0 ),
+        .I1(sel0[2]),
+        .I2(tooth_period[18]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(gap_period[18]),
+        .I5(\read_addr_reg[3]_0 [1]),
         .O(\axi_rdata[22]_i_2_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[22]_i_3 
-       (.I0(\reg_tdc_off_reg_n_0_[22] ),
-        .I1(\reg_phase_tol_reg_n_0_[22] ),
-        .I2(sel0[1]),
-        .I3(\reg_phase_ang_reg_n_0_[22] ),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg_n_0_[22] ),
-        .O(\axi_rdata[22]_i_3_n_0 ));
   LUT5 #(
     .INIT(32'h00000B08)) 
-    \axi_rdata[22]_i_4 
+    \axi_rdata[22]_i_3 
        (.I0(packet_count[22]),
         .I1(sel0[2]),
-        .I2(sel0[0]),
+        .I2(\read_addr_reg[2]_rep_0 ),
         .I3(\reg_decimation_reg_n_0_[22] ),
-        .I4(sel0[1]),
-        .O(\axi_rdata[22]_i_4_n_0 ));
+        .I4(\read_addr_reg[3]_0 [1]),
+        .O(\axi_rdata[22]_i_3_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[22]_i_5 
+       (.I0(\axi_rdata[31]_i_3_0 [22]),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(\axi_rdata[31]_i_3_1 [22]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(\axi_rdata[31]_i_3_2 [22]),
+        .O(\axi_rdata[22]_i_5_n_0 ));
   LUT6 #(
-    .INIT(64'h00000000FFE200E2)) 
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[22]_i_6 
+       (.I0(\reg_ki_reg_n_0_[22] ),
+        .I1(\reg_kp_reg_n_0_[22] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg_n_0_[22] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_control_reg_n_0_[22] ),
+        .O(\axi_rdata[22]_i_6_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[22]_i_7 
+       (.I0(\reg_tdc_off_reg_n_0_[22] ),
+        .I1(\reg_phase_tol_reg_n_0_[22] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_phase_ang_reg_n_0_[22] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_max_corr_reg_n_0_[22] ),
+        .O(\axi_rdata[22]_i_7_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
     \axi_rdata[23]_i_1 
        (.I0(\axi_rdata[23]_i_2_n_0 ),
-        .I1(sel0[2]),
+        .I1(sel0[4]),
         .I2(\axi_rdata[23]_i_3_n_0 ),
         .I3(sel0[3]),
-        .I4(\axi_rdata[23]_i_4_n_0 ),
-        .I5(sel0[4]),
+        .I4(\axi_rdata_reg[23]_i_4_n_0 ),
         .O(\axi_rdata[23]_i_1_n_0 ));
   LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    .INIT(64'hBBB888B888888888)) 
     \axi_rdata[23]_i_2 
-       (.I0(\reg_ki_reg_n_0_[23] ),
-        .I1(\reg_kp_reg_n_0_[23] ),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg_n_0_[23] ),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[23] ),
+       (.I0(\axi_rdata[23]_i_5_n_0 ),
+        .I1(sel0[2]),
+        .I2(tooth_period[19]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(gap_period[19]),
+        .I5(\read_addr_reg[3]_0 [1]),
         .O(\axi_rdata[23]_i_2_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[23]_i_3 
-       (.I0(\reg_tdc_off_reg_n_0_[23] ),
-        .I1(\reg_phase_tol_reg_n_0_[23] ),
-        .I2(sel0[1]),
-        .I3(\reg_phase_ang_reg_n_0_[23] ),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg_n_0_[23] ),
-        .O(\axi_rdata[23]_i_3_n_0 ));
   LUT5 #(
     .INIT(32'h00000B08)) 
-    \axi_rdata[23]_i_4 
+    \axi_rdata[23]_i_3 
        (.I0(packet_count[23]),
         .I1(sel0[2]),
-        .I2(sel0[0]),
+        .I2(\read_addr_reg[2]_rep_0 ),
         .I3(\reg_decimation_reg_n_0_[23] ),
-        .I4(sel0[1]),
-        .O(\axi_rdata[23]_i_4_n_0 ));
+        .I4(\read_addr_reg[3]_0 [1]),
+        .O(\axi_rdata[23]_i_3_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[23]_i_5 
+       (.I0(\axi_rdata[31]_i_3_0 [23]),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(\axi_rdata[31]_i_3_1 [23]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(\axi_rdata[31]_i_3_2 [23]),
+        .O(\axi_rdata[23]_i_5_n_0 ));
   LUT6 #(
-    .INIT(64'h00000000FFE200E2)) 
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[23]_i_6 
+       (.I0(\reg_ki_reg_n_0_[23] ),
+        .I1(\reg_kp_reg_n_0_[23] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg_n_0_[23] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_control_reg_n_0_[23] ),
+        .O(\axi_rdata[23]_i_6_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[23]_i_7 
+       (.I0(\reg_tdc_off_reg_n_0_[23] ),
+        .I1(\reg_phase_tol_reg_n_0_[23] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_phase_ang_reg_n_0_[23] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_max_corr_reg_n_0_[23] ),
+        .O(\axi_rdata[23]_i_7_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
     \axi_rdata[24]_i_1 
        (.I0(\axi_rdata[24]_i_2_n_0 ),
-        .I1(sel0[2]),
+        .I1(sel0[4]),
         .I2(\axi_rdata[24]_i_3_n_0 ),
         .I3(sel0[3]),
-        .I4(\axi_rdata[24]_i_4_n_0 ),
-        .I5(sel0[4]),
+        .I4(\axi_rdata_reg[24]_i_4_n_0 ),
         .O(\axi_rdata[24]_i_1_n_0 ));
   LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    .INIT(64'hBBB888B888888888)) 
     \axi_rdata[24]_i_2 
-       (.I0(\reg_ki_reg_n_0_[24] ),
-        .I1(\reg_kp_reg_n_0_[24] ),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg_n_0_[24] ),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[24] ),
+       (.I0(\axi_rdata[24]_i_5_n_0 ),
+        .I1(sel0[2]),
+        .I2(tooth_period[20]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(gap_period[20]),
+        .I5(\read_addr_reg[3]_0 [1]),
         .O(\axi_rdata[24]_i_2_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[24]_i_3 
-       (.I0(\reg_tdc_off_reg_n_0_[24] ),
-        .I1(\reg_phase_tol_reg_n_0_[24] ),
-        .I2(sel0[1]),
-        .I3(\reg_phase_ang_reg_n_0_[24] ),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg_n_0_[24] ),
-        .O(\axi_rdata[24]_i_3_n_0 ));
   LUT5 #(
     .INIT(32'h00000B08)) 
-    \axi_rdata[24]_i_4 
+    \axi_rdata[24]_i_3 
        (.I0(packet_count[24]),
         .I1(sel0[2]),
-        .I2(sel0[0]),
+        .I2(\read_addr_reg[2]_rep_0 ),
         .I3(\reg_decimation_reg_n_0_[24] ),
-        .I4(sel0[1]),
-        .O(\axi_rdata[24]_i_4_n_0 ));
+        .I4(\read_addr_reg[3]_0 [1]),
+        .O(\axi_rdata[24]_i_3_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[24]_i_5 
+       (.I0(\axi_rdata[31]_i_3_0 [24]),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(\axi_rdata[31]_i_3_1 [24]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(\axi_rdata[31]_i_3_2 [24]),
+        .O(\axi_rdata[24]_i_5_n_0 ));
   LUT6 #(
-    .INIT(64'h00000000FFE200E2)) 
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[24]_i_6 
+       (.I0(\reg_ki_reg_n_0_[24] ),
+        .I1(\reg_kp_reg_n_0_[24] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg_n_0_[24] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_control_reg_n_0_[24] ),
+        .O(\axi_rdata[24]_i_6_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[24]_i_7 
+       (.I0(\reg_tdc_off_reg_n_0_[24] ),
+        .I1(\reg_phase_tol_reg_n_0_[24] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_phase_ang_reg_n_0_[24] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_max_corr_reg_n_0_[24] ),
+        .O(\axi_rdata[24]_i_7_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
     \axi_rdata[25]_i_1 
        (.I0(\axi_rdata[25]_i_2_n_0 ),
-        .I1(sel0[2]),
+        .I1(sel0[4]),
         .I2(\axi_rdata[25]_i_3_n_0 ),
         .I3(sel0[3]),
-        .I4(\axi_rdata[25]_i_4_n_0 ),
-        .I5(sel0[4]),
+        .I4(\axi_rdata_reg[25]_i_4_n_0 ),
         .O(\axi_rdata[25]_i_1_n_0 ));
   LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    .INIT(64'hBBB888B888888888)) 
     \axi_rdata[25]_i_2 
-       (.I0(\reg_ki_reg_n_0_[25] ),
-        .I1(\reg_kp_reg_n_0_[25] ),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg_n_0_[25] ),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[25] ),
+       (.I0(\axi_rdata[25]_i_5_n_0 ),
+        .I1(sel0[2]),
+        .I2(tooth_period[21]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(gap_period[21]),
+        .I5(\read_addr_reg[3]_0 [1]),
         .O(\axi_rdata[25]_i_2_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[25]_i_3 
-       (.I0(\reg_tdc_off_reg_n_0_[25] ),
-        .I1(\reg_phase_tol_reg_n_0_[25] ),
-        .I2(sel0[1]),
-        .I3(\reg_phase_ang_reg_n_0_[25] ),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg_n_0_[25] ),
-        .O(\axi_rdata[25]_i_3_n_0 ));
   LUT5 #(
     .INIT(32'h00000B08)) 
-    \axi_rdata[25]_i_4 
+    \axi_rdata[25]_i_3 
        (.I0(packet_count[25]),
         .I1(sel0[2]),
-        .I2(sel0[0]),
+        .I2(\read_addr_reg[2]_rep_0 ),
         .I3(\reg_decimation_reg_n_0_[25] ),
-        .I4(sel0[1]),
-        .O(\axi_rdata[25]_i_4_n_0 ));
+        .I4(\read_addr_reg[3]_0 [1]),
+        .O(\axi_rdata[25]_i_3_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[25]_i_5 
+       (.I0(\axi_rdata[31]_i_3_0 [25]),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(\axi_rdata[31]_i_3_1 [25]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(\axi_rdata[31]_i_3_2 [25]),
+        .O(\axi_rdata[25]_i_5_n_0 ));
   LUT6 #(
-    .INIT(64'h00000000FFE200E2)) 
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[25]_i_6 
+       (.I0(\reg_ki_reg_n_0_[25] ),
+        .I1(\reg_kp_reg_n_0_[25] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg_n_0_[25] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_control_reg_n_0_[25] ),
+        .O(\axi_rdata[25]_i_6_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[25]_i_7 
+       (.I0(\reg_tdc_off_reg_n_0_[25] ),
+        .I1(\reg_phase_tol_reg_n_0_[25] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_phase_ang_reg_n_0_[25] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_max_corr_reg_n_0_[25] ),
+        .O(\axi_rdata[25]_i_7_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
     \axi_rdata[26]_i_1 
        (.I0(\axi_rdata[26]_i_2_n_0 ),
-        .I1(sel0[2]),
+        .I1(sel0[4]),
         .I2(\axi_rdata[26]_i_3_n_0 ),
         .I3(sel0[3]),
-        .I4(\axi_rdata[26]_i_4_n_0 ),
-        .I5(sel0[4]),
+        .I4(\axi_rdata_reg[26]_i_4_n_0 ),
         .O(\axi_rdata[26]_i_1_n_0 ));
   LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    .INIT(64'hBBB888B888888888)) 
     \axi_rdata[26]_i_2 
-       (.I0(\reg_ki_reg_n_0_[26] ),
-        .I1(\reg_kp_reg_n_0_[26] ),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg_n_0_[26] ),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[26] ),
+       (.I0(\axi_rdata[26]_i_5_n_0 ),
+        .I1(sel0[2]),
+        .I2(tooth_period[22]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(gap_period[22]),
+        .I5(\read_addr_reg[3]_0 [1]),
         .O(\axi_rdata[26]_i_2_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[26]_i_3 
-       (.I0(\reg_tdc_off_reg_n_0_[26] ),
-        .I1(\reg_phase_tol_reg_n_0_[26] ),
-        .I2(sel0[1]),
-        .I3(\reg_phase_ang_reg_n_0_[26] ),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg_n_0_[26] ),
-        .O(\axi_rdata[26]_i_3_n_0 ));
   LUT5 #(
     .INIT(32'h00000B08)) 
-    \axi_rdata[26]_i_4 
+    \axi_rdata[26]_i_3 
        (.I0(packet_count[26]),
         .I1(sel0[2]),
-        .I2(sel0[0]),
+        .I2(\read_addr_reg[2]_rep_0 ),
         .I3(\reg_decimation_reg_n_0_[26] ),
-        .I4(sel0[1]),
-        .O(\axi_rdata[26]_i_4_n_0 ));
+        .I4(\read_addr_reg[3]_0 [1]),
+        .O(\axi_rdata[26]_i_3_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[26]_i_5 
+       (.I0(\axi_rdata[31]_i_3_0 [26]),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(\axi_rdata[31]_i_3_1 [26]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(\axi_rdata[31]_i_3_2 [26]),
+        .O(\axi_rdata[26]_i_5_n_0 ));
   LUT6 #(
-    .INIT(64'h00000000FFE200E2)) 
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[26]_i_6 
+       (.I0(\reg_ki_reg_n_0_[26] ),
+        .I1(\reg_kp_reg_n_0_[26] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg_n_0_[26] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_control_reg_n_0_[26] ),
+        .O(\axi_rdata[26]_i_6_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[26]_i_7 
+       (.I0(\reg_tdc_off_reg_n_0_[26] ),
+        .I1(\reg_phase_tol_reg_n_0_[26] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_phase_ang_reg_n_0_[26] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_max_corr_reg_n_0_[26] ),
+        .O(\axi_rdata[26]_i_7_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
     \axi_rdata[27]_i_1 
        (.I0(\axi_rdata[27]_i_2_n_0 ),
-        .I1(sel0[2]),
+        .I1(sel0[4]),
         .I2(\axi_rdata[27]_i_3_n_0 ),
         .I3(sel0[3]),
-        .I4(\axi_rdata[27]_i_4_n_0 ),
-        .I5(sel0[4]),
+        .I4(\axi_rdata_reg[27]_i_4_n_0 ),
         .O(\axi_rdata[27]_i_1_n_0 ));
   LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    .INIT(64'hBBB888B888888888)) 
     \axi_rdata[27]_i_2 
-       (.I0(\reg_ki_reg_n_0_[27] ),
-        .I1(\reg_kp_reg_n_0_[27] ),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg_n_0_[27] ),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[27] ),
+       (.I0(\axi_rdata[27]_i_5_n_0 ),
+        .I1(sel0[2]),
+        .I2(tooth_period[23]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(gap_period[23]),
+        .I5(\read_addr_reg[3]_0 [1]),
         .O(\axi_rdata[27]_i_2_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[27]_i_3 
-       (.I0(\reg_tdc_off_reg_n_0_[27] ),
-        .I1(\reg_phase_tol_reg_n_0_[27] ),
-        .I2(sel0[1]),
-        .I3(\reg_phase_ang_reg_n_0_[27] ),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg_n_0_[27] ),
-        .O(\axi_rdata[27]_i_3_n_0 ));
   LUT5 #(
     .INIT(32'h00000B08)) 
-    \axi_rdata[27]_i_4 
+    \axi_rdata[27]_i_3 
        (.I0(packet_count[27]),
         .I1(sel0[2]),
-        .I2(sel0[0]),
+        .I2(\read_addr_reg[2]_rep_0 ),
         .I3(\reg_decimation_reg_n_0_[27] ),
-        .I4(sel0[1]),
-        .O(\axi_rdata[27]_i_4_n_0 ));
+        .I4(\read_addr_reg[3]_0 [1]),
+        .O(\axi_rdata[27]_i_3_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[27]_i_5 
+       (.I0(\axi_rdata[31]_i_3_0 [27]),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(\axi_rdata[31]_i_3_1 [27]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(\axi_rdata[31]_i_3_2 [27]),
+        .O(\axi_rdata[27]_i_5_n_0 ));
   LUT6 #(
-    .INIT(64'h00000000FFE200E2)) 
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[27]_i_6 
+       (.I0(\reg_ki_reg_n_0_[27] ),
+        .I1(\reg_kp_reg_n_0_[27] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg_n_0_[27] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_control_reg_n_0_[27] ),
+        .O(\axi_rdata[27]_i_6_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[27]_i_7 
+       (.I0(\reg_tdc_off_reg_n_0_[27] ),
+        .I1(\reg_phase_tol_reg_n_0_[27] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_phase_ang_reg_n_0_[27] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_max_corr_reg_n_0_[27] ),
+        .O(\axi_rdata[27]_i_7_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
     \axi_rdata[28]_i_1 
        (.I0(\axi_rdata[28]_i_2_n_0 ),
-        .I1(sel0[2]),
+        .I1(sel0[4]),
         .I2(\axi_rdata[28]_i_3_n_0 ),
         .I3(sel0[3]),
-        .I4(\axi_rdata[28]_i_4_n_0 ),
-        .I5(sel0[4]),
+        .I4(\axi_rdata_reg[28]_i_4_n_0 ),
         .O(\axi_rdata[28]_i_1_n_0 ));
   LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    .INIT(64'hBBB888B888888888)) 
     \axi_rdata[28]_i_2 
-       (.I0(\reg_ki_reg_n_0_[28] ),
-        .I1(\reg_kp_reg_n_0_[28] ),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg_n_0_[28] ),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[28] ),
+       (.I0(\axi_rdata[28]_i_5_n_0 ),
+        .I1(sel0[2]),
+        .I2(tooth_period[24]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(gap_period[24]),
+        .I5(\read_addr_reg[3]_0 [1]),
         .O(\axi_rdata[28]_i_2_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[28]_i_3 
-       (.I0(\reg_tdc_off_reg_n_0_[28] ),
-        .I1(\reg_phase_tol_reg_n_0_[28] ),
-        .I2(sel0[1]),
-        .I3(\reg_phase_ang_reg_n_0_[28] ),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg_n_0_[28] ),
-        .O(\axi_rdata[28]_i_3_n_0 ));
   LUT5 #(
     .INIT(32'h00000B08)) 
-    \axi_rdata[28]_i_4 
+    \axi_rdata[28]_i_3 
        (.I0(packet_count[28]),
         .I1(sel0[2]),
-        .I2(sel0[0]),
+        .I2(\read_addr_reg[2]_rep_0 ),
         .I3(\reg_decimation_reg_n_0_[28] ),
-        .I4(sel0[1]),
-        .O(\axi_rdata[28]_i_4_n_0 ));
+        .I4(\read_addr_reg[3]_0 [1]),
+        .O(\axi_rdata[28]_i_3_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[28]_i_5 
+       (.I0(\axi_rdata[31]_i_3_0 [28]),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(\axi_rdata[31]_i_3_1 [28]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(\axi_rdata[31]_i_3_2 [28]),
+        .O(\axi_rdata[28]_i_5_n_0 ));
   LUT6 #(
-    .INIT(64'h00000000FFE200E2)) 
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[28]_i_6 
+       (.I0(\reg_ki_reg_n_0_[28] ),
+        .I1(\reg_kp_reg_n_0_[28] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg_n_0_[28] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_control_reg_n_0_[28] ),
+        .O(\axi_rdata[28]_i_6_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[28]_i_7 
+       (.I0(\reg_tdc_off_reg_n_0_[28] ),
+        .I1(\reg_phase_tol_reg_n_0_[28] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_phase_ang_reg_n_0_[28] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_max_corr_reg_n_0_[28] ),
+        .O(\axi_rdata[28]_i_7_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
     \axi_rdata[29]_i_1 
        (.I0(\axi_rdata[29]_i_2_n_0 ),
-        .I1(sel0[2]),
+        .I1(sel0[4]),
         .I2(\axi_rdata[29]_i_3_n_0 ),
         .I3(sel0[3]),
-        .I4(\axi_rdata[29]_i_4_n_0 ),
-        .I5(sel0[4]),
+        .I4(\axi_rdata_reg[29]_i_4_n_0 ),
         .O(\axi_rdata[29]_i_1_n_0 ));
   LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    .INIT(64'hBBB888B888888888)) 
     \axi_rdata[29]_i_2 
-       (.I0(\reg_ki_reg_n_0_[29] ),
-        .I1(\reg_kp_reg_n_0_[29] ),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg_n_0_[29] ),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[29] ),
+       (.I0(\axi_rdata[29]_i_5_n_0 ),
+        .I1(sel0[2]),
+        .I2(tooth_period[25]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(gap_period[25]),
+        .I5(\read_addr_reg[3]_0 [1]),
         .O(\axi_rdata[29]_i_2_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[29]_i_3 
-       (.I0(\reg_tdc_off_reg_n_0_[29] ),
-        .I1(\reg_phase_tol_reg_n_0_[29] ),
-        .I2(sel0[1]),
-        .I3(\reg_phase_ang_reg_n_0_[29] ),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg_n_0_[29] ),
-        .O(\axi_rdata[29]_i_3_n_0 ));
   LUT5 #(
     .INIT(32'h00000B08)) 
-    \axi_rdata[29]_i_4 
+    \axi_rdata[29]_i_3 
        (.I0(packet_count[29]),
         .I1(sel0[2]),
-        .I2(sel0[0]),
+        .I2(\read_addr_reg[2]_rep_0 ),
         .I3(\reg_decimation_reg_n_0_[29] ),
-        .I4(sel0[1]),
-        .O(\axi_rdata[29]_i_4_n_0 ));
+        .I4(\read_addr_reg[3]_0 [1]),
+        .O(\axi_rdata[29]_i_3_n_0 ));
   LUT5 #(
-    .INIT(32'h08FF0800)) 
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[29]_i_5 
+       (.I0(\axi_rdata[31]_i_3_0 [29]),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(\axi_rdata[31]_i_3_1 [29]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(\axi_rdata[31]_i_3_2 [29]),
+        .O(\axi_rdata[29]_i_5_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[29]_i_6 
+       (.I0(\reg_ki_reg_n_0_[29] ),
+        .I1(\reg_kp_reg_n_0_[29] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg_n_0_[29] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_control_reg_n_0_[29] ),
+        .O(\axi_rdata[29]_i_6_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[29]_i_7 
+       (.I0(\reg_tdc_off_reg_n_0_[29] ),
+        .I1(\reg_phase_tol_reg_n_0_[29] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_phase_ang_reg_n_0_[29] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_max_corr_reg_n_0_[29] ),
+        .O(\axi_rdata[29]_i_7_n_0 ));
+  LUT6 #(
+    .INIT(64'h00E2FFFF00E20000)) 
     \axi_rdata[2]_i_1 
-       (.I0(O[2]),
-        .I1(\axi_rdata[15]_i_2_n_0 ),
-        .I2(sel0[3]),
-        .I3(sel0[4]),
-        .I4(\axi_rdata_reg[2]_i_2_n_0 ),
+       (.I0(\axi_rdata_reg[2]_0 ),
+        .I1(sel0[2]),
+        .I2(\axi_rdata[2]_i_3_n_0 ),
+        .I3(sel0[3]),
+        .I4(sel0[4]),
+        .I5(\axi_rdata_reg[2]_i_4_n_0 ),
         .O(\axi_rdata[2]_i_1_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[2]_i_5 
-       (.I0(\reg_ki_reg[15]_0 [2]),
-        .I1(\reg_kp_reg[15]_0 [2]),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg[7]_0 [2]),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[2] ),
-        .O(\axi_rdata[2]_i_5_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[2]_i_6 
-       (.I0(\reg_tdc_off_reg[15]_0 [2]),
-        .I1(phase_tolerance[2]),
-        .I2(sel0[1]),
-        .I3(Q[2]),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg[15]_0 [2]),
-        .O(\axi_rdata[2]_i_6_n_0 ));
-  LUT5 #(
-    .INIT(32'hA0A0CFC0)) 
-    \axi_rdata[2]_i_7 
-       (.I0(phase_fault_count[2]),
-        .I1(sync_loss_count[2]),
-        .I2(sel0[1]),
-        .I3(\reg_decimation_reg[2]_0 [2]),
-        .I4(sel0[0]),
-        .O(\axi_rdata[2]_i_7_n_0 ));
   LUT5 #(
     .INIT(32'hB8BBB888)) 
-    \axi_rdata[2]_i_8 
-       (.I0(ref_det_reg_i_74_0[2]),
-        .I1(sel0[1]),
+    \axi_rdata[2]_i_10 
+       (.I0(ref_det_reg_i_106_0[2]),
+        .I1(\read_addr_reg[3]_0 [1]),
         .I2(overflow_count[2]),
-        .I3(sel0[0]),
+        .I3(\read_addr_reg[3]_0 [0]),
         .I4(packet_count[2]),
-        .O(\axi_rdata[2]_i_8_n_0 ));
+        .O(\axi_rdata[2]_i_10_n_0 ));
   LUT6 #(
-    .INIT(64'h00000000FFE200E2)) 
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[2]_i_3 
+       (.I0(\axi_rdata_reg[12]_i_2_0 [2]),
+        .I1(\axi_rdata[31]_i_3_0 [2]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\axi_rdata[31]_i_3_1 [2]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\axi_rdata[31]_i_3_2 [2]),
+        .O(\axi_rdata[2]_i_3_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[2]_i_7 
+       (.I0(\reg_ki_reg[15]_0 [2]),
+        .I1(\reg_kp_reg[15]_0 [2]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg[7]_0 [2]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_control_reg_n_0_[2] ),
+        .O(\axi_rdata[2]_i_7_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[2]_i_8 
+       (.I0(\reg_tdc_off_reg[15]_0 [2]),
+        .I1(phase_tolerance[2]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(Q[2]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_max_corr_reg[15]_0 [2]),
+        .O(\axi_rdata[2]_i_8_n_0 ));
+  LUT5 #(
+    .INIT(32'hA0A0CFC0)) 
+    \axi_rdata[2]_i_9 
+       (.I0(phase_fault_count[2]),
+        .I1(sync_loss_count[2]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_decimation_reg[2]_0 [2]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .O(\axi_rdata[2]_i_9_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
     \axi_rdata[30]_i_1 
        (.I0(\axi_rdata[30]_i_2_n_0 ),
-        .I1(sel0[2]),
+        .I1(sel0[4]),
         .I2(\axi_rdata[30]_i_3_n_0 ),
         .I3(sel0[3]),
-        .I4(\axi_rdata[30]_i_4_n_0 ),
-        .I5(sel0[4]),
+        .I4(\axi_rdata_reg[30]_i_4_n_0 ),
         .O(\axi_rdata[30]_i_1_n_0 ));
   LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    .INIT(64'hBBB888B888888888)) 
     \axi_rdata[30]_i_2 
-       (.I0(\reg_ki_reg_n_0_[30] ),
-        .I1(\reg_kp_reg_n_0_[30] ),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg_n_0_[30] ),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[30] ),
+       (.I0(\axi_rdata[30]_i_5_n_0 ),
+        .I1(sel0[2]),
+        .I2(tooth_period[26]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(gap_period[26]),
+        .I5(\read_addr_reg[3]_0 [1]),
         .O(\axi_rdata[30]_i_2_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[30]_i_3 
-       (.I0(\reg_tdc_off_reg_n_0_[30] ),
-        .I1(\reg_phase_tol_reg_n_0_[30] ),
-        .I2(sel0[1]),
-        .I3(\reg_phase_ang_reg_n_0_[30] ),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg_n_0_[30] ),
-        .O(\axi_rdata[30]_i_3_n_0 ));
   LUT5 #(
     .INIT(32'h00000B08)) 
-    \axi_rdata[30]_i_4 
+    \axi_rdata[30]_i_3 
        (.I0(packet_count[30]),
         .I1(sel0[2]),
-        .I2(sel0[0]),
+        .I2(\read_addr_reg[2]_rep_0 ),
         .I3(\reg_decimation_reg_n_0_[30] ),
-        .I4(sel0[1]),
-        .O(\axi_rdata[30]_i_4_n_0 ));
+        .I4(\read_addr_reg[3]_0 [1]),
+        .O(\axi_rdata[30]_i_3_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[30]_i_5 
+       (.I0(\axi_rdata[31]_i_3_0 [30]),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(\axi_rdata[31]_i_3_1 [30]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(\axi_rdata[31]_i_3_2 [30]),
+        .O(\axi_rdata[30]_i_5_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[30]_i_6 
+       (.I0(\reg_ki_reg_n_0_[30] ),
+        .I1(\reg_kp_reg_n_0_[30] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg_n_0_[30] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_control_reg_n_0_[30] ),
+        .O(\axi_rdata[30]_i_6_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[30]_i_7 
+       (.I0(\reg_tdc_off_reg_n_0_[30] ),
+        .I1(\reg_phase_tol_reg_n_0_[30] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_phase_ang_reg_n_0_[30] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_max_corr_reg_n_0_[30] ),
+        .O(\axi_rdata[30]_i_7_n_0 ));
   LUT3 #(
     .INIT(8'h20)) 
     \axi_rdata[31]_i_1 
@@ -13709,436 +14432,628 @@ module pynq_z2_top_0_0_axi_lite_regs
         .I1(s_axi_rvalid),
         .I2(s_axi_arready),
         .O(axi_rvalid02_out));
-  LUT6 #(
-    .INIT(64'h00000000FFE200E2)) 
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
     \axi_rdata[31]_i_2 
        (.I0(\axi_rdata[31]_i_3_n_0 ),
-        .I1(sel0[2]),
+        .I1(sel0[4]),
         .I2(\axi_rdata[31]_i_4_n_0 ),
         .I3(sel0[3]),
-        .I4(\axi_rdata[31]_i_5_n_0 ),
-        .I5(sel0[4]),
+        .I4(\axi_rdata_reg[31]_i_5_n_0 ),
         .O(\axi_rdata[31]_i_2_n_0 ));
   LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    .INIT(64'hBBB888B888888888)) 
     \axi_rdata[31]_i_3 
-       (.I0(\reg_ki_reg_n_0_[31] ),
-        .I1(\reg_kp_reg_n_0_[31] ),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg_n_0_[31] ),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[31] ),
+       (.I0(\axi_rdata[31]_i_6_n_0 ),
+        .I1(sel0[2]),
+        .I2(tooth_period[27]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(gap_period[27]),
+        .I5(\read_addr_reg[3]_0 [1]),
         .O(\axi_rdata[31]_i_3_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[31]_i_4 
-       (.I0(\reg_tdc_off_reg_n_0_[31] ),
-        .I1(\reg_phase_tol_reg_n_0_[31] ),
-        .I2(sel0[1]),
-        .I3(\reg_phase_ang_reg_n_0_[31] ),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg_n_0_[31] ),
-        .O(\axi_rdata[31]_i_4_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair21" *) 
   LUT5 #(
     .INIT(32'h00000B08)) 
-    \axi_rdata[31]_i_5 
+    \axi_rdata[31]_i_4 
        (.I0(packet_count[31]),
         .I1(sel0[2]),
-        .I2(sel0[0]),
+        .I2(\read_addr_reg[2]_rep_0 ),
         .I3(\reg_decimation_reg_n_0_[31] ),
-        .I4(sel0[1]),
-        .O(\axi_rdata[31]_i_5_n_0 ));
+        .I4(\read_addr_reg[3]_0 [1]),
+        .O(\axi_rdata[31]_i_4_n_0 ));
   LUT5 #(
-    .INIT(32'h08FF0800)) 
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[31]_i_6 
+       (.I0(\axi_rdata[31]_i_3_0 [31]),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(\axi_rdata[31]_i_3_1 [31]),
+        .I3(\read_addr_reg[2]_rep_0 ),
+        .I4(\axi_rdata[31]_i_3_2 [31]),
+        .O(\axi_rdata[31]_i_6_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[31]_i_7 
+       (.I0(\reg_ki_reg_n_0_[31] ),
+        .I1(\reg_kp_reg_n_0_[31] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg_n_0_[31] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_control_reg_n_0_[31] ),
+        .O(\axi_rdata[31]_i_7_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[31]_i_8 
+       (.I0(\reg_tdc_off_reg_n_0_[31] ),
+        .I1(\reg_phase_tol_reg_n_0_[31] ),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_phase_ang_reg_n_0_[31] ),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\reg_max_corr_reg_n_0_[31] ),
+        .O(\axi_rdata[31]_i_8_n_0 ));
+  LUT6 #(
+    .INIT(64'h00E2FFFF00E20000)) 
     \axi_rdata[3]_i_1 
-       (.I0(O[3]),
-        .I1(\axi_rdata[15]_i_2_n_0 ),
-        .I2(sel0[3]),
-        .I3(sel0[4]),
-        .I4(\axi_rdata_reg[3]_i_3_n_0 ),
+       (.I0(\axi_rdata_reg[3]_0 ),
+        .I1(sel0[2]),
+        .I2(\axi_rdata[3]_i_3_n_0 ),
+        .I3(sel0[3]),
+        .I4(sel0[4]),
+        .I5(\axi_rdata_reg[3]_i_4_n_0 ),
         .O(\axi_rdata[3]_i_1_n_0 ));
   LUT6 #(
     .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[3]_i_11 
+    \axi_rdata[3]_i_10 
+       (.I0(crank_angle[0]),
+        .I1(ref_det_reg_i_106_0[3]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(overflow_count[3]),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(packet_count[3]),
+        .O(\axi_rdata[3]_i_10_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[3]_i_3 
+       (.I0(\axi_rdata_reg[12]_i_2_0 [3]),
+        .I1(\axi_rdata[31]_i_3_0 [3]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\axi_rdata[31]_i_3_1 [3]),
+        .I4(\read_addr_reg[2]_rep_0 ),
+        .I5(\axi_rdata[31]_i_3_2 [3]),
+        .O(\axi_rdata[3]_i_3_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[3]_i_7 
        (.I0(\reg_ki_reg[15]_0 [3]),
         .I1(\reg_kp_reg[15]_0 [3]),
-        .I2(sel0[1]),
+        .I2(\read_addr_reg[3]_0 [1]),
         .I3(\reg_gap_thresh_reg[7]_0 [3]),
-        .I4(sel0[0]),
+        .I4(\read_addr_reg[2]_rep_0 ),
         .I5(\reg_control_reg_n_0_[3] ),
-        .O(\axi_rdata[3]_i_11_n_0 ));
+        .O(\axi_rdata[3]_i_7_n_0 ));
   LUT6 #(
     .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[3]_i_12 
+    \axi_rdata[3]_i_8 
        (.I0(\reg_tdc_off_reg[15]_0 [3]),
         .I1(phase_tolerance[3]),
-        .I2(sel0[1]),
+        .I2(\read_addr_reg[3]_0 [1]),
         .I3(Q[3]),
-        .I4(sel0[0]),
+        .I4(\read_addr_reg[2]_rep_0 ),
         .I5(\reg_max_corr_reg[15]_0 [3]),
-        .O(\axi_rdata[3]_i_12_n_0 ));
+        .O(\axi_rdata[3]_i_8_n_0 ));
   LUT6 #(
     .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[3]_i_13 
+    \axi_rdata[3]_i_9 
        (.I0(phase_fault_count[3]),
         .I1(sync_loss_count[3]),
-        .I2(sel0[1]),
+        .I2(\read_addr_reg[3]_0 [1]),
         .I3(phase_fault),
-        .I4(sel0[0]),
+        .I4(\read_addr_reg[2]_rep_0 ),
         .I5(decimation[3]),
-        .O(\axi_rdata[3]_i_13_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[3]_i_14 
-       (.I0(crank_angle[0]),
-        .I1(ref_det_reg_i_74_0[3]),
-        .I2(sel0[1]),
-        .I3(overflow_count[3]),
-        .I4(sel0[0]),
-        .I5(packet_count[3]),
-        .O(\axi_rdata[3]_i_14_n_0 ));
-  LUT6 #(
-    .INIT(64'h0F008F8F0F008080)) 
+        .O(\axi_rdata[3]_i_9_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
     \axi_rdata[4]_i_1 
-       (.I0(D[0]),
-        .I1(\axi_rdata[15]_i_2_n_0 ),
-        .I2(sel0[4]),
-        .I3(\axi_rdata_reg[4]_i_2_n_0 ),
-        .I4(sel0[3]),
-        .I5(\axi_rdata_reg[4]_i_3_n_0 ),
+       (.I0(\axi_rdata_reg[4]_i_2_n_0 ),
+        .I1(sel0[4]),
+        .I2(\axi_rdata_reg[4]_i_3_n_0 ),
+        .I3(sel0[3]),
+        .I4(\axi_rdata_reg[4]_i_4_n_0 ),
         .O(\axi_rdata[4]_i_1_n_0 ));
   LUT6 #(
     .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[4]_i_4 
-       (.I0(phase_fault_count[4]),
-        .I1(sync_loss_count[4]),
-        .I2(sel0[1]),
-        .I3(signal_present),
-        .I4(sel0[0]),
-        .I5(decimation[4]),
-        .O(\axi_rdata[4]_i_4_n_0 ));
+    \axi_rdata[4]_i_10 
+       (.I0(\reg_tdc_off_reg[15]_0 [4]),
+        .I1(phase_tolerance[4]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(Q[4]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_max_corr_reg[15]_0 [4]),
+        .O(\axi_rdata[4]_i_10_n_0 ));
+  (* SOFT_HLUTNM = "soft_lutpair44" *) 
+  LUT3 #(
+    .INIT(8'hB8)) 
+    \axi_rdata[4]_i_11 
+       (.I0(gap_period[0]),
+        .I1(\read_addr_reg[3]_0 [0]),
+        .I2(tooth_period[0]),
+        .O(\axi_rdata[4]_i_11_n_0 ));
+  (* SOFT_HLUTNM = "soft_lutpair44" *) 
+  LUT3 #(
+    .INIT(8'hB8)) 
+    \axi_rdata[4]_i_15 
+       (.I0(overflow_count[4]),
+        .I1(\read_addr_reg[3]_0 [0]),
+        .I2(packet_count[4]),
+        .O(\axi_rdata[4]_i_15_n_0 ));
   LUT6 #(
-    .INIT(64'hBF80FFFFBF800000)) 
+    .INIT(64'hB888B8BBB8BBB8BB)) 
     \axi_rdata[4]_i_5 
-       (.I0(\axi_rdata_reg[4]_i_2_0 ),
-        .I1(sync_offset),
-        .I2(sel0[0]),
-        .I3(ref_det_reg_i_74_0[4]),
-        .I4(sel0[1]),
-        .I5(\axi_rdata[4]_i_9_n_0 ),
+       (.I0(\axi_rdata[4]_i_11_n_0 ),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(ab_count_out[0]),
+        .I3(\read_addr_reg[3]_0 [0]),
+        .I4(\axi_rdata_reg[4]_i_2_0 ),
+        .I5(\axi_rdata_reg[4]_i_2_1 ),
         .O(\axi_rdata[4]_i_5_n_0 ));
   LUT6 #(
     .INIT(64'hAFA0CFCFAFA0C0C0)) 
     \axi_rdata[4]_i_6 
-       (.I0(\reg_ki_reg[15]_0 [4]),
-        .I1(\reg_kp_reg[15]_0 [4]),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg[7]_0 [4]),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[4] ),
+       (.I0(\axi_rdata_reg[12]_i_2_0 [4]),
+        .I1(\axi_rdata[31]_i_3_0 [4]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\axi_rdata[31]_i_3_1 [4]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\axi_rdata[31]_i_3_2 [4]),
         .O(\axi_rdata[4]_i_6_n_0 ));
   LUT6 #(
     .INIT(64'hAFA0CFCFAFA0C0C0)) 
     \axi_rdata[4]_i_7 
-       (.I0(\reg_tdc_off_reg[15]_0 [4]),
-        .I1(phase_tolerance[4]),
-        .I2(sel0[1]),
-        .I3(Q[4]),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg[15]_0 [4]),
+       (.I0(phase_fault_count[4]),
+        .I1(sync_loss_count[4]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\axi_rdata_reg[4]_i_3_1 ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(decimation[4]),
         .O(\axi_rdata[4]_i_7_n_0 ));
-  LUT3 #(
-    .INIT(8'hB8)) 
-    \axi_rdata[4]_i_9 
-       (.I0(overflow_count[4]),
-        .I1(sel0[0]),
-        .I2(packet_count[4]),
-        .O(\axi_rdata[4]_i_9_n_0 ));
-  LUT6 #(
-    .INIT(64'h0F008F8F0F008080)) 
-    \axi_rdata[5]_i_1 
-       (.I0(D[1]),
-        .I1(\axi_rdata[15]_i_2_n_0 ),
-        .I2(sel0[4]),
-        .I3(\axi_rdata_reg[5]_i_2_n_0 ),
-        .I4(sel0[3]),
-        .I5(\axi_rdata_reg[5]_i_3_n_0 ),
-        .O(\axi_rdata[5]_i_1_n_0 ));
-  LUT5 #(
-    .INIT(32'hA0A0CFC0)) 
-    \axi_rdata[5]_i_4 
-       (.I0(phase_fault_count[5]),
-        .I1(sync_loss_count[5]),
-        .I2(sel0[1]),
-        .I3(decimation[5]),
-        .I4(sel0[0]),
-        .O(\axi_rdata[5]_i_4_n_0 ));
   LUT6 #(
     .INIT(64'hBF80FFFFBF800000)) 
-    \axi_rdata[5]_i_5 
-       (.I0(\axi_rdata_reg[5]_i_2_0 ),
+    \axi_rdata[4]_i_8 
+       (.I0(\axi_rdata_reg[4]_i_3_0 ),
         .I1(sync_offset),
-        .I2(sel0[0]),
-        .I3(ref_det_reg_i_74_0[5]),
-        .I4(sel0[1]),
-        .I5(\axi_rdata[5]_i_9_n_0 ),
+        .I2(\read_addr_reg[3]_0 [0]),
+        .I3(ref_det_reg_i_106_0[4]),
+        .I4(\read_addr_reg[3]_0 [1]),
+        .I5(\axi_rdata[4]_i_15_n_0 ),
+        .O(\axi_rdata[4]_i_8_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[4]_i_9 
+       (.I0(\reg_ki_reg[15]_0 [4]),
+        .I1(\reg_kp_reg[15]_0 [4]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg[7]_0 [4]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_control_reg_n_0_[4] ),
+        .O(\axi_rdata[4]_i_9_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[5]_i_1 
+       (.I0(\axi_rdata_reg[5]_i_2_n_0 ),
+        .I1(sel0[4]),
+        .I2(\axi_rdata_reg[5]_i_3_n_0 ),
+        .I3(sel0[3]),
+        .I4(\axi_rdata_reg[5]_i_4_n_0 ),
+        .O(\axi_rdata[5]_i_1_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[5]_i_10 
+       (.I0(\reg_tdc_off_reg[15]_0 [5]),
+        .I1(phase_tolerance[5]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(Q[5]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_max_corr_reg[15]_0 [5]),
+        .O(\axi_rdata[5]_i_10_n_0 ));
+  (* SOFT_HLUTNM = "soft_lutpair43" *) 
+  LUT3 #(
+    .INIT(8'hB8)) 
+    \axi_rdata[5]_i_11 
+       (.I0(gap_period[1]),
+        .I1(\read_addr_reg[3]_0 [0]),
+        .I2(tooth_period[1]),
+        .O(\axi_rdata[5]_i_11_n_0 ));
+  (* SOFT_HLUTNM = "soft_lutpair43" *) 
+  LUT3 #(
+    .INIT(8'hB8)) 
+    \axi_rdata[5]_i_15 
+       (.I0(overflow_count[5]),
+        .I1(\read_addr_reg[3]_0 [0]),
+        .I2(packet_count[5]),
+        .O(\axi_rdata[5]_i_15_n_0 ));
+  LUT6 #(
+    .INIT(64'hB888B8BBB8BBB8BB)) 
+    \axi_rdata[5]_i_5 
+       (.I0(\axi_rdata[5]_i_11_n_0 ),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(ab_count_out[1]),
+        .I3(\read_addr_reg[3]_0 [0]),
+        .I4(\axi_rdata_reg[5]_i_2_0 ),
+        .I5(\axi_rdata_reg[5]_i_2_1 ),
         .O(\axi_rdata[5]_i_5_n_0 ));
   LUT6 #(
     .INIT(64'hAFA0CFCFAFA0C0C0)) 
     \axi_rdata[5]_i_6 
-       (.I0(\reg_ki_reg[15]_0 [5]),
-        .I1(\reg_kp_reg[15]_0 [5]),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg[7]_0 [5]),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[5] ),
+       (.I0(\axi_rdata_reg[12]_i_2_0 [5]),
+        .I1(\axi_rdata[31]_i_3_0 [5]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\axi_rdata[31]_i_3_1 [5]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\axi_rdata[31]_i_3_2 [5]),
         .O(\axi_rdata[5]_i_6_n_0 ));
   LUT6 #(
     .INIT(64'hAFA0CFCFAFA0C0C0)) 
     \axi_rdata[5]_i_7 
-       (.I0(\reg_tdc_off_reg[15]_0 [5]),
-        .I1(phase_tolerance[5]),
-        .I2(sel0[1]),
-        .I3(Q[5]),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg[15]_0 [5]),
+       (.I0(phase_fault_count[5]),
+        .I1(sync_loss_count[5]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\axi_rdata_reg[5]_i_3_1 ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(decimation[5]),
         .O(\axi_rdata[5]_i_7_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair38" *) 
-  LUT3 #(
-    .INIT(8'hB8)) 
-    \axi_rdata[5]_i_9 
-       (.I0(overflow_count[5]),
-        .I1(sel0[0]),
-        .I2(packet_count[5]),
-        .O(\axi_rdata[5]_i_9_n_0 ));
-  LUT6 #(
-    .INIT(64'h0F008F8F0F008080)) 
-    \axi_rdata[6]_i_1 
-       (.I0(D[2]),
-        .I1(\axi_rdata[15]_i_2_n_0 ),
-        .I2(sel0[4]),
-        .I3(\axi_rdata_reg[6]_i_2_n_0 ),
-        .I4(sel0[3]),
-        .I5(\axi_rdata_reg[6]_i_3_n_0 ),
-        .O(\axi_rdata[6]_i_1_n_0 ));
-  LUT5 #(
-    .INIT(32'hA0A0CFC0)) 
-    \axi_rdata[6]_i_4 
-       (.I0(phase_fault_count[6]),
-        .I1(sync_loss_count[6]),
-        .I2(sel0[1]),
-        .I3(decimation[6]),
-        .I4(sel0[0]),
-        .O(\axi_rdata[6]_i_4_n_0 ));
   LUT6 #(
     .INIT(64'hBF80FFFFBF800000)) 
-    \axi_rdata[6]_i_5 
-       (.I0(\axi_rdata_reg[6]_i_2_0 ),
+    \axi_rdata[5]_i_8 
+       (.I0(\axi_rdata_reg[5]_i_3_0 ),
         .I1(sync_offset),
-        .I2(sel0[0]),
-        .I3(ref_det_reg_i_74_0[6]),
-        .I4(sel0[1]),
-        .I5(\axi_rdata[6]_i_9_n_0 ),
+        .I2(\read_addr_reg[3]_0 [0]),
+        .I3(ref_det_reg_i_106_0[5]),
+        .I4(\read_addr_reg[3]_0 [1]),
+        .I5(\axi_rdata[5]_i_15_n_0 ),
+        .O(\axi_rdata[5]_i_8_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[5]_i_9 
+       (.I0(\reg_ki_reg[15]_0 [5]),
+        .I1(\reg_kp_reg[15]_0 [5]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg[7]_0 [5]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_control_reg_n_0_[5] ),
+        .O(\axi_rdata[5]_i_9_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[6]_i_1 
+       (.I0(\axi_rdata_reg[6]_i_2_n_0 ),
+        .I1(sel0[4]),
+        .I2(\axi_rdata_reg[6]_i_3_n_0 ),
+        .I3(sel0[3]),
+        .I4(\axi_rdata_reg[6]_i_4_n_0 ),
+        .O(\axi_rdata[6]_i_1_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[6]_i_10 
+       (.I0(\reg_tdc_off_reg[15]_0 [6]),
+        .I1(phase_tolerance[6]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(Q[6]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_max_corr_reg[15]_0 [6]),
+        .O(\axi_rdata[6]_i_10_n_0 ));
+  (* SOFT_HLUTNM = "soft_lutpair42" *) 
+  LUT3 #(
+    .INIT(8'hB8)) 
+    \axi_rdata[6]_i_11 
+       (.I0(gap_period[2]),
+        .I1(\read_addr_reg[3]_0 [0]),
+        .I2(tooth_period[2]),
+        .O(\axi_rdata[6]_i_11_n_0 ));
+  (* SOFT_HLUTNM = "soft_lutpair42" *) 
+  LUT3 #(
+    .INIT(8'hB8)) 
+    \axi_rdata[6]_i_15 
+       (.I0(overflow_count[6]),
+        .I1(\read_addr_reg[3]_0 [0]),
+        .I2(packet_count[6]),
+        .O(\axi_rdata[6]_i_15_n_0 ));
+  LUT6 #(
+    .INIT(64'hB888B8BBB8BBB8BB)) 
+    \axi_rdata[6]_i_5 
+       (.I0(\axi_rdata[6]_i_11_n_0 ),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(ab_count_out[2]),
+        .I3(\read_addr_reg[3]_0 [0]),
+        .I4(\axi_rdata_reg[6]_i_2_0 ),
+        .I5(\axi_rdata_reg[6]_i_2_1 ),
         .O(\axi_rdata[6]_i_5_n_0 ));
   LUT6 #(
     .INIT(64'hAFA0CFCFAFA0C0C0)) 
     \axi_rdata[6]_i_6 
-       (.I0(\reg_ki_reg[15]_0 [6]),
-        .I1(\reg_kp_reg[15]_0 [6]),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg[7]_0 [6]),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[6] ),
+       (.I0(\axi_rdata_reg[12]_i_2_0 [6]),
+        .I1(\axi_rdata[31]_i_3_0 [6]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\axi_rdata[31]_i_3_1 [6]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\axi_rdata[31]_i_3_2 [6]),
         .O(\axi_rdata[6]_i_6_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[6]_i_7 
-       (.I0(\reg_tdc_off_reg[15]_0 [6]),
-        .I1(phase_tolerance[6]),
-        .I2(sel0[1]),
-        .I3(Q[6]),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg[15]_0 [6]),
-        .O(\axi_rdata[6]_i_7_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair38" *) 
-  LUT3 #(
-    .INIT(8'hB8)) 
-    \axi_rdata[6]_i_9 
-       (.I0(overflow_count[6]),
-        .I1(sel0[0]),
-        .I2(packet_count[6]),
-        .O(\axi_rdata[6]_i_9_n_0 ));
-  LUT6 #(
-    .INIT(64'h0F008F8F0F008080)) 
-    \axi_rdata[7]_i_1 
-       (.I0(D[3]),
-        .I1(\axi_rdata[15]_i_2_n_0 ),
-        .I2(sel0[4]),
-        .I3(\axi_rdata_reg[7]_i_2_n_0 ),
-        .I4(sel0[3]),
-        .I5(\axi_rdata_reg[7]_i_3_n_0 ),
-        .O(\axi_rdata[7]_i_1_n_0 ));
   LUT5 #(
     .INIT(32'hA0A0CFC0)) 
-    \axi_rdata[7]_i_4 
-       (.I0(phase_fault_count[7]),
-        .I1(sync_loss_count[7]),
-        .I2(sel0[1]),
-        .I3(decimation[7]),
-        .I4(sel0[0]),
-        .O(\axi_rdata[7]_i_4_n_0 ));
+    \axi_rdata[6]_i_7 
+       (.I0(phase_fault_count[6]),
+        .I1(sync_loss_count[6]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(decimation[6]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .O(\axi_rdata[6]_i_7_n_0 ));
   LUT6 #(
     .INIT(64'hBF80FFFFBF800000)) 
-    \axi_rdata[7]_i_5 
-       (.I0(\axi_rdata_reg[7]_i_2_0 ),
+    \axi_rdata[6]_i_8 
+       (.I0(\axi_rdata_reg[6]_i_3_0 ),
         .I1(sync_offset),
-        .I2(sel0[0]),
-        .I3(ref_det_reg_i_74_0[7]),
-        .I4(sel0[1]),
-        .I5(\axi_rdata[7]_i_9_n_0 ),
+        .I2(\read_addr_reg[3]_0 [0]),
+        .I3(ref_det_reg_i_106_0[6]),
+        .I4(\read_addr_reg[3]_0 [1]),
+        .I5(\axi_rdata[6]_i_15_n_0 ),
+        .O(\axi_rdata[6]_i_8_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[6]_i_9 
+       (.I0(\reg_ki_reg[15]_0 [6]),
+        .I1(\reg_kp_reg[15]_0 [6]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg[7]_0 [6]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_control_reg_n_0_[6] ),
+        .O(\axi_rdata[6]_i_9_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[7]_i_1 
+       (.I0(\axi_rdata_reg[7]_i_2_n_0 ),
+        .I1(sel0[4]),
+        .I2(\axi_rdata_reg[7]_i_3_n_0 ),
+        .I3(sel0[3]),
+        .I4(\axi_rdata_reg[7]_i_4_n_0 ),
+        .O(\axi_rdata[7]_i_1_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[7]_i_10 
+       (.I0(\reg_tdc_off_reg[15]_0 [7]),
+        .I1(phase_tolerance[7]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(Q[7]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_max_corr_reg[15]_0 [7]),
+        .O(\axi_rdata[7]_i_10_n_0 ));
+  (* SOFT_HLUTNM = "soft_lutpair41" *) 
+  LUT3 #(
+    .INIT(8'hB8)) 
+    \axi_rdata[7]_i_11 
+       (.I0(gap_period[3]),
+        .I1(\read_addr_reg[3]_0 [0]),
+        .I2(tooth_period[3]),
+        .O(\axi_rdata[7]_i_11_n_0 ));
+  (* SOFT_HLUTNM = "soft_lutpair41" *) 
+  LUT3 #(
+    .INIT(8'hB8)) 
+    \axi_rdata[7]_i_15 
+       (.I0(overflow_count[7]),
+        .I1(\read_addr_reg[3]_0 [0]),
+        .I2(packet_count[7]),
+        .O(\axi_rdata[7]_i_15_n_0 ));
+  LUT6 #(
+    .INIT(64'hB888B8BBB8BBB8BB)) 
+    \axi_rdata[7]_i_5 
+       (.I0(\axi_rdata[7]_i_11_n_0 ),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(ab_count_out[3]),
+        .I3(\read_addr_reg[3]_0 [0]),
+        .I4(\axi_rdata_reg[7]_i_2_0 ),
+        .I5(\axi_rdata_reg[7]_i_2_1 ),
         .O(\axi_rdata[7]_i_5_n_0 ));
   LUT6 #(
     .INIT(64'hAFA0CFCFAFA0C0C0)) 
     \axi_rdata[7]_i_6 
-       (.I0(\reg_ki_reg[15]_0 [7]),
-        .I1(\reg_kp_reg[15]_0 [7]),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg[7]_0 [7]),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[7] ),
+       (.I0(\axi_rdata_reg[12]_i_2_0 [7]),
+        .I1(\axi_rdata[31]_i_3_0 [7]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\axi_rdata[31]_i_3_1 [7]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\axi_rdata[31]_i_3_2 [7]),
         .O(\axi_rdata[7]_i_6_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[7]_i_7 
-       (.I0(\reg_tdc_off_reg[15]_0 [7]),
-        .I1(phase_tolerance[7]),
-        .I2(sel0[1]),
-        .I3(Q[7]),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg[15]_0 [7]),
-        .O(\axi_rdata[7]_i_7_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair37" *) 
-  LUT3 #(
-    .INIT(8'hB8)) 
-    \axi_rdata[7]_i_9 
-       (.I0(overflow_count[7]),
-        .I1(sel0[0]),
-        .I2(packet_count[7]),
-        .O(\axi_rdata[7]_i_9_n_0 ));
-  LUT6 #(
-    .INIT(64'h0F008F8F0F008080)) 
-    \axi_rdata[8]_i_1 
-       (.I0(D[4]),
-        .I1(\axi_rdata[15]_i_2_n_0 ),
-        .I2(sel0[4]),
-        .I3(\axi_rdata_reg[8]_i_2_n_0 ),
-        .I4(sel0[3]),
-        .I5(\axi_rdata_reg[8]_i_3_n_0 ),
-        .O(\axi_rdata[8]_i_1_n_0 ));
   LUT5 #(
     .INIT(32'hA0A0CFC0)) 
-    \axi_rdata[8]_i_4 
-       (.I0(phase_fault_count[8]),
-        .I1(sync_loss_count[8]),
-        .I2(sel0[1]),
-        .I3(\reg_decimation_reg_n_0_[8] ),
-        .I4(sel0[0]),
-        .O(\axi_rdata[8]_i_4_n_0 ));
+    \axi_rdata[7]_i_7 
+       (.I0(phase_fault_count[7]),
+        .I1(sync_loss_count[7]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(decimation[7]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .O(\axi_rdata[7]_i_7_n_0 ));
   LUT6 #(
     .INIT(64'hBF80FFFFBF800000)) 
-    \axi_rdata[8]_i_5 
-       (.I0(\axi_rdata_reg[8]_i_2_0 ),
+    \axi_rdata[7]_i_8 
+       (.I0(\axi_rdata_reg[7]_i_3_0 ),
         .I1(sync_offset),
-        .I2(sel0[0]),
-        .I3(ref_det_reg_i_74_0[8]),
-        .I4(sel0[1]),
-        .I5(\axi_rdata[8]_i_9_n_0 ),
+        .I2(\read_addr_reg[3]_0 [0]),
+        .I3(ref_det_reg_i_106_0[7]),
+        .I4(\read_addr_reg[3]_0 [1]),
+        .I5(\axi_rdata[7]_i_15_n_0 ),
+        .O(\axi_rdata[7]_i_8_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[7]_i_9 
+       (.I0(\reg_ki_reg[15]_0 [7]),
+        .I1(\reg_kp_reg[15]_0 [7]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg[7]_0 [7]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_control_reg_n_0_[7] ),
+        .O(\axi_rdata[7]_i_9_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[8]_i_1 
+       (.I0(\axi_rdata_reg[8]_i_2_n_0 ),
+        .I1(sel0[4]),
+        .I2(\axi_rdata_reg[8]_i_3_n_0 ),
+        .I3(sel0[3]),
+        .I4(\axi_rdata_reg[8]_i_4_n_0 ),
+        .O(\axi_rdata[8]_i_1_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[8]_i_10 
+       (.I0(\reg_tdc_off_reg[15]_0 [8]),
+        .I1(phase_tolerance[8]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(Q[8]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_max_corr_reg[15]_0 [8]),
+        .O(\axi_rdata[8]_i_10_n_0 ));
+  (* SOFT_HLUTNM = "soft_lutpair40" *) 
+  LUT3 #(
+    .INIT(8'hB8)) 
+    \axi_rdata[8]_i_11 
+       (.I0(gap_period[4]),
+        .I1(\read_addr_reg[3]_0 [0]),
+        .I2(tooth_period[4]),
+        .O(\axi_rdata[8]_i_11_n_0 ));
+  (* SOFT_HLUTNM = "soft_lutpair40" *) 
+  LUT3 #(
+    .INIT(8'hB8)) 
+    \axi_rdata[8]_i_13 
+       (.I0(overflow_count[8]),
+        .I1(\read_addr_reg[3]_0 [0]),
+        .I2(packet_count[8]),
+        .O(\axi_rdata[8]_i_13_n_0 ));
+  LUT6 #(
+    .INIT(64'h88888888BBB88B88)) 
+    \axi_rdata[8]_i_5 
+       (.I0(\axi_rdata[8]_i_11_n_0 ),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(engine_angle1),
+        .I3(\axi_rdata_reg[11]_i_2_0 [0]),
+        .I4(\axi_rdata_reg[15]_i_2_0 [0]),
+        .I5(\read_addr_reg[3]_0 [0]),
         .O(\axi_rdata[8]_i_5_n_0 ));
   LUT6 #(
     .INIT(64'hAFA0CFCFAFA0C0C0)) 
     \axi_rdata[8]_i_6 
-       (.I0(\reg_ki_reg[15]_0 [8]),
-        .I1(\reg_kp_reg[15]_0 [8]),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg_n_0_[8] ),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[8] ),
+       (.I0(\axi_rdata_reg[12]_i_2_0 [8]),
+        .I1(\axi_rdata[31]_i_3_0 [8]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\axi_rdata[31]_i_3_1 [8]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\axi_rdata[31]_i_3_2 [8]),
         .O(\axi_rdata[8]_i_6_n_0 ));
-  LUT6 #(
-    .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[8]_i_7 
-       (.I0(\reg_tdc_off_reg[15]_0 [8]),
-        .I1(phase_tolerance[8]),
-        .I2(sel0[1]),
-        .I3(Q[8]),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg[15]_0 [8]),
-        .O(\axi_rdata[8]_i_7_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair37" *) 
-  LUT3 #(
-    .INIT(8'hB8)) 
-    \axi_rdata[8]_i_9 
-       (.I0(overflow_count[8]),
-        .I1(sel0[0]),
-        .I2(packet_count[8]),
-        .O(\axi_rdata[8]_i_9_n_0 ));
-  LUT6 #(
-    .INIT(64'h0F008F8F0F008080)) 
-    \axi_rdata[9]_i_1 
-       (.I0(D[5]),
-        .I1(\axi_rdata[15]_i_2_n_0 ),
-        .I2(sel0[4]),
-        .I3(\axi_rdata_reg[9]_i_2_n_0 ),
-        .I4(sel0[3]),
-        .I5(\axi_rdata_reg[9]_i_3_n_0 ),
-        .O(\axi_rdata[9]_i_1_n_0 ));
   LUT5 #(
     .INIT(32'hA0A0CFC0)) 
-    \axi_rdata[9]_i_4 
-       (.I0(phase_fault_count[9]),
-        .I1(sync_loss_count[9]),
-        .I2(sel0[1]),
-        .I3(\reg_decimation_reg_n_0_[9] ),
-        .I4(sel0[0]),
-        .O(\axi_rdata[9]_i_4_n_0 ));
+    \axi_rdata[8]_i_7 
+       (.I0(phase_fault_count[8]),
+        .I1(sync_loss_count[8]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_decimation_reg_n_0_[8] ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .O(\axi_rdata[8]_i_7_n_0 ));
   LUT6 #(
     .INIT(64'hBF80FFFFBF800000)) 
-    \axi_rdata[9]_i_5 
-       (.I0(\axi_rdata_reg[9]_i_2_0 ),
+    \axi_rdata[8]_i_8 
+       (.I0(\axi_rdata_reg[8]_i_3_0 ),
         .I1(sync_offset),
-        .I2(sel0[0]),
-        .I3(ref_det_reg_i_74_0[9]),
-        .I4(sel0[1]),
-        .I5(\axi_rdata[9]_i_9_n_0 ),
+        .I2(\read_addr_reg[3]_0 [0]),
+        .I3(ref_det_reg_i_106_0[8]),
+        .I4(\read_addr_reg[3]_0 [1]),
+        .I5(\axi_rdata[8]_i_13_n_0 ),
+        .O(\axi_rdata[8]_i_8_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[8]_i_9 
+       (.I0(\reg_ki_reg[15]_0 [8]),
+        .I1(\reg_kp_reg[15]_0 [8]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg_n_0_[8] ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_control_reg_n_0_[8] ),
+        .O(\axi_rdata[8]_i_9_n_0 ));
+  LUT5 #(
+    .INIT(32'h30BB3088)) 
+    \axi_rdata[9]_i_1 
+       (.I0(\axi_rdata_reg[9]_i_2_n_0 ),
+        .I1(sel0[4]),
+        .I2(\axi_rdata_reg[9]_i_3_n_0 ),
+        .I3(sel0[3]),
+        .I4(\axi_rdata_reg[9]_i_4_n_0 ),
+        .O(\axi_rdata[9]_i_1_n_0 ));
+  LUT6 #(
+    .INIT(64'hAFA0CFCFAFA0C0C0)) 
+    \axi_rdata[9]_i_10 
+       (.I0(\reg_tdc_off_reg[15]_0 [9]),
+        .I1(phase_tolerance[9]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(Q[9]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_max_corr_reg[15]_0 [9]),
+        .O(\axi_rdata[9]_i_10_n_0 ));
+  (* SOFT_HLUTNM = "soft_lutpair39" *) 
+  LUT3 #(
+    .INIT(8'hB8)) 
+    \axi_rdata[9]_i_11 
+       (.I0(gap_period[5]),
+        .I1(\read_addr_reg[3]_0 [0]),
+        .I2(tooth_period[5]),
+        .O(\axi_rdata[9]_i_11_n_0 ));
+  (* SOFT_HLUTNM = "soft_lutpair39" *) 
+  LUT3 #(
+    .INIT(8'hB8)) 
+    \axi_rdata[9]_i_13 
+       (.I0(overflow_count[9]),
+        .I1(\read_addr_reg[3]_0 [0]),
+        .I2(packet_count[9]),
+        .O(\axi_rdata[9]_i_13_n_0 ));
+  LUT6 #(
+    .INIT(64'h88888888BBB88B88)) 
+    \axi_rdata[9]_i_5 
+       (.I0(\axi_rdata[9]_i_11_n_0 ),
+        .I1(\read_addr_reg[3]_0 [1]),
+        .I2(engine_angle1),
+        .I3(\axi_rdata_reg[11]_i_2_0 [1]),
+        .I4(\axi_rdata_reg[15]_i_2_0 [1]),
+        .I5(\read_addr_reg[3]_0 [0]),
         .O(\axi_rdata[9]_i_5_n_0 ));
   LUT6 #(
     .INIT(64'hAFA0CFCFAFA0C0C0)) 
     \axi_rdata[9]_i_6 
-       (.I0(\reg_ki_reg[15]_0 [9]),
-        .I1(\reg_kp_reg[15]_0 [9]),
-        .I2(sel0[1]),
-        .I3(\reg_gap_thresh_reg_n_0_[9] ),
-        .I4(sel0[0]),
-        .I5(\reg_control_reg_n_0_[9] ),
+       (.I0(\axi_rdata_reg[12]_i_2_0 [9]),
+        .I1(\axi_rdata[31]_i_3_0 [9]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\axi_rdata[31]_i_3_1 [9]),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\axi_rdata[31]_i_3_2 [9]),
         .O(\axi_rdata[9]_i_6_n_0 ));
+  LUT5 #(
+    .INIT(32'hA0A0CFC0)) 
+    \axi_rdata[9]_i_7 
+       (.I0(phase_fault_count[9]),
+        .I1(sync_loss_count[9]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_decimation_reg_n_0_[9] ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .O(\axi_rdata[9]_i_7_n_0 ));
+  LUT6 #(
+    .INIT(64'hBF80FFFFBF800000)) 
+    \axi_rdata[9]_i_8 
+       (.I0(\axi_rdata_reg[9]_i_3_0 ),
+        .I1(sync_offset),
+        .I2(\read_addr_reg[3]_0 [0]),
+        .I3(ref_det_reg_i_106_0[9]),
+        .I4(\read_addr_reg[3]_0 [1]),
+        .I5(\axi_rdata[9]_i_13_n_0 ),
+        .O(\axi_rdata[9]_i_8_n_0 ));
   LUT6 #(
     .INIT(64'hAFA0CFCFAFA0C0C0)) 
-    \axi_rdata[9]_i_7 
-       (.I0(\reg_tdc_off_reg[15]_0 [9]),
-        .I1(phase_tolerance[9]),
-        .I2(sel0[1]),
-        .I3(Q[9]),
-        .I4(sel0[0]),
-        .I5(\reg_max_corr_reg[15]_0 [9]),
-        .O(\axi_rdata[9]_i_7_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair36" *) 
-  LUT3 #(
-    .INIT(8'hB8)) 
     \axi_rdata[9]_i_9 
-       (.I0(overflow_count[9]),
-        .I1(sel0[0]),
-        .I2(packet_count[9]),
+       (.I0(\reg_ki_reg[15]_0 [9]),
+        .I1(\reg_kp_reg[15]_0 [9]),
+        .I2(\read_addr_reg[3]_0 [1]),
+        .I3(\reg_gap_thresh_reg_n_0_[9] ),
+        .I4(\read_addr_reg[3]_0 [0]),
+        .I5(\reg_control_reg_n_0_[9] ),
         .O(\axi_rdata[9]_i_9_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
@@ -14148,20 +15063,20 @@ module pynq_z2_top_0_0_axi_lite_regs
         .D(\axi_rdata[0]_i_1_n_0 ),
         .Q(s_axi_rdata[0]),
         .R(p_0_in));
-  MUXF8 \axi_rdata_reg[0]_i_2 
-       (.I0(\axi_rdata_reg[0]_i_3_n_0 ),
-        .I1(\axi_rdata_reg[0]_i_4_n_0 ),
-        .O(\axi_rdata_reg[0]_i_2_n_0 ),
+  MUXF8 \axi_rdata_reg[0]_i_4 
+       (.I0(\axi_rdata_reg[0]_i_5_n_0 ),
+        .I1(\axi_rdata_reg[0]_i_6_n_0 ),
+        .O(\axi_rdata_reg[0]_i_4_n_0 ),
         .S(sel0[3]));
-  MUXF7 \axi_rdata_reg[0]_i_3 
-       (.I0(\axi_rdata[0]_i_5_n_0 ),
-        .I1(\axi_rdata[0]_i_6_n_0 ),
-        .O(\axi_rdata_reg[0]_i_3_n_0 ),
-        .S(sel0[2]));
-  MUXF7 \axi_rdata_reg[0]_i_4 
+  MUXF7 \axi_rdata_reg[0]_i_5 
        (.I0(\axi_rdata[0]_i_7_n_0 ),
         .I1(\axi_rdata[0]_i_8_n_0 ),
-        .O(\axi_rdata_reg[0]_i_4_n_0 ),
+        .O(\axi_rdata_reg[0]_i_5_n_0 ),
+        .S(sel0[2]));
+  MUXF7 \axi_rdata_reg[0]_i_6 
+       (.I0(\axi_rdata[0]_i_9_n_0 ),
+        .I1(\axi_rdata[0]_i_10_n_0 ),
+        .O(\axi_rdata_reg[0]_i_6_n_0 ),
         .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
@@ -14172,14 +15087,19 @@ module pynq_z2_top_0_0_axi_lite_regs
         .Q(s_axi_rdata[10]),
         .R(p_0_in));
   MUXF7 \axi_rdata_reg[10]_i_2 
-       (.I0(\axi_rdata[10]_i_4_n_0 ),
-        .I1(\axi_rdata[10]_i_5_n_0 ),
+       (.I0(\axi_rdata[10]_i_5_n_0 ),
+        .I1(\axi_rdata[10]_i_6_n_0 ),
         .O(\axi_rdata_reg[10]_i_2_n_0 ),
         .S(sel0[2]));
   MUXF7 \axi_rdata_reg[10]_i_3 
-       (.I0(\axi_rdata[10]_i_6_n_0 ),
-        .I1(\axi_rdata[10]_i_7_n_0 ),
+       (.I0(\axi_rdata[10]_i_7_n_0 ),
+        .I1(\axi_rdata[10]_i_8_n_0 ),
         .O(\axi_rdata_reg[10]_i_3_n_0 ),
+        .S(sel0[2]));
+  MUXF7 \axi_rdata_reg[10]_i_4 
+       (.I0(\axi_rdata[10]_i_9_n_0 ),
+        .I1(\axi_rdata[10]_i_10_n_0 ),
+        .O(\axi_rdata_reg[10]_i_4_n_0 ),
         .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
@@ -14190,14 +15110,19 @@ module pynq_z2_top_0_0_axi_lite_regs
         .Q(s_axi_rdata[11]),
         .R(p_0_in));
   MUXF7 \axi_rdata_reg[11]_i_2 
-       (.I0(\axi_rdata[11]_i_4_n_0 ),
-        .I1(\axi_rdata[11]_i_5_n_0 ),
+       (.I0(\axi_rdata[11]_i_5_n_0 ),
+        .I1(\axi_rdata[11]_i_6_n_0 ),
         .O(\axi_rdata_reg[11]_i_2_n_0 ),
         .S(sel0[2]));
   MUXF7 \axi_rdata_reg[11]_i_3 
-       (.I0(\axi_rdata[11]_i_6_n_0 ),
-        .I1(\axi_rdata[11]_i_7_n_0 ),
+       (.I0(\axi_rdata[11]_i_7_n_0 ),
+        .I1(\axi_rdata[11]_i_8_n_0 ),
         .O(\axi_rdata_reg[11]_i_3_n_0 ),
+        .S(sel0[2]));
+  MUXF7 \axi_rdata_reg[11]_i_4 
+       (.I0(\axi_rdata[11]_i_9_n_0 ),
+        .I1(\axi_rdata[11]_i_10_n_0 ),
+        .O(\axi_rdata_reg[11]_i_4_n_0 ),
         .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
@@ -14208,14 +15133,19 @@ module pynq_z2_top_0_0_axi_lite_regs
         .Q(s_axi_rdata[12]),
         .R(p_0_in));
   MUXF7 \axi_rdata_reg[12]_i_2 
-       (.I0(\axi_rdata[12]_i_4_n_0 ),
-        .I1(\axi_rdata[12]_i_5_n_0 ),
+       (.I0(\axi_rdata[12]_i_5_n_0 ),
+        .I1(\axi_rdata[12]_i_6_n_0 ),
         .O(\axi_rdata_reg[12]_i_2_n_0 ),
         .S(sel0[2]));
   MUXF7 \axi_rdata_reg[12]_i_3 
-       (.I0(\axi_rdata[12]_i_6_n_0 ),
-        .I1(\axi_rdata[12]_i_7_n_0 ),
+       (.I0(\axi_rdata[12]_i_7_n_0 ),
+        .I1(\axi_rdata[12]_i_8_n_0 ),
         .O(\axi_rdata_reg[12]_i_3_n_0 ),
+        .S(sel0[2]));
+  MUXF7 \axi_rdata_reg[12]_i_4 
+       (.I0(\axi_rdata[12]_i_9_n_0 ),
+        .I1(\axi_rdata[12]_i_10_n_0 ),
+        .O(\axi_rdata_reg[12]_i_4_n_0 ),
         .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
@@ -14226,14 +15156,19 @@ module pynq_z2_top_0_0_axi_lite_regs
         .Q(s_axi_rdata[13]),
         .R(p_0_in));
   MUXF7 \axi_rdata_reg[13]_i_2 
-       (.I0(\axi_rdata[13]_i_4_n_0 ),
-        .I1(\axi_rdata[13]_i_5_n_0 ),
+       (.I0(\axi_rdata[13]_i_5_n_0 ),
+        .I1(\axi_rdata[13]_i_6_n_0 ),
         .O(\axi_rdata_reg[13]_i_2_n_0 ),
         .S(sel0[2]));
   MUXF7 \axi_rdata_reg[13]_i_3 
-       (.I0(\axi_rdata[13]_i_6_n_0 ),
-        .I1(\axi_rdata[13]_i_7_n_0 ),
+       (.I0(\axi_rdata[13]_i_7_n_0 ),
+        .I1(\axi_rdata[13]_i_8_n_0 ),
         .O(\axi_rdata_reg[13]_i_3_n_0 ),
+        .S(sel0[2]));
+  MUXF7 \axi_rdata_reg[13]_i_4 
+       (.I0(\axi_rdata[13]_i_9_n_0 ),
+        .I1(\axi_rdata[13]_i_10_n_0 ),
+        .O(\axi_rdata_reg[13]_i_4_n_0 ),
         .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
@@ -14244,14 +15179,19 @@ module pynq_z2_top_0_0_axi_lite_regs
         .Q(s_axi_rdata[14]),
         .R(p_0_in));
   MUXF7 \axi_rdata_reg[14]_i_2 
-       (.I0(\axi_rdata[14]_i_4_n_0 ),
-        .I1(\axi_rdata[14]_i_5_n_0 ),
+       (.I0(\axi_rdata[14]_i_5_n_0 ),
+        .I1(\axi_rdata[14]_i_6_n_0 ),
         .O(\axi_rdata_reg[14]_i_2_n_0 ),
         .S(sel0[2]));
   MUXF7 \axi_rdata_reg[14]_i_3 
-       (.I0(\axi_rdata[14]_i_6_n_0 ),
-        .I1(\axi_rdata[14]_i_7_n_0 ),
+       (.I0(\axi_rdata[14]_i_7_n_0 ),
+        .I1(\axi_rdata[14]_i_8_n_0 ),
         .O(\axi_rdata_reg[14]_i_3_n_0 ),
+        .S(sel0[2]));
+  MUXF7 \axi_rdata_reg[14]_i_4 
+       (.I0(\axi_rdata[14]_i_9_n_0 ),
+        .I1(\axi_rdata[14]_i_10_n_0 ),
+        .O(\axi_rdata_reg[14]_i_4_n_0 ),
         .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
@@ -14261,14 +15201,19 @@ module pynq_z2_top_0_0_axi_lite_regs
         .D(\axi_rdata[15]_i_1_n_0 ),
         .Q(s_axi_rdata[15]),
         .R(p_0_in));
-  MUXF7 \axi_rdata_reg[15]_i_3 
+  MUXF7 \axi_rdata_reg[15]_i_2 
        (.I0(\axi_rdata[15]_i_5_n_0 ),
         .I1(\axi_rdata[15]_i_6_n_0 ),
+        .O(\axi_rdata_reg[15]_i_2_n_0 ),
+        .S(sel0[2]));
+  MUXF7 \axi_rdata_reg[15]_i_3 
+       (.I0(\axi_rdata[15]_i_7_n_0 ),
+        .I1(\axi_rdata[15]_i_8_n_0 ),
         .O(\axi_rdata_reg[15]_i_3_n_0 ),
         .S(sel0[2]));
   MUXF7 \axi_rdata_reg[15]_i_4 
-       (.I0(\axi_rdata[15]_i_7_n_0 ),
-        .I1(\axi_rdata[15]_i_8_n_0 ),
+       (.I0(\axi_rdata[15]_i_9_n_0 ),
+        .I1(\axi_rdata[15]_i_10_n_0 ),
         .O(\axi_rdata_reg[15]_i_4_n_0 ),
         .S(sel0[2]));
   FDRE #(
@@ -14279,6 +15224,11 @@ module pynq_z2_top_0_0_axi_lite_regs
         .D(\axi_rdata[16]_i_1_n_0 ),
         .Q(s_axi_rdata[16]),
         .R(p_0_in));
+  MUXF7 \axi_rdata_reg[16]_i_4 
+       (.I0(\axi_rdata[16]_i_6_n_0 ),
+        .I1(\axi_rdata[16]_i_7_n_0 ),
+        .O(\axi_rdata_reg[16]_i_4_n_0 ),
+        .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
     \axi_rdata_reg[17] 
@@ -14287,6 +15237,11 @@ module pynq_z2_top_0_0_axi_lite_regs
         .D(\axi_rdata[17]_i_1_n_0 ),
         .Q(s_axi_rdata[17]),
         .R(p_0_in));
+  MUXF7 \axi_rdata_reg[17]_i_4 
+       (.I0(\axi_rdata[17]_i_6_n_0 ),
+        .I1(\axi_rdata[17]_i_7_n_0 ),
+        .O(\axi_rdata_reg[17]_i_4_n_0 ),
+        .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
     \axi_rdata_reg[18] 
@@ -14295,6 +15250,11 @@ module pynq_z2_top_0_0_axi_lite_regs
         .D(\axi_rdata[18]_i_1_n_0 ),
         .Q(s_axi_rdata[18]),
         .R(p_0_in));
+  MUXF7 \axi_rdata_reg[18]_i_4 
+       (.I0(\axi_rdata[18]_i_6_n_0 ),
+        .I1(\axi_rdata[18]_i_7_n_0 ),
+        .O(\axi_rdata_reg[18]_i_4_n_0 ),
+        .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
     \axi_rdata_reg[19] 
@@ -14303,6 +15263,11 @@ module pynq_z2_top_0_0_axi_lite_regs
         .D(\axi_rdata[19]_i_1_n_0 ),
         .Q(s_axi_rdata[19]),
         .R(p_0_in));
+  MUXF7 \axi_rdata_reg[19]_i_4 
+       (.I0(\axi_rdata[19]_i_6_n_0 ),
+        .I1(\axi_rdata[19]_i_7_n_0 ),
+        .O(\axi_rdata_reg[19]_i_4_n_0 ),
+        .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
     \axi_rdata_reg[1] 
@@ -14311,20 +15276,20 @@ module pynq_z2_top_0_0_axi_lite_regs
         .D(\axi_rdata[1]_i_1_n_0 ),
         .Q(s_axi_rdata[1]),
         .R(p_0_in));
-  MUXF8 \axi_rdata_reg[1]_i_2 
-       (.I0(\axi_rdata_reg[1]_i_3_n_0 ),
-        .I1(\axi_rdata_reg[1]_i_4_n_0 ),
-        .O(\axi_rdata_reg[1]_i_2_n_0 ),
+  MUXF8 \axi_rdata_reg[1]_i_4 
+       (.I0(\axi_rdata_reg[1]_i_5_n_0 ),
+        .I1(\axi_rdata_reg[1]_i_6_n_0 ),
+        .O(\axi_rdata_reg[1]_i_4_n_0 ),
         .S(sel0[3]));
-  MUXF7 \axi_rdata_reg[1]_i_3 
-       (.I0(\axi_rdata[1]_i_5_n_0 ),
-        .I1(\axi_rdata[1]_i_6_n_0 ),
-        .O(\axi_rdata_reg[1]_i_3_n_0 ),
-        .S(sel0[2]));
-  MUXF7 \axi_rdata_reg[1]_i_4 
+  MUXF7 \axi_rdata_reg[1]_i_5 
        (.I0(\axi_rdata[1]_i_7_n_0 ),
         .I1(\axi_rdata[1]_i_8_n_0 ),
-        .O(\axi_rdata_reg[1]_i_4_n_0 ),
+        .O(\axi_rdata_reg[1]_i_5_n_0 ),
+        .S(sel0[2]));
+  MUXF7 \axi_rdata_reg[1]_i_6 
+       (.I0(\axi_rdata[1]_i_9_n_0 ),
+        .I1(\axi_rdata[1]_i_10_n_0 ),
+        .O(\axi_rdata_reg[1]_i_6_n_0 ),
         .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
@@ -14334,6 +15299,11 @@ module pynq_z2_top_0_0_axi_lite_regs
         .D(\axi_rdata[20]_i_1_n_0 ),
         .Q(s_axi_rdata[20]),
         .R(p_0_in));
+  MUXF7 \axi_rdata_reg[20]_i_4 
+       (.I0(\axi_rdata[20]_i_6_n_0 ),
+        .I1(\axi_rdata[20]_i_7_n_0 ),
+        .O(\axi_rdata_reg[20]_i_4_n_0 ),
+        .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
     \axi_rdata_reg[21] 
@@ -14342,6 +15312,11 @@ module pynq_z2_top_0_0_axi_lite_regs
         .D(\axi_rdata[21]_i_1_n_0 ),
         .Q(s_axi_rdata[21]),
         .R(p_0_in));
+  MUXF7 \axi_rdata_reg[21]_i_4 
+       (.I0(\axi_rdata[21]_i_6_n_0 ),
+        .I1(\axi_rdata[21]_i_7_n_0 ),
+        .O(\axi_rdata_reg[21]_i_4_n_0 ),
+        .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
     \axi_rdata_reg[22] 
@@ -14350,6 +15325,11 @@ module pynq_z2_top_0_0_axi_lite_regs
         .D(\axi_rdata[22]_i_1_n_0 ),
         .Q(s_axi_rdata[22]),
         .R(p_0_in));
+  MUXF7 \axi_rdata_reg[22]_i_4 
+       (.I0(\axi_rdata[22]_i_6_n_0 ),
+        .I1(\axi_rdata[22]_i_7_n_0 ),
+        .O(\axi_rdata_reg[22]_i_4_n_0 ),
+        .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
     \axi_rdata_reg[23] 
@@ -14358,6 +15338,11 @@ module pynq_z2_top_0_0_axi_lite_regs
         .D(\axi_rdata[23]_i_1_n_0 ),
         .Q(s_axi_rdata[23]),
         .R(p_0_in));
+  MUXF7 \axi_rdata_reg[23]_i_4 
+       (.I0(\axi_rdata[23]_i_6_n_0 ),
+        .I1(\axi_rdata[23]_i_7_n_0 ),
+        .O(\axi_rdata_reg[23]_i_4_n_0 ),
+        .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
     \axi_rdata_reg[24] 
@@ -14366,6 +15351,11 @@ module pynq_z2_top_0_0_axi_lite_regs
         .D(\axi_rdata[24]_i_1_n_0 ),
         .Q(s_axi_rdata[24]),
         .R(p_0_in));
+  MUXF7 \axi_rdata_reg[24]_i_4 
+       (.I0(\axi_rdata[24]_i_6_n_0 ),
+        .I1(\axi_rdata[24]_i_7_n_0 ),
+        .O(\axi_rdata_reg[24]_i_4_n_0 ),
+        .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
     \axi_rdata_reg[25] 
@@ -14374,6 +15364,11 @@ module pynq_z2_top_0_0_axi_lite_regs
         .D(\axi_rdata[25]_i_1_n_0 ),
         .Q(s_axi_rdata[25]),
         .R(p_0_in));
+  MUXF7 \axi_rdata_reg[25]_i_4 
+       (.I0(\axi_rdata[25]_i_6_n_0 ),
+        .I1(\axi_rdata[25]_i_7_n_0 ),
+        .O(\axi_rdata_reg[25]_i_4_n_0 ),
+        .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
     \axi_rdata_reg[26] 
@@ -14382,6 +15377,11 @@ module pynq_z2_top_0_0_axi_lite_regs
         .D(\axi_rdata[26]_i_1_n_0 ),
         .Q(s_axi_rdata[26]),
         .R(p_0_in));
+  MUXF7 \axi_rdata_reg[26]_i_4 
+       (.I0(\axi_rdata[26]_i_6_n_0 ),
+        .I1(\axi_rdata[26]_i_7_n_0 ),
+        .O(\axi_rdata_reg[26]_i_4_n_0 ),
+        .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
     \axi_rdata_reg[27] 
@@ -14390,6 +15390,11 @@ module pynq_z2_top_0_0_axi_lite_regs
         .D(\axi_rdata[27]_i_1_n_0 ),
         .Q(s_axi_rdata[27]),
         .R(p_0_in));
+  MUXF7 \axi_rdata_reg[27]_i_4 
+       (.I0(\axi_rdata[27]_i_6_n_0 ),
+        .I1(\axi_rdata[27]_i_7_n_0 ),
+        .O(\axi_rdata_reg[27]_i_4_n_0 ),
+        .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
     \axi_rdata_reg[28] 
@@ -14398,6 +15403,11 @@ module pynq_z2_top_0_0_axi_lite_regs
         .D(\axi_rdata[28]_i_1_n_0 ),
         .Q(s_axi_rdata[28]),
         .R(p_0_in));
+  MUXF7 \axi_rdata_reg[28]_i_4 
+       (.I0(\axi_rdata[28]_i_6_n_0 ),
+        .I1(\axi_rdata[28]_i_7_n_0 ),
+        .O(\axi_rdata_reg[28]_i_4_n_0 ),
+        .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
     \axi_rdata_reg[29] 
@@ -14406,6 +15416,11 @@ module pynq_z2_top_0_0_axi_lite_regs
         .D(\axi_rdata[29]_i_1_n_0 ),
         .Q(s_axi_rdata[29]),
         .R(p_0_in));
+  MUXF7 \axi_rdata_reg[29]_i_4 
+       (.I0(\axi_rdata[29]_i_6_n_0 ),
+        .I1(\axi_rdata[29]_i_7_n_0 ),
+        .O(\axi_rdata_reg[29]_i_4_n_0 ),
+        .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
     \axi_rdata_reg[2] 
@@ -14414,20 +15429,20 @@ module pynq_z2_top_0_0_axi_lite_regs
         .D(\axi_rdata[2]_i_1_n_0 ),
         .Q(s_axi_rdata[2]),
         .R(p_0_in));
-  MUXF8 \axi_rdata_reg[2]_i_2 
-       (.I0(\axi_rdata_reg[2]_i_3_n_0 ),
-        .I1(\axi_rdata_reg[2]_i_4_n_0 ),
-        .O(\axi_rdata_reg[2]_i_2_n_0 ),
+  MUXF8 \axi_rdata_reg[2]_i_4 
+       (.I0(\axi_rdata_reg[2]_i_5_n_0 ),
+        .I1(\axi_rdata_reg[2]_i_6_n_0 ),
+        .O(\axi_rdata_reg[2]_i_4_n_0 ),
         .S(sel0[3]));
-  MUXF7 \axi_rdata_reg[2]_i_3 
-       (.I0(\axi_rdata[2]_i_5_n_0 ),
-        .I1(\axi_rdata[2]_i_6_n_0 ),
-        .O(\axi_rdata_reg[2]_i_3_n_0 ),
-        .S(sel0[2]));
-  MUXF7 \axi_rdata_reg[2]_i_4 
+  MUXF7 \axi_rdata_reg[2]_i_5 
        (.I0(\axi_rdata[2]_i_7_n_0 ),
         .I1(\axi_rdata[2]_i_8_n_0 ),
-        .O(\axi_rdata_reg[2]_i_4_n_0 ),
+        .O(\axi_rdata_reg[2]_i_5_n_0 ),
+        .S(sel0[2]));
+  MUXF7 \axi_rdata_reg[2]_i_6 
+       (.I0(\axi_rdata[2]_i_9_n_0 ),
+        .I1(\axi_rdata[2]_i_10_n_0 ),
+        .O(\axi_rdata_reg[2]_i_6_n_0 ),
         .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
@@ -14437,6 +15452,11 @@ module pynq_z2_top_0_0_axi_lite_regs
         .D(\axi_rdata[30]_i_1_n_0 ),
         .Q(s_axi_rdata[30]),
         .R(p_0_in));
+  MUXF7 \axi_rdata_reg[30]_i_4 
+       (.I0(\axi_rdata[30]_i_6_n_0 ),
+        .I1(\axi_rdata[30]_i_7_n_0 ),
+        .O(\axi_rdata_reg[30]_i_4_n_0 ),
+        .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
     \axi_rdata_reg[31] 
@@ -14445,6 +15465,11 @@ module pynq_z2_top_0_0_axi_lite_regs
         .D(\axi_rdata[31]_i_2_n_0 ),
         .Q(s_axi_rdata[31]),
         .R(p_0_in));
+  MUXF7 \axi_rdata_reg[31]_i_5 
+       (.I0(\axi_rdata[31]_i_7_n_0 ),
+        .I1(\axi_rdata[31]_i_8_n_0 ),
+        .O(\axi_rdata_reg[31]_i_5_n_0 ),
+        .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
     \axi_rdata_reg[3] 
@@ -14453,20 +15478,20 @@ module pynq_z2_top_0_0_axi_lite_regs
         .D(\axi_rdata[3]_i_1_n_0 ),
         .Q(s_axi_rdata[3]),
         .R(p_0_in));
-  MUXF8 \axi_rdata_reg[3]_i_3 
-       (.I0(\axi_rdata_reg[3]_i_8_n_0 ),
-        .I1(\axi_rdata_reg[3]_i_9_n_0 ),
-        .O(\axi_rdata_reg[3]_i_3_n_0 ),
+  MUXF8 \axi_rdata_reg[3]_i_4 
+       (.I0(\axi_rdata_reg[3]_i_5_n_0 ),
+        .I1(\axi_rdata_reg[3]_i_6_n_0 ),
+        .O(\axi_rdata_reg[3]_i_4_n_0 ),
         .S(sel0[3]));
-  MUXF7 \axi_rdata_reg[3]_i_8 
-       (.I0(\axi_rdata[3]_i_11_n_0 ),
-        .I1(\axi_rdata[3]_i_12_n_0 ),
-        .O(\axi_rdata_reg[3]_i_8_n_0 ),
+  MUXF7 \axi_rdata_reg[3]_i_5 
+       (.I0(\axi_rdata[3]_i_7_n_0 ),
+        .I1(\axi_rdata[3]_i_8_n_0 ),
+        .O(\axi_rdata_reg[3]_i_5_n_0 ),
         .S(sel0[2]));
-  MUXF7 \axi_rdata_reg[3]_i_9 
-       (.I0(\axi_rdata[3]_i_13_n_0 ),
-        .I1(\axi_rdata[3]_i_14_n_0 ),
-        .O(\axi_rdata_reg[3]_i_9_n_0 ),
+  MUXF7 \axi_rdata_reg[3]_i_6 
+       (.I0(\axi_rdata[3]_i_9_n_0 ),
+        .I1(\axi_rdata[3]_i_10_n_0 ),
+        .O(\axi_rdata_reg[3]_i_6_n_0 ),
         .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
@@ -14477,14 +15502,19 @@ module pynq_z2_top_0_0_axi_lite_regs
         .Q(s_axi_rdata[4]),
         .R(p_0_in));
   MUXF7 \axi_rdata_reg[4]_i_2 
-       (.I0(\axi_rdata[4]_i_4_n_0 ),
-        .I1(\axi_rdata[4]_i_5_n_0 ),
+       (.I0(\axi_rdata[4]_i_5_n_0 ),
+        .I1(\axi_rdata[4]_i_6_n_0 ),
         .O(\axi_rdata_reg[4]_i_2_n_0 ),
         .S(sel0[2]));
   MUXF7 \axi_rdata_reg[4]_i_3 
-       (.I0(\axi_rdata[4]_i_6_n_0 ),
-        .I1(\axi_rdata[4]_i_7_n_0 ),
+       (.I0(\axi_rdata[4]_i_7_n_0 ),
+        .I1(\axi_rdata[4]_i_8_n_0 ),
         .O(\axi_rdata_reg[4]_i_3_n_0 ),
+        .S(sel0[2]));
+  MUXF7 \axi_rdata_reg[4]_i_4 
+       (.I0(\axi_rdata[4]_i_9_n_0 ),
+        .I1(\axi_rdata[4]_i_10_n_0 ),
+        .O(\axi_rdata_reg[4]_i_4_n_0 ),
         .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
@@ -14495,14 +15525,19 @@ module pynq_z2_top_0_0_axi_lite_regs
         .Q(s_axi_rdata[5]),
         .R(p_0_in));
   MUXF7 \axi_rdata_reg[5]_i_2 
-       (.I0(\axi_rdata[5]_i_4_n_0 ),
-        .I1(\axi_rdata[5]_i_5_n_0 ),
+       (.I0(\axi_rdata[5]_i_5_n_0 ),
+        .I1(\axi_rdata[5]_i_6_n_0 ),
         .O(\axi_rdata_reg[5]_i_2_n_0 ),
         .S(sel0[2]));
   MUXF7 \axi_rdata_reg[5]_i_3 
-       (.I0(\axi_rdata[5]_i_6_n_0 ),
-        .I1(\axi_rdata[5]_i_7_n_0 ),
+       (.I0(\axi_rdata[5]_i_7_n_0 ),
+        .I1(\axi_rdata[5]_i_8_n_0 ),
         .O(\axi_rdata_reg[5]_i_3_n_0 ),
+        .S(sel0[2]));
+  MUXF7 \axi_rdata_reg[5]_i_4 
+       (.I0(\axi_rdata[5]_i_9_n_0 ),
+        .I1(\axi_rdata[5]_i_10_n_0 ),
+        .O(\axi_rdata_reg[5]_i_4_n_0 ),
         .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
@@ -14513,14 +15548,19 @@ module pynq_z2_top_0_0_axi_lite_regs
         .Q(s_axi_rdata[6]),
         .R(p_0_in));
   MUXF7 \axi_rdata_reg[6]_i_2 
-       (.I0(\axi_rdata[6]_i_4_n_0 ),
-        .I1(\axi_rdata[6]_i_5_n_0 ),
+       (.I0(\axi_rdata[6]_i_5_n_0 ),
+        .I1(\axi_rdata[6]_i_6_n_0 ),
         .O(\axi_rdata_reg[6]_i_2_n_0 ),
         .S(sel0[2]));
   MUXF7 \axi_rdata_reg[6]_i_3 
-       (.I0(\axi_rdata[6]_i_6_n_0 ),
-        .I1(\axi_rdata[6]_i_7_n_0 ),
+       (.I0(\axi_rdata[6]_i_7_n_0 ),
+        .I1(\axi_rdata[6]_i_8_n_0 ),
         .O(\axi_rdata_reg[6]_i_3_n_0 ),
+        .S(sel0[2]));
+  MUXF7 \axi_rdata_reg[6]_i_4 
+       (.I0(\axi_rdata[6]_i_9_n_0 ),
+        .I1(\axi_rdata[6]_i_10_n_0 ),
+        .O(\axi_rdata_reg[6]_i_4_n_0 ),
         .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
@@ -14531,14 +15571,19 @@ module pynq_z2_top_0_0_axi_lite_regs
         .Q(s_axi_rdata[7]),
         .R(p_0_in));
   MUXF7 \axi_rdata_reg[7]_i_2 
-       (.I0(\axi_rdata[7]_i_4_n_0 ),
-        .I1(\axi_rdata[7]_i_5_n_0 ),
+       (.I0(\axi_rdata[7]_i_5_n_0 ),
+        .I1(\axi_rdata[7]_i_6_n_0 ),
         .O(\axi_rdata_reg[7]_i_2_n_0 ),
         .S(sel0[2]));
   MUXF7 \axi_rdata_reg[7]_i_3 
-       (.I0(\axi_rdata[7]_i_6_n_0 ),
-        .I1(\axi_rdata[7]_i_7_n_0 ),
+       (.I0(\axi_rdata[7]_i_7_n_0 ),
+        .I1(\axi_rdata[7]_i_8_n_0 ),
         .O(\axi_rdata_reg[7]_i_3_n_0 ),
+        .S(sel0[2]));
+  MUXF7 \axi_rdata_reg[7]_i_4 
+       (.I0(\axi_rdata[7]_i_9_n_0 ),
+        .I1(\axi_rdata[7]_i_10_n_0 ),
+        .O(\axi_rdata_reg[7]_i_4_n_0 ),
         .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
@@ -14549,14 +15594,19 @@ module pynq_z2_top_0_0_axi_lite_regs
         .Q(s_axi_rdata[8]),
         .R(p_0_in));
   MUXF7 \axi_rdata_reg[8]_i_2 
-       (.I0(\axi_rdata[8]_i_4_n_0 ),
-        .I1(\axi_rdata[8]_i_5_n_0 ),
+       (.I0(\axi_rdata[8]_i_5_n_0 ),
+        .I1(\axi_rdata[8]_i_6_n_0 ),
         .O(\axi_rdata_reg[8]_i_2_n_0 ),
         .S(sel0[2]));
   MUXF7 \axi_rdata_reg[8]_i_3 
-       (.I0(\axi_rdata[8]_i_6_n_0 ),
-        .I1(\axi_rdata[8]_i_7_n_0 ),
+       (.I0(\axi_rdata[8]_i_7_n_0 ),
+        .I1(\axi_rdata[8]_i_8_n_0 ),
         .O(\axi_rdata_reg[8]_i_3_n_0 ),
+        .S(sel0[2]));
+  MUXF7 \axi_rdata_reg[8]_i_4 
+       (.I0(\axi_rdata[8]_i_9_n_0 ),
+        .I1(\axi_rdata[8]_i_10_n_0 ),
+        .O(\axi_rdata_reg[8]_i_4_n_0 ),
         .S(sel0[2]));
   FDRE #(
     .INIT(1'b0)) 
@@ -14567,14 +15617,19 @@ module pynq_z2_top_0_0_axi_lite_regs
         .Q(s_axi_rdata[9]),
         .R(p_0_in));
   MUXF7 \axi_rdata_reg[9]_i_2 
-       (.I0(\axi_rdata[9]_i_4_n_0 ),
-        .I1(\axi_rdata[9]_i_5_n_0 ),
+       (.I0(\axi_rdata[9]_i_5_n_0 ),
+        .I1(\axi_rdata[9]_i_6_n_0 ),
         .O(\axi_rdata_reg[9]_i_2_n_0 ),
         .S(sel0[2]));
   MUXF7 \axi_rdata_reg[9]_i_3 
-       (.I0(\axi_rdata[9]_i_6_n_0 ),
-        .I1(\axi_rdata[9]_i_7_n_0 ),
+       (.I0(\axi_rdata[9]_i_7_n_0 ),
+        .I1(\axi_rdata[9]_i_8_n_0 ),
         .O(\axi_rdata_reg[9]_i_3_n_0 ),
+        .S(sel0[2]));
+  MUXF7 \axi_rdata_reg[9]_i_4 
+       (.I0(\axi_rdata[9]_i_9_n_0 ),
+        .I1(\axi_rdata[9]_i_10_n_0 ),
+        .O(\axi_rdata_reg[9]_i_4_n_0 ),
         .S(sel0[2]));
   (* SOFT_HLUTNM = "soft_lutpair34" *) 
   LUT4 #(
@@ -14628,17 +15683,25 @@ module pynq_z2_top_0_0_axi_lite_regs
         .I1(s_axi_arready),
         .I2(s_axi_arvalid),
         .O(read_addr));
+  (* ORIG_CELL_NAME = "read_addr_reg[2]" *) 
   FDRE \read_addr_reg[2] 
        (.C(s_axi_aclk),
         .CE(read_addr),
         .D(s_axi_araddr[0]),
-        .Q(sel0[0]),
+        .Q(\read_addr_reg[3]_0 [0]),
+        .R(1'b0));
+  (* ORIG_CELL_NAME = "read_addr_reg[2]" *) 
+  FDRE \read_addr_reg[2]_rep 
+       (.C(s_axi_aclk),
+        .CE(read_addr),
+        .D(s_axi_araddr[0]),
+        .Q(\read_addr_reg[2]_rep_0 ),
         .R(1'b0));
   FDRE \read_addr_reg[3] 
        (.C(s_axi_aclk),
         .CE(read_addr),
         .D(s_axi_araddr[1]),
-        .Q(sel0[1]),
+        .Q(\read_addr_reg[3]_0 [1]),
         .R(1'b0));
   FDRE \read_addr_reg[4] 
        (.C(s_axi_aclk),
@@ -14662,7 +15725,7 @@ module pynq_z2_top_0_0_axi_lite_regs
     .INIT(16'h0C08)) 
     ref_det_i_1
        (.I0(\u_phase_detector/in_band1_in ),
-        .I1(cam_clean),
+        .I1(ref_det_reg),
         .I2(ref_prev),
         .I3(\u_phase_detector/in_band ),
         .O(ref_det5_out));
@@ -14714,13 +15777,13 @@ module pynq_z2_top_0_0_axi_lite_regs
     .INIT(4'h9)) 
     ref_det_i_108
        (.I0(ref_det_reg_i_179_n_0),
-        .I1(ref_det_reg_i_74_0[11]),
+        .I1(ref_det_reg_i_106_0[11]),
         .O(ref_det_i_108_n_0));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_109
        (.I0(ref_det_reg_i_179_n_0),
-        .I1(ref_det_reg_i_74_0[10]),
+        .I1(ref_det_reg_i_106_0[10]),
         .O(ref_det_i_109_n_0));
   LUT5 #(
     .INIT(32'h8A80202A)) 
@@ -14735,13 +15798,13 @@ module pynq_z2_top_0_0_axi_lite_regs
     .INIT(4'h9)) 
     ref_det_i_110
        (.I0(ref_det_reg_i_179_n_0),
-        .I1(ref_det_reg_i_74_0[9]),
+        .I1(ref_det_reg_i_106_0[9]),
         .O(ref_det_i_110_n_0));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_111
        (.I0(ref_det_reg_i_179_n_0),
-        .I1(ref_det_reg_i_74_0[8]),
+        .I1(ref_det_reg_i_106_0[8]),
         .O(ref_det_i_111_n_0));
   LUT1 #(
     .INIT(2'h1)) 
@@ -14776,25 +15839,25 @@ module pynq_z2_top_0_0_axi_lite_regs
     .INIT(4'h9)) 
     ref_det_i_120
        (.I0(ref_det_reg_i_148_n_0),
-        .I1(ref_det_reg_i_74_0[7]),
+        .I1(ref_det_reg_i_106_0[7]),
         .O(ref_det_i_120_n_0));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_121
        (.I0(ref_det_reg_i_148_n_0),
-        .I1(ref_det_reg_i_74_0[6]),
+        .I1(ref_det_reg_i_106_0[6]),
         .O(ref_det_i_121_n_0));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_122
        (.I0(ref_det_reg_i_148_n_0),
-        .I1(ref_det_reg_i_74_0[5]),
+        .I1(ref_det_reg_i_106_0[5]),
         .O(ref_det_i_122_n_0));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_123
        (.I0(ref_det_reg_i_148_n_0),
-        .I1(ref_det_reg_i_74_0[4]),
+        .I1(ref_det_reg_i_106_0[4]),
         .O(ref_det_i_123_n_0));
   LUT1 #(
     .INIT(2'h1)) 
@@ -14825,25 +15888,25 @@ module pynq_z2_top_0_0_axi_lite_regs
     .INIT(4'h9)) 
     ref_det_i_133
        (.I0(ref_det_reg_i_148_n_0),
-        .I1(ref_det_reg_i_74_0[3]),
+        .I1(ref_det_reg_i_106_0[3]),
         .O(ref_det_i_133_n_0));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_134
        (.I0(ref_det_reg_i_148_n_0),
-        .I1(ref_det_reg_i_74_0[2]),
+        .I1(ref_det_reg_i_106_0[2]),
         .O(ref_det_i_134_n_0));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_135
        (.I0(ref_det_reg_i_148_n_0),
-        .I1(ref_det_reg_i_74_0[1]),
+        .I1(ref_det_reg_i_106_0[1]),
         .O(ref_det_i_135_n_0));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_136
        (.I0(ref_det_reg_i_148_n_0),
-        .I1(ref_det_reg_i_74_0[0]),
+        .I1(ref_det_reg_i_106_0[0]),
         .O(ref_det_i_136_n_0));
   LUT5 #(
     .INIT(32'hCE8AEF8A)) 
@@ -14868,7 +15931,7 @@ module pynq_z2_top_0_0_axi_lite_regs
     .INIT(4'h9)) 
     ref_det_i_143
        (.I0(ref_det_reg_i_148_n_0),
-        .I1(ref_det_reg_i_74_0[12]),
+        .I1(ref_det_reg_i_106_0[12]),
         .O(ref_det_i_143_n_0));
   LUT1 #(
     .INIT(2'h1)) 
@@ -14898,25 +15961,25 @@ module pynq_z2_top_0_0_axi_lite_regs
     .INIT(4'h9)) 
     ref_det_i_151
        (.I0(ref_det_reg_i_179_n_0),
-        .I1(ref_det_reg_i_74_0[7]),
+        .I1(ref_det_reg_i_106_0[7]),
         .O(ref_det_i_151_n_0));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_152
        (.I0(ref_det_reg_i_179_n_0),
-        .I1(ref_det_reg_i_74_0[6]),
+        .I1(ref_det_reg_i_106_0[6]),
         .O(ref_det_i_152_n_0));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_153
        (.I0(ref_det_reg_i_179_n_0),
-        .I1(ref_det_reg_i_74_0[5]),
+        .I1(ref_det_reg_i_106_0[5]),
         .O(ref_det_i_153_n_0));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_154
        (.I0(ref_det_reg_i_179_n_0),
-        .I1(ref_det_reg_i_74_0[4]),
+        .I1(ref_det_reg_i_106_0[4]),
         .O(ref_det_i_154_n_0));
   LUT1 #(
     .INIT(2'h1)) 
@@ -14957,25 +16020,25 @@ module pynq_z2_top_0_0_axi_lite_regs
     .INIT(4'h9)) 
     ref_det_i_164
        (.I0(ref_det_reg_i_179_n_0),
-        .I1(ref_det_reg_i_74_0[3]),
+        .I1(ref_det_reg_i_106_0[3]),
         .O(ref_det_i_164_n_0));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_165
        (.I0(ref_det_reg_i_179_n_0),
-        .I1(ref_det_reg_i_74_0[2]),
+        .I1(ref_det_reg_i_106_0[2]),
         .O(ref_det_i_165_n_0));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_166
        (.I0(ref_det_reg_i_179_n_0),
-        .I1(ref_det_reg_i_74_0[1]),
+        .I1(ref_det_reg_i_106_0[1]),
         .O(ref_det_i_166_n_0));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_167
        (.I0(ref_det_reg_i_179_n_0),
-        .I1(ref_det_reg_i_74_0[0]),
+        .I1(ref_det_reg_i_106_0[0]),
         .O(ref_det_i_167_n_0));
   LUT6 #(
     .INIT(64'h222222B2B2B222B2)) 
@@ -15001,7 +16064,7 @@ module pynq_z2_top_0_0_axi_lite_regs
     .INIT(4'h9)) 
     ref_det_i_174
        (.I0(ref_det_reg_i_179_n_0),
-        .I1(ref_det_reg_i_74_0[12]),
+        .I1(ref_det_reg_i_106_0[12]),
         .O(ref_det_i_174_n_0));
   LUT1 #(
     .INIT(2'h1)) 
@@ -15031,7 +16094,7 @@ module pynq_z2_top_0_0_axi_lite_regs
     .INIT(8'h04)) 
     ref_det_i_183
        (.I0(ref_det_reg_i_149_n_5),
-        .I1(ref_det_reg_i_74_0[12]),
+        .I1(ref_det_reg_i_106_0[12]),
         .I2(\reg_phase_ang_reg[13]_0 [1]),
         .O(ref_det_i_183_n_0));
   LUT2 #(
@@ -15045,23 +16108,23 @@ module pynq_z2_top_0_0_axi_lite_regs
     ref_det_i_187
        (.I0(ref_det_reg_i_149_n_5),
         .I1(\reg_phase_ang_reg[13]_0 [1]),
-        .I2(ref_det_reg_i_74_0[12]),
+        .I2(ref_det_reg_i_106_0[12]),
         .O(ref_det_i_187_n_0));
   LUT4 #(
     .INIT(16'h9009)) 
     ref_det_i_188
        (.I0(\reg_phase_ang_reg[13]_0 [0]),
-        .I1(ref_det_reg_i_74_0[11]),
+        .I1(ref_det_reg_i_106_0[11]),
         .I2(\reg_phase_ang_reg[9]_0 [3]),
-        .I3(ref_det_reg_i_74_0[10]),
+        .I3(ref_det_reg_i_106_0[10]),
         .O(ref_det_i_188_n_0));
   LUT4 #(
     .INIT(16'h9009)) 
     ref_det_i_189
        (.I0(\reg_phase_ang_reg[9]_0 [2]),
-        .I1(ref_det_reg_i_74_0[9]),
+        .I1(ref_det_reg_i_106_0[9]),
         .I2(\reg_phase_ang_reg[9]_0 [1]),
-        .I3(ref_det_reg_i_74_0[8]),
+        .I3(ref_det_reg_i_106_0[8]),
         .O(ref_det_i_189_n_0));
   LUT5 #(
     .INIT(32'h00903309)) 
@@ -15153,7 +16216,7 @@ module pynq_z2_top_0_0_axi_lite_regs
   LUT3 #(
     .INIT(8'h02)) 
     ref_det_i_201
-       (.I0(ref_det_reg_i_74_0[12]),
+       (.I0(ref_det_reg_i_106_0[12]),
         .I1(expected_phase_angle[13]),
         .I2(Q[12]),
         .O(ref_det_i_201_n_0));
@@ -15168,23 +16231,23 @@ module pynq_z2_top_0_0_axi_lite_regs
     ref_det_i_205
        (.I0(expected_phase_angle[13]),
         .I1(Q[12]),
-        .I2(ref_det_reg_i_74_0[12]),
+        .I2(ref_det_reg_i_106_0[12]),
         .O(ref_det_i_205_n_0));
   LUT4 #(
     .INIT(16'h9009)) 
     ref_det_i_206
        (.I0(Q[11]),
-        .I1(ref_det_reg_i_74_0[11]),
+        .I1(ref_det_reg_i_106_0[11]),
         .I2(Q[10]),
-        .I3(ref_det_reg_i_74_0[10]),
+        .I3(ref_det_reg_i_106_0[10]),
         .O(ref_det_i_206_n_0));
   LUT4 #(
     .INIT(16'h9009)) 
     ref_det_i_207
        (.I0(Q[9]),
-        .I1(ref_det_reg_i_74_0[9]),
+        .I1(ref_det_reg_i_106_0[9]),
         .I2(Q[8]),
-        .I3(ref_det_reg_i_74_0[8]),
+        .I3(ref_det_reg_i_106_0[8]),
         .O(ref_det_i_207_n_0));
   LUT5 #(
     .INIT(32'h0000FF7F)) 
@@ -15235,33 +16298,33 @@ module pynq_z2_top_0_0_axi_lite_regs
     .INIT(16'h44D4)) 
     ref_det_i_216
        (.I0(Q[1]),
-        .I1(ref_det_reg_i_74_0[1]),
-        .I2(ref_det_reg_i_74_0[0]),
+        .I1(ref_det_reg_i_106_0[1]),
+        .I2(ref_det_reg_i_106_0[0]),
         .I3(Q[0]),
         .O(\reg_phase_ang_reg[1]_0 ));
   LUT4 #(
     .INIT(16'h9009)) 
     ref_det_i_217
        (.I0(\reg_phase_ang_reg[9]_0 [0]),
-        .I1(ref_det_reg_i_74_0[7]),
+        .I1(ref_det_reg_i_106_0[7]),
         .I2(\reg_phase_ang_reg[5]_0 [3]),
-        .I3(ref_det_reg_i_74_0[6]),
+        .I3(ref_det_reg_i_106_0[6]),
         .O(\raw_angle_int_reg[7] [2]));
   LUT4 #(
     .INIT(16'h9009)) 
     ref_det_i_218
        (.I0(\reg_phase_ang_reg[5]_0 [2]),
-        .I1(ref_det_reg_i_74_0[5]),
+        .I1(ref_det_reg_i_106_0[5]),
         .I2(\reg_phase_ang_reg[5]_0 [1]),
-        .I3(ref_det_reg_i_74_0[4]),
+        .I3(ref_det_reg_i_106_0[4]),
         .O(\raw_angle_int_reg[7] [1]));
   LUT4 #(
     .INIT(16'h9009)) 
     ref_det_i_219
        (.I0(Q[2]),
-        .I1(ref_det_reg_i_74_0[2]),
+        .I1(ref_det_reg_i_106_0[2]),
         .I2(\reg_phase_ang_reg[5]_0 [0]),
-        .I3(ref_det_reg_i_74_0[3]),
+        .I3(ref_det_reg_i_106_0[3]),
         .O(\raw_angle_int_reg[7] [0]));
   LUT6 #(
     .INIT(64'h222222B2B2B222B2)) 
@@ -15294,33 +16357,33 @@ module pynq_z2_top_0_0_axi_lite_regs
     .INIT(16'h44D4)) 
     ref_det_i_226
        (.I0(Q[1]),
-        .I1(ref_det_reg_i_74_0[1]),
-        .I2(ref_det_reg_i_74_0[0]),
+        .I1(ref_det_reg_i_106_0[1]),
+        .I2(ref_det_reg_i_106_0[0]),
         .I3(Q[0]),
         .O(\reg_phase_ang_reg[1]_1 ));
   LUT4 #(
     .INIT(16'h9009)) 
     ref_det_i_227
        (.I0(Q[7]),
-        .I1(ref_det_reg_i_74_0[7]),
+        .I1(ref_det_reg_i_106_0[7]),
         .I2(Q[6]),
-        .I3(ref_det_reg_i_74_0[6]),
+        .I3(ref_det_reg_i_106_0[6]),
         .O(S[2]));
   LUT4 #(
     .INIT(16'h9009)) 
     ref_det_i_228
        (.I0(Q[5]),
-        .I1(ref_det_reg_i_74_0[5]),
+        .I1(ref_det_reg_i_106_0[5]),
         .I2(Q[4]),
-        .I3(ref_det_reg_i_74_0[4]),
+        .I3(ref_det_reg_i_106_0[4]),
         .O(S[1]));
   LUT4 #(
     .INIT(16'h9009)) 
     ref_det_i_229
        (.I0(Q[3]),
-        .I1(ref_det_reg_i_74_0[3]),
+        .I1(ref_det_reg_i_106_0[3]),
         .I2(Q[2]),
-        .I3(ref_det_reg_i_74_0[2]),
+        .I3(ref_det_reg_i_106_0[2]),
         .O(S[0]));
   LUT6 #(
     .INIT(64'h222222B2B2B222B2)) 
@@ -15697,25 +16760,25 @@ module pynq_z2_top_0_0_axi_lite_regs
     .INIT(4'h9)) 
     ref_det_i_76
        (.I0(ref_det_reg_i_148_n_0),
-        .I1(ref_det_reg_i_74_0[11]),
+        .I1(ref_det_reg_i_106_0[11]),
         .O(ref_det_i_76_n_0));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_77
        (.I0(ref_det_reg_i_148_n_0),
-        .I1(ref_det_reg_i_74_0[10]),
+        .I1(ref_det_reg_i_106_0[10]),
         .O(ref_det_i_77_n_0));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_78
        (.I0(ref_det_reg_i_148_n_0),
-        .I1(ref_det_reg_i_74_0[9]),
+        .I1(ref_det_reg_i_106_0[9]),
         .O(ref_det_i_78_n_0));
   LUT2 #(
     .INIT(4'h9)) 
     ref_det_i_79
        (.I0(ref_det_reg_i_148_n_0),
-        .I1(ref_det_reg_i_74_0[8]),
+        .I1(ref_det_reg_i_106_0[8]),
         .O(ref_det_i_79_n_0));
   LUT6 #(
     .INIT(64'h222222B2B2B222B2)) 
@@ -18526,7 +19589,7 @@ module pynq_z2_top_0_0_axi_lite_regs
     .INIT(64'hF7F7040000000000)) 
     sync_offset_r_i_1
        (.I0(\u_phase_detector/in_band ),
-        .I1(cam_clean),
+        .I1(ref_det_reg),
         .I2(ref_prev),
         .I3(\u_phase_detector/in_band1_in ),
         .I4(sync_offset),
@@ -18574,124 +19637,118 @@ endmodule
 
 (* ORIG_REF_NAME = "crank_input" *) 
 module pynq_z2_top_0_0_crank_input
-   (signal_present,
+   (edge_pulse_out,
     sig_present_reg_0,
-    z,
+    sig_present_reg_1,
+    z_int_reg_0,
+    \gap_period_int_reg[3]_0 ,
+    Q,
+    \current_period_reg[31]_0 ,
+    \gap_period_int_reg[2]_0 ,
+    \gap_period_int_reg[1]_0 ,
+    \gap_period_int_reg[0]_0 ,
     \state_reg[1] ,
     div_start,
     \gen_vld_en.valid_en_reg ,
     \current_period_reg[0]_0 ,
-    Q,
     zero_divide,
+    E,
+    ab_int_reg_0,
     sync_offset_r_reg,
     ab_count1,
-    ab,
+    gap_det_reg_0,
     rst_n,
     z_prev,
+    \axi_rdata_reg[3] ,
+    \axi_rdata_reg[3]_0 ,
+    \axi_rdata_reg[3]_1 ,
+    \axi_rdata_reg[3]_2 ,
     valid_en,
     quotient_reg,
     \divisor_op_reg[0] ,
-    sync_state,
+    \gen_vld_en.valid_en_reg_0 ,
     ab_edge,
+    ab_prev,
     sync_offset,
     state0,
     locked_offset_reg,
     edge_pulse_reg_0,
-    crank_clean,
+    clean_prev_reg_0,
     clk,
     rst,
     gap_threshold,
     in_debounce);
-  output signal_present;
+  output edge_pulse_out;
   output sig_present_reg_0;
-  output z;
+  output sig_present_reg_1;
+  output z_int_reg_0;
+  output \gap_period_int_reg[3]_0 ;
+  output [27:0]Q;
+  output [30:0]\current_period_reg[31]_0 ;
+  output \gap_period_int_reg[2]_0 ;
+  output \gap_period_int_reg[1]_0 ;
+  output \gap_period_int_reg[0]_0 ;
   output \state_reg[1] ;
   output div_start;
   output \gen_vld_en.valid_en_reg ;
   output [0:0]\current_period_reg[0]_0 ;
-  output [30:0]Q;
   output zero_divide;
+  output [0:0]E;
+  output ab_int_reg_0;
   output sync_offset_r_reg;
   output ab_count1;
-  output ab;
+  output gap_det_reg_0;
   input rst_n;
   input z_prev;
+  input [3:0]\axi_rdata_reg[3] ;
+  input [1:0]\axi_rdata_reg[3]_0 ;
+  input [3:0]\axi_rdata_reg[3]_1 ;
+  input \axi_rdata_reg[3]_2 ;
   input valid_en;
   input quotient_reg;
   input [0:0]\divisor_op_reg[0] ;
-  input [0:0]sync_state;
+  input \gen_vld_en.valid_en_reg_0 ;
   input ab_edge;
+  input ab_prev;
   input sync_offset;
   input state0;
   input locked_offset_reg;
   input [0:0]edge_pulse_reg_0;
-  input crank_clean;
+  input clean_prev_reg_0;
   input clk;
   input rst;
   input [7:0]gap_threshold;
   input in_debounce;
 
-  wire [30:0]Q;
-  wire ab;
+  wire [0:0]E;
+  wire [27:0]Q;
   wire ab_count1;
   wire ab_edge;
   wire ab_int_i_1_n_0;
+  wire ab_int_reg_0;
+  wire ab_prev;
+  wire [3:0]\axi_rdata_reg[3] ;
+  wire [1:0]\axi_rdata_reg[3]_0 ;
+  wire [3:0]\axi_rdata_reg[3]_1 ;
+  wire \axi_rdata_reg[3]_2 ;
   wire clean_prev;
+  wire clean_prev_reg_0;
   wire clk;
-  wire crank_clean;
-  wire \current_period[31]_i_10_n_0 ;
-  wire \current_period[31]_i_11_n_0 ;
-  wire \current_period[31]_i_13_n_0 ;
-  wire \current_period[31]_i_14_n_0 ;
-  wire \current_period[31]_i_15_n_0 ;
-  wire \current_period[31]_i_16_n_0 ;
-  wire \current_period[31]_i_17_n_0 ;
-  wire \current_period[31]_i_18_n_0 ;
-  wire \current_period[31]_i_19_n_0 ;
   wire \current_period[31]_i_1_n_0 ;
-  wire \current_period[31]_i_20_n_0 ;
-  wire \current_period[31]_i_22_n_0 ;
-  wire \current_period[31]_i_23_n_0 ;
-  wire \current_period[31]_i_24_n_0 ;
-  wire \current_period[31]_i_25_n_0 ;
-  wire \current_period[31]_i_26_n_0 ;
-  wire \current_period[31]_i_27_n_0 ;
-  wire \current_period[31]_i_28_n_0 ;
-  wire \current_period[31]_i_29_n_0 ;
-  wire \current_period[31]_i_30_n_0 ;
-  wire \current_period[31]_i_31_n_0 ;
-  wire \current_period[31]_i_32_n_0 ;
-  wire \current_period[31]_i_33_n_0 ;
-  wire \current_period[31]_i_34_n_0 ;
-  wire \current_period[31]_i_35_n_0 ;
-  wire \current_period[31]_i_36_n_0 ;
-  wire \current_period[31]_i_37_n_0 ;
-  wire \current_period[31]_i_4_n_0 ;
-  wire \current_period[31]_i_5_n_0 ;
-  wire \current_period[31]_i_6_n_0 ;
-  wire \current_period[31]_i_7_n_0 ;
-  wire \current_period[31]_i_8_n_0 ;
-  wire \current_period[31]_i_9_n_0 ;
   wire [0:0]\current_period_reg[0]_0 ;
-  wire \current_period_reg[31]_i_12_n_0 ;
-  wire \current_period_reg[31]_i_12_n_1 ;
-  wire \current_period_reg[31]_i_12_n_2 ;
-  wire \current_period_reg[31]_i_12_n_3 ;
-  wire \current_period_reg[31]_i_21_n_0 ;
-  wire \current_period_reg[31]_i_21_n_1 ;
-  wire \current_period_reg[31]_i_21_n_2 ;
-  wire \current_period_reg[31]_i_21_n_3 ;
-  wire \current_period_reg[31]_i_2_n_1 ;
-  wire \current_period_reg[31]_i_2_n_2 ;
-  wire \current_period_reg[31]_i_2_n_3 ;
-  wire \current_period_reg[31]_i_3_n_0 ;
-  wire \current_period_reg[31]_i_3_n_1 ;
-  wire \current_period_reg[31]_i_3_n_2 ;
-  wire \current_period_reg[31]_i_3_n_3 ;
+  wire [30:0]\current_period_reg[31]_0 ;
+  wire \debug_out[9]_INST_0_i_10_n_0 ;
+  wire \debug_out[9]_INST_0_i_3_n_0 ;
+  wire \debug_out[9]_INST_0_i_4_n_0 ;
+  wire \debug_out[9]_INST_0_i_5_n_0 ;
+  wire \debug_out[9]_INST_0_i_6_n_0 ;
+  wire \debug_out[9]_INST_0_i_7_n_0 ;
+  wire \debug_out[9]_INST_0_i_8_n_0 ;
+  wire \debug_out[9]_INST_0_i_9_n_0 ;
   wire div_start;
   wire [0:0]\divisor_op_reg[0] ;
-  wire edge_pulse__0;
   wire edge_pulse_n_0;
+  wire edge_pulse_out;
   wire [0:0]edge_pulse_reg_0;
   wire edge_seen;
   wire gap_det1__0_n_0;
@@ -18914,6 +19971,7 @@ module pynq_z2_top_0_0_crank_input
   wire gap_det_i_8_n_0;
   wire gap_det_i_9_n_0;
   wire gap_det_prev;
+  wire gap_det_reg_0;
   wire gap_det_reg_i_15_n_0;
   wire gap_det_reg_i_15_n_1;
   wire gap_det_reg_i_15_n_2;
@@ -18931,9 +19989,15 @@ module pynq_z2_top_0_0_crank_input
   wire gap_det_reg_i_6_n_1;
   wire gap_det_reg_i_6_n_2;
   wire gap_det_reg_i_6_n_3;
-  wire gap_det_reg_n_0;
+  wire [3:0]gap_period;
+  wire gap_period_int;
+  wire \gap_period_int_reg[0]_0 ;
+  wire \gap_period_int_reg[1]_0 ;
+  wire \gap_period_int_reg[2]_0 ;
+  wire \gap_period_int_reg[3]_0 ;
   wire [7:0]gap_threshold;
   wire \gen_vld_en.valid_en_reg ;
+  wire \gen_vld_en.valid_en_reg_0 ;
   wire in_debounce;
   wire interp_active0;
   wire interp_active1;
@@ -19267,14 +20331,60 @@ module pynq_z2_top_0_0_crank_input
   wire rst;
   wire rst_n;
   wire sel;
+  wire sig_present_i_10_n_0;
+  wire sig_present_i_11_n_0;
+  wire sig_present_i_13_n_0;
+  wire sig_present_i_14_n_0;
+  wire sig_present_i_15_n_0;
+  wire sig_present_i_16_n_0;
+  wire sig_present_i_17_n_0;
+  wire sig_present_i_18_n_0;
+  wire sig_present_i_19_n_0;
   wire sig_present_i_1_n_0;
+  wire sig_present_i_20_n_0;
+  wire sig_present_i_22_n_0;
+  wire sig_present_i_23_n_0;
+  wire sig_present_i_24_n_0;
+  wire sig_present_i_25_n_0;
+  wire sig_present_i_26_n_0;
+  wire sig_present_i_27_n_0;
+  wire sig_present_i_28_n_0;
+  wire sig_present_i_29_n_0;
+  wire sig_present_i_30_n_0;
+  wire sig_present_i_31_n_0;
+  wire sig_present_i_32_n_0;
+  wire sig_present_i_33_n_0;
+  wire sig_present_i_34_n_0;
+  wire sig_present_i_35_n_0;
+  wire sig_present_i_36_n_0;
+  wire sig_present_i_37_n_0;
+  wire sig_present_i_4_n_0;
+  wire sig_present_i_5_n_0;
+  wire sig_present_i_6_n_0;
+  wire sig_present_i_7_n_0;
+  wire sig_present_i_8_n_0;
+  wire sig_present_i_9_n_0;
   wire sig_present_reg_0;
-  wire signal_present;
+  wire sig_present_reg_1;
+  wire sig_present_reg_i_12_n_0;
+  wire sig_present_reg_i_12_n_1;
+  wire sig_present_reg_i_12_n_2;
+  wire sig_present_reg_i_12_n_3;
+  wire sig_present_reg_i_21_n_0;
+  wire sig_present_reg_i_21_n_1;
+  wire sig_present_reg_i_21_n_2;
+  wire sig_present_reg_i_21_n_3;
+  wire sig_present_reg_i_2_n_1;
+  wire sig_present_reg_i_2_n_2;
+  wire sig_present_reg_i_2_n_3;
+  wire sig_present_reg_i_3_n_0;
+  wire sig_present_reg_i_3_n_1;
+  wire sig_present_reg_i_3_n_2;
+  wire sig_present_reg_i_3_n_3;
   wire state0;
   wire \state_reg[1] ;
   wire sync_offset;
   wire sync_offset_r_reg;
-  wire [0:0]sync_state;
   wire timeout_cnt1;
   wire \timeout_cnt[0]_i_1_n_0 ;
   wire \timeout_cnt[0]_i_3_n_0 ;
@@ -19452,7 +20562,6 @@ module pynq_z2_top_0_0_crank_input
   wire \tooth_cnt_reg_n_0_[7] ;
   wire [0:0]tooth_period;
   wire valid_en;
-  wire z;
   wire z_armed;
   wire z_armed_i_1_n_0;
   wire z_int0;
@@ -19520,6 +20629,7 @@ module pynq_z2_top_0_0_crank_input
   wire z_int_i_7_n_0;
   wire z_int_i_8_n_0;
   wire z_int_i_9_n_0;
+  wire z_int_reg_0;
   wire z_int_reg_i_12_n_0;
   wire z_int_reg_i_12_n_1;
   wire z_int_reg_i_12_n_2;
@@ -19664,18 +20774,6 @@ module pynq_z2_top_0_0_crank_input
   wire \z_timer_reg[8]_i_1_n_6 ;
   wire \z_timer_reg[8]_i_1_n_7 ;
   wire zero_divide;
-  wire zero_err_r_i_10_n_0;
-  wire zero_err_r_i_3_n_0;
-  wire zero_err_r_i_4_n_0;
-  wire zero_err_r_i_5_n_0;
-  wire zero_err_r_i_6_n_0;
-  wire zero_err_r_i_7_n_0;
-  wire zero_err_r_i_8_n_0;
-  wire zero_err_r_i_9_n_0;
-  wire [3:0]\NLW_current_period_reg[31]_i_12_O_UNCONNECTED ;
-  wire [3:0]\NLW_current_period_reg[31]_i_2_O_UNCONNECTED ;
-  wire [3:0]\NLW_current_period_reg[31]_i_21_O_UNCONNECTED ;
-  wire [3:0]\NLW_current_period_reg[31]_i_3_O_UNCONNECTED ;
   wire NLW_gap_det1__16_CARRYCASCOUT_UNCONNECTED;
   wire NLW_gap_det1__16_MULTSIGNOUT_UNCONNECTED;
   wire NLW_gap_det1__16_OVERFLOW_UNCONNECTED;
@@ -19711,6 +20809,10 @@ module pynq_z2_top_0_0_crank_input
   wire [3:3]\NLW_period_cnt_reg[28]_i_1_CO_UNCONNECTED ;
   wire [3:2]NLW_period_cnt_reg_i_1_CO_UNCONNECTED;
   wire [3:3]NLW_period_cnt_reg_i_1_O_UNCONNECTED;
+  wire [3:0]NLW_sig_present_reg_i_12_O_UNCONNECTED;
+  wire [3:0]NLW_sig_present_reg_i_2_O_UNCONNECTED;
+  wire [3:0]NLW_sig_present_reg_i_21_O_UNCONNECTED;
+  wire [3:0]NLW_sig_present_reg_i_3_O_UNCONNECTED;
   wire [3:3]\NLW_timeout_cnt_reg[28]_i_1_CO_UNCONNECTED ;
   wire [3:2]\NLW_timeout_limit_reg[31]_i_3_CO_UNCONNECTED ;
   wire [3:3]\NLW_timeout_limit_reg[31]_i_3_O_UNCONNECTED ;
@@ -19722,22 +20824,30 @@ module pynq_z2_top_0_0_crank_input
   wire [3:0]NLW_z_int_reg_i_3_O_UNCONNECTED;
   wire [3:3]\NLW_z_timer_reg[28]_i_1_CO_UNCONNECTED ;
 
-  (* SOFT_HLUTNM = "soft_lutpair42" *) 
+  (* SOFT_HLUTNM = "soft_lutpair48" *) 
   LUT4 #(
     .INIT(16'h51FF)) 
     \ab_count[7]_i_1 
-       (.I0(signal_present),
-        .I1(z),
+       (.I0(sig_present_reg_0),
+        .I1(z_int_reg_0),
         .I2(z_prev),
         .I3(rst_n),
-        .O(sig_present_reg_0));
-  (* SOFT_HLUTNM = "soft_lutpair46" *) 
+        .O(sig_present_reg_1));
+  LUT4 #(
+    .INIT(16'h4FF4)) 
+    \ab_count[7]_i_2 
+       (.I0(z_prev),
+        .I1(z_int_reg_0),
+        .I2(ab_int_reg_0),
+        .I3(ab_prev),
+        .O(E));
+  (* SOFT_HLUTNM = "soft_lutpair52" *) 
   LUT3 #(
     .INIT(8'h1E)) 
     ab_int_i_1
-       (.I0(edge_pulse__0),
+       (.I0(edge_pulse_out),
         .I1(interp_pulse),
-        .I2(ab),
+        .I2(ab_int_reg_0),
         .O(ab_int_i_1_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -19745,284 +20855,68 @@ module pynq_z2_top_0_0_crank_input
        (.C(clk),
         .CE(1'b1),
         .D(ab_int_i_1_n_0),
-        .Q(ab),
+        .Q(ab_int_reg_0),
         .R(rst));
+  LUT6 #(
+    .INIT(64'hCCFFCC00F0AAF0AA)) 
+    \axi_rdata[0]_i_2 
+       (.I0(\axi_rdata_reg[3] [0]),
+        .I1(gap_period[0]),
+        .I2(tooth_period),
+        .I3(\axi_rdata_reg[3]_0 [1]),
+        .I4(\axi_rdata_reg[3]_1 [0]),
+        .I5(\axi_rdata_reg[3]_0 [0]),
+        .O(\gap_period_int_reg[0]_0 ));
+  LUT6 #(
+    .INIT(64'hCCFFCC00F0AAF0AA)) 
+    \axi_rdata[1]_i_2 
+       (.I0(\axi_rdata_reg[3] [1]),
+        .I1(gap_period[1]),
+        .I2(\current_period_reg[31]_0 [0]),
+        .I3(\axi_rdata_reg[3]_0 [1]),
+        .I4(\axi_rdata_reg[3]_1 [1]),
+        .I5(\axi_rdata_reg[3]_0 [0]),
+        .O(\gap_period_int_reg[1]_0 ));
+  LUT6 #(
+    .INIT(64'hCCFFCC00F0AAF0AA)) 
+    \axi_rdata[2]_i_2 
+       (.I0(\axi_rdata_reg[3] [2]),
+        .I1(gap_period[2]),
+        .I2(\current_period_reg[31]_0 [1]),
+        .I3(\axi_rdata_reg[3]_0 [1]),
+        .I4(\axi_rdata_reg[3]_1 [2]),
+        .I5(\axi_rdata_reg[3]_0 [0]),
+        .O(\gap_period_int_reg[2]_0 ));
+  LUT6 #(
+    .INIT(64'hCCFFCC00F0AAF0AA)) 
+    \axi_rdata[3]_i_2 
+       (.I0(\axi_rdata_reg[3] [3]),
+        .I1(gap_period[3]),
+        .I2(\current_period_reg[31]_0 [2]),
+        .I3(\axi_rdata_reg[3]_0 [1]),
+        .I4(\axi_rdata_reg[3]_1 [3]),
+        .I5(\axi_rdata_reg[3]_2 ),
+        .O(\gap_period_int_reg[3]_0 ));
   FDRE #(
     .INIT(1'b0)) 
     clean_prev_reg
        (.C(clk),
         .CE(1'b1),
-        .D(crank_clean),
+        .D(clean_prev_reg_0),
         .Q(clean_prev),
         .R(rst));
   LUT3 #(
     .INIT(8'h1F)) 
     \current_period[31]_i_1 
-       (.I0(signal_present),
+       (.I0(sig_present_reg_0),
         .I1(timeout_cnt1),
         .I2(rst_n),
         .O(\current_period[31]_i_1_n_0 ));
-  LUT4 #(
-    .INIT(16'h9009)) 
-    \current_period[31]_i_10 
-       (.I0(timeout_cnt_reg[27]),
-        .I1(\timeout_limit_reg_n_0_[27] ),
-        .I2(timeout_cnt_reg[26]),
-        .I3(\timeout_limit_reg_n_0_[26] ),
-        .O(\current_period[31]_i_10_n_0 ));
-  LUT4 #(
-    .INIT(16'h9009)) 
-    \current_period[31]_i_11 
-       (.I0(timeout_cnt_reg[25]),
-        .I1(\timeout_limit_reg_n_0_[25] ),
-        .I2(timeout_cnt_reg[24]),
-        .I3(\timeout_limit_reg_n_0_[24] ),
-        .O(\current_period[31]_i_11_n_0 ));
-  LUT4 #(
-    .INIT(16'h22B2)) 
-    \current_period[31]_i_13 
-       (.I0(\timeout_limit_reg_n_0_[23] ),
-        .I1(timeout_cnt_reg[23]),
-        .I2(\timeout_limit_reg_n_0_[22] ),
-        .I3(timeout_cnt_reg[22]),
-        .O(\current_period[31]_i_13_n_0 ));
-  LUT4 #(
-    .INIT(16'h22B2)) 
-    \current_period[31]_i_14 
-       (.I0(\timeout_limit_reg_n_0_[21] ),
-        .I1(timeout_cnt_reg[21]),
-        .I2(\timeout_limit_reg_n_0_[20] ),
-        .I3(timeout_cnt_reg[20]),
-        .O(\current_period[31]_i_14_n_0 ));
-  LUT4 #(
-    .INIT(16'h22B2)) 
-    \current_period[31]_i_15 
-       (.I0(\timeout_limit_reg_n_0_[19] ),
-        .I1(timeout_cnt_reg[19]),
-        .I2(\timeout_limit_reg_n_0_[18] ),
-        .I3(timeout_cnt_reg[18]),
-        .O(\current_period[31]_i_15_n_0 ));
-  LUT4 #(
-    .INIT(16'h22B2)) 
-    \current_period[31]_i_16 
-       (.I0(\timeout_limit_reg_n_0_[17] ),
-        .I1(timeout_cnt_reg[17]),
-        .I2(\timeout_limit_reg_n_0_[16] ),
-        .I3(timeout_cnt_reg[16]),
-        .O(\current_period[31]_i_16_n_0 ));
-  LUT4 #(
-    .INIT(16'h9009)) 
-    \current_period[31]_i_17 
-       (.I0(timeout_cnt_reg[23]),
-        .I1(\timeout_limit_reg_n_0_[23] ),
-        .I2(timeout_cnt_reg[22]),
-        .I3(\timeout_limit_reg_n_0_[22] ),
-        .O(\current_period[31]_i_17_n_0 ));
-  LUT4 #(
-    .INIT(16'h9009)) 
-    \current_period[31]_i_18 
-       (.I0(timeout_cnt_reg[21]),
-        .I1(\timeout_limit_reg_n_0_[21] ),
-        .I2(timeout_cnt_reg[20]),
-        .I3(\timeout_limit_reg_n_0_[20] ),
-        .O(\current_period[31]_i_18_n_0 ));
-  LUT4 #(
-    .INIT(16'h9009)) 
-    \current_period[31]_i_19 
-       (.I0(timeout_cnt_reg[19]),
-        .I1(\timeout_limit_reg_n_0_[19] ),
-        .I2(timeout_cnt_reg[18]),
-        .I3(\timeout_limit_reg_n_0_[18] ),
-        .O(\current_period[31]_i_19_n_0 ));
-  LUT4 #(
-    .INIT(16'h9009)) 
-    \current_period[31]_i_20 
-       (.I0(timeout_cnt_reg[17]),
-        .I1(\timeout_limit_reg_n_0_[17] ),
-        .I2(timeout_cnt_reg[16]),
-        .I3(\timeout_limit_reg_n_0_[16] ),
-        .O(\current_period[31]_i_20_n_0 ));
-  LUT4 #(
-    .INIT(16'h22B2)) 
-    \current_period[31]_i_22 
-       (.I0(\timeout_limit_reg_n_0_[15] ),
-        .I1(timeout_cnt_reg[15]),
-        .I2(\timeout_limit_reg_n_0_[14] ),
-        .I3(timeout_cnt_reg[14]),
-        .O(\current_period[31]_i_22_n_0 ));
-  LUT4 #(
-    .INIT(16'h22B2)) 
-    \current_period[31]_i_23 
-       (.I0(\timeout_limit_reg_n_0_[13] ),
-        .I1(timeout_cnt_reg[13]),
-        .I2(\timeout_limit_reg_n_0_[12] ),
-        .I3(timeout_cnt_reg[12]),
-        .O(\current_period[31]_i_23_n_0 ));
-  LUT4 #(
-    .INIT(16'h22B2)) 
-    \current_period[31]_i_24 
-       (.I0(\timeout_limit_reg_n_0_[11] ),
-        .I1(timeout_cnt_reg[11]),
-        .I2(\timeout_limit_reg_n_0_[10] ),
-        .I3(timeout_cnt_reg[10]),
-        .O(\current_period[31]_i_24_n_0 ));
-  LUT4 #(
-    .INIT(16'h22B2)) 
-    \current_period[31]_i_25 
-       (.I0(\timeout_limit_reg_n_0_[9] ),
-        .I1(timeout_cnt_reg[9]),
-        .I2(\timeout_limit_reg_n_0_[8] ),
-        .I3(timeout_cnt_reg[8]),
-        .O(\current_period[31]_i_25_n_0 ));
-  LUT4 #(
-    .INIT(16'h9009)) 
-    \current_period[31]_i_26 
-       (.I0(timeout_cnt_reg[15]),
-        .I1(\timeout_limit_reg_n_0_[15] ),
-        .I2(timeout_cnt_reg[14]),
-        .I3(\timeout_limit_reg_n_0_[14] ),
-        .O(\current_period[31]_i_26_n_0 ));
-  LUT4 #(
-    .INIT(16'h9009)) 
-    \current_period[31]_i_27 
-       (.I0(timeout_cnt_reg[13]),
-        .I1(\timeout_limit_reg_n_0_[13] ),
-        .I2(timeout_cnt_reg[12]),
-        .I3(\timeout_limit_reg_n_0_[12] ),
-        .O(\current_period[31]_i_27_n_0 ));
-  LUT4 #(
-    .INIT(16'h9009)) 
-    \current_period[31]_i_28 
-       (.I0(timeout_cnt_reg[11]),
-        .I1(\timeout_limit_reg_n_0_[11] ),
-        .I2(timeout_cnt_reg[10]),
-        .I3(\timeout_limit_reg_n_0_[10] ),
-        .O(\current_period[31]_i_28_n_0 ));
-  LUT4 #(
-    .INIT(16'h9009)) 
-    \current_period[31]_i_29 
-       (.I0(timeout_cnt_reg[9]),
-        .I1(\timeout_limit_reg_n_0_[9] ),
-        .I2(timeout_cnt_reg[8]),
-        .I3(\timeout_limit_reg_n_0_[8] ),
-        .O(\current_period[31]_i_29_n_0 ));
-  LUT4 #(
-    .INIT(16'h22B2)) 
-    \current_period[31]_i_30 
-       (.I0(\timeout_limit_reg_n_0_[7] ),
-        .I1(timeout_cnt_reg[7]),
-        .I2(\timeout_limit_reg_n_0_[6] ),
-        .I3(timeout_cnt_reg[6]),
-        .O(\current_period[31]_i_30_n_0 ));
-  LUT4 #(
-    .INIT(16'h22B2)) 
-    \current_period[31]_i_31 
-       (.I0(\timeout_limit_reg_n_0_[5] ),
-        .I1(timeout_cnt_reg[5]),
-        .I2(\timeout_limit_reg_n_0_[4] ),
-        .I3(timeout_cnt_reg[4]),
-        .O(\current_period[31]_i_31_n_0 ));
-  LUT4 #(
-    .INIT(16'h22B2)) 
-    \current_period[31]_i_32 
-       (.I0(\timeout_limit_reg_n_0_[3] ),
-        .I1(timeout_cnt_reg[3]),
-        .I2(\timeout_limit_reg_n_0_[2] ),
-        .I3(timeout_cnt_reg[2]),
-        .O(\current_period[31]_i_32_n_0 ));
-  LUT4 #(
-    .INIT(16'h22B2)) 
-    \current_period[31]_i_33 
-       (.I0(\timeout_limit_reg_n_0_[1] ),
-        .I1(timeout_cnt_reg[1]),
-        .I2(\timeout_limit_reg_n_0_[0] ),
-        .I3(timeout_cnt_reg[0]),
-        .O(\current_period[31]_i_33_n_0 ));
-  LUT4 #(
-    .INIT(16'h9009)) 
-    \current_period[31]_i_34 
-       (.I0(timeout_cnt_reg[7]),
-        .I1(\timeout_limit_reg_n_0_[7] ),
-        .I2(timeout_cnt_reg[6]),
-        .I3(\timeout_limit_reg_n_0_[6] ),
-        .O(\current_period[31]_i_34_n_0 ));
-  LUT4 #(
-    .INIT(16'h9009)) 
-    \current_period[31]_i_35 
-       (.I0(timeout_cnt_reg[5]),
-        .I1(\timeout_limit_reg_n_0_[5] ),
-        .I2(timeout_cnt_reg[4]),
-        .I3(\timeout_limit_reg_n_0_[4] ),
-        .O(\current_period[31]_i_35_n_0 ));
-  LUT4 #(
-    .INIT(16'h9009)) 
-    \current_period[31]_i_36 
-       (.I0(timeout_cnt_reg[3]),
-        .I1(\timeout_limit_reg_n_0_[3] ),
-        .I2(timeout_cnt_reg[2]),
-        .I3(\timeout_limit_reg_n_0_[2] ),
-        .O(\current_period[31]_i_36_n_0 ));
-  LUT4 #(
-    .INIT(16'h9009)) 
-    \current_period[31]_i_37 
-       (.I0(timeout_cnt_reg[1]),
-        .I1(\timeout_limit_reg_n_0_[1] ),
-        .I2(timeout_cnt_reg[0]),
-        .I3(\timeout_limit_reg_n_0_[0] ),
-        .O(\current_period[31]_i_37_n_0 ));
-  LUT4 #(
-    .INIT(16'h22B2)) 
-    \current_period[31]_i_4 
-       (.I0(\timeout_limit_reg_n_0_[31] ),
-        .I1(timeout_cnt_reg[31]),
-        .I2(\timeout_limit_reg_n_0_[30] ),
-        .I3(timeout_cnt_reg[30]),
-        .O(\current_period[31]_i_4_n_0 ));
-  LUT4 #(
-    .INIT(16'h22B2)) 
-    \current_period[31]_i_5 
-       (.I0(\timeout_limit_reg_n_0_[29] ),
-        .I1(timeout_cnt_reg[29]),
-        .I2(\timeout_limit_reg_n_0_[28] ),
-        .I3(timeout_cnt_reg[28]),
-        .O(\current_period[31]_i_5_n_0 ));
-  LUT4 #(
-    .INIT(16'h22B2)) 
-    \current_period[31]_i_6 
-       (.I0(\timeout_limit_reg_n_0_[27] ),
-        .I1(timeout_cnt_reg[27]),
-        .I2(\timeout_limit_reg_n_0_[26] ),
-        .I3(timeout_cnt_reg[26]),
-        .O(\current_period[31]_i_6_n_0 ));
-  LUT4 #(
-    .INIT(16'h22B2)) 
-    \current_period[31]_i_7 
-       (.I0(\timeout_limit_reg_n_0_[25] ),
-        .I1(timeout_cnt_reg[25]),
-        .I2(\timeout_limit_reg_n_0_[24] ),
-        .I3(timeout_cnt_reg[24]),
-        .O(\current_period[31]_i_7_n_0 ));
-  LUT4 #(
-    .INIT(16'h9009)) 
-    \current_period[31]_i_8 
-       (.I0(timeout_cnt_reg[31]),
-        .I1(\timeout_limit_reg_n_0_[31] ),
-        .I2(timeout_cnt_reg[30]),
-        .I3(\timeout_limit_reg_n_0_[30] ),
-        .O(\current_period[31]_i_8_n_0 ));
-  LUT4 #(
-    .INIT(16'h9009)) 
-    \current_period[31]_i_9 
-       (.I0(timeout_cnt_reg[29]),
-        .I1(\timeout_limit_reg_n_0_[29] ),
-        .I2(timeout_cnt_reg[28]),
-        .I3(\timeout_limit_reg_n_0_[28] ),
-        .O(\current_period[31]_i_9_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[0] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[0]),
         .Q(tooth_period),
         .R(\current_period[31]_i_1_n_0 ));
@@ -20030,288 +20924,339 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \current_period_reg[10] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[10]),
-        .Q(Q[9]),
+        .Q(\current_period_reg[31]_0 [9]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[11] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[11]),
-        .Q(Q[10]),
+        .Q(\current_period_reg[31]_0 [10]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[12] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[12]),
-        .Q(Q[11]),
+        .Q(\current_period_reg[31]_0 [11]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[13] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[13]),
-        .Q(Q[12]),
+        .Q(\current_period_reg[31]_0 [12]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[14] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[14]),
-        .Q(Q[13]),
+        .Q(\current_period_reg[31]_0 [13]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[15] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[15]),
-        .Q(Q[14]),
+        .Q(\current_period_reg[31]_0 [14]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[16] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[16]),
-        .Q(Q[15]),
+        .Q(\current_period_reg[31]_0 [15]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[17] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[17]),
-        .Q(Q[16]),
+        .Q(\current_period_reg[31]_0 [16]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[18] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[18]),
-        .Q(Q[17]),
+        .Q(\current_period_reg[31]_0 [17]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[19] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[19]),
-        .Q(Q[18]),
+        .Q(\current_period_reg[31]_0 [18]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[1] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[1]),
-        .Q(Q[0]),
+        .Q(\current_period_reg[31]_0 [0]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[20] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[20]),
-        .Q(Q[19]),
+        .Q(\current_period_reg[31]_0 [19]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[21] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[21]),
-        .Q(Q[20]),
+        .Q(\current_period_reg[31]_0 [20]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[22] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[22]),
-        .Q(Q[21]),
+        .Q(\current_period_reg[31]_0 [21]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[23] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[23]),
-        .Q(Q[22]),
+        .Q(\current_period_reg[31]_0 [22]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[24] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[24]),
-        .Q(Q[23]),
+        .Q(\current_period_reg[31]_0 [23]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[25] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[25]),
-        .Q(Q[24]),
+        .Q(\current_period_reg[31]_0 [24]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[26] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[26]),
-        .Q(Q[25]),
+        .Q(\current_period_reg[31]_0 [25]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[27] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[27]),
-        .Q(Q[26]),
+        .Q(\current_period_reg[31]_0 [26]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[28] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[28]),
-        .Q(Q[27]),
+        .Q(\current_period_reg[31]_0 [27]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[29] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[29]),
-        .Q(Q[28]),
+        .Q(\current_period_reg[31]_0 [28]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[2] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[2]),
-        .Q(Q[1]),
+        .Q(\current_period_reg[31]_0 [1]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[30] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[30]),
-        .Q(Q[29]),
+        .Q(\current_period_reg[31]_0 [29]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[31] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[31]),
-        .Q(Q[30]),
+        .Q(\current_period_reg[31]_0 [30]),
         .R(\current_period[31]_i_1_n_0 ));
-  (* COMPARATOR_THRESHOLD = "11" *) 
-  CARRY4 \current_period_reg[31]_i_12 
-       (.CI(\current_period_reg[31]_i_21_n_0 ),
-        .CO({\current_period_reg[31]_i_12_n_0 ,\current_period_reg[31]_i_12_n_1 ,\current_period_reg[31]_i_12_n_2 ,\current_period_reg[31]_i_12_n_3 }),
-        .CYINIT(1'b0),
-        .DI({\current_period[31]_i_22_n_0 ,\current_period[31]_i_23_n_0 ,\current_period[31]_i_24_n_0 ,\current_period[31]_i_25_n_0 }),
-        .O(\NLW_current_period_reg[31]_i_12_O_UNCONNECTED [3:0]),
-        .S({\current_period[31]_i_26_n_0 ,\current_period[31]_i_27_n_0 ,\current_period[31]_i_28_n_0 ,\current_period[31]_i_29_n_0 }));
-  (* COMPARATOR_THRESHOLD = "11" *) 
-  CARRY4 \current_period_reg[31]_i_2 
-       (.CI(\current_period_reg[31]_i_3_n_0 ),
-        .CO({timeout_cnt1,\current_period_reg[31]_i_2_n_1 ,\current_period_reg[31]_i_2_n_2 ,\current_period_reg[31]_i_2_n_3 }),
-        .CYINIT(1'b0),
-        .DI({\current_period[31]_i_4_n_0 ,\current_period[31]_i_5_n_0 ,\current_period[31]_i_6_n_0 ,\current_period[31]_i_7_n_0 }),
-        .O(\NLW_current_period_reg[31]_i_2_O_UNCONNECTED [3:0]),
-        .S({\current_period[31]_i_8_n_0 ,\current_period[31]_i_9_n_0 ,\current_period[31]_i_10_n_0 ,\current_period[31]_i_11_n_0 }));
-  (* COMPARATOR_THRESHOLD = "11" *) 
-  CARRY4 \current_period_reg[31]_i_21 
-       (.CI(1'b0),
-        .CO({\current_period_reg[31]_i_21_n_0 ,\current_period_reg[31]_i_21_n_1 ,\current_period_reg[31]_i_21_n_2 ,\current_period_reg[31]_i_21_n_3 }),
-        .CYINIT(1'b0),
-        .DI({\current_period[31]_i_30_n_0 ,\current_period[31]_i_31_n_0 ,\current_period[31]_i_32_n_0 ,\current_period[31]_i_33_n_0 }),
-        .O(\NLW_current_period_reg[31]_i_21_O_UNCONNECTED [3:0]),
-        .S({\current_period[31]_i_34_n_0 ,\current_period[31]_i_35_n_0 ,\current_period[31]_i_36_n_0 ,\current_period[31]_i_37_n_0 }));
-  (* COMPARATOR_THRESHOLD = "11" *) 
-  CARRY4 \current_period_reg[31]_i_3 
-       (.CI(\current_period_reg[31]_i_12_n_0 ),
-        .CO({\current_period_reg[31]_i_3_n_0 ,\current_period_reg[31]_i_3_n_1 ,\current_period_reg[31]_i_3_n_2 ,\current_period_reg[31]_i_3_n_3 }),
-        .CYINIT(1'b0),
-        .DI({\current_period[31]_i_13_n_0 ,\current_period[31]_i_14_n_0 ,\current_period[31]_i_15_n_0 ,\current_period[31]_i_16_n_0 }),
-        .O(\NLW_current_period_reg[31]_i_3_O_UNCONNECTED [3:0]),
-        .S({\current_period[31]_i_17_n_0 ,\current_period[31]_i_18_n_0 ,\current_period[31]_i_19_n_0 ,\current_period[31]_i_20_n_0 }));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[3] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[3]),
-        .Q(Q[2]),
+        .Q(\current_period_reg[31]_0 [2]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[4] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[4]),
-        .Q(Q[3]),
+        .Q(\current_period_reg[31]_0 [3]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[5] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[5]),
-        .Q(Q[4]),
+        .Q(\current_period_reg[31]_0 [4]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[6] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[6]),
-        .Q(Q[5]),
+        .Q(\current_period_reg[31]_0 [5]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[7] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[7]),
-        .Q(Q[6]),
+        .Q(\current_period_reg[31]_0 [6]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[8] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[8]),
-        .Q(Q[7]),
+        .Q(\current_period_reg[31]_0 [7]),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \current_period_reg[9] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(period_cnt_reg__14[9]),
-        .Q(Q[8]),
+        .Q(\current_period_reg[31]_0 [8]),
         .R(\current_period[31]_i_1_n_0 ));
+  LUT3 #(
+    .INIT(8'h40)) 
+    \debug_out[9]_INST_0_i_1 
+       (.I0(zero_divide),
+        .I1(\gen_vld_en.valid_en_reg_0 ),
+        .I2(ab_edge),
+        .O(div_start));
+  LUT4 #(
+    .INIT(16'hFFFE)) 
+    \debug_out[9]_INST_0_i_10 
+       (.I0(\current_period_reg[31]_0 [10]),
+        .I1(\current_period_reg[31]_0 [7]),
+        .I2(\current_period_reg[31]_0 [8]),
+        .I3(\current_period_reg[31]_0 [9]),
+        .O(\debug_out[9]_INST_0_i_10_n_0 ));
+  LUT4 #(
+    .INIT(16'h0004)) 
+    \debug_out[9]_INST_0_i_2 
+       (.I0(\debug_out[9]_INST_0_i_3_n_0 ),
+        .I1(\debug_out[9]_INST_0_i_4_n_0 ),
+        .I2(\debug_out[9]_INST_0_i_5_n_0 ),
+        .I3(\debug_out[9]_INST_0_i_6_n_0 ),
+        .O(zero_divide));
+  LUT5 #(
+    .INIT(32'hFFFFFFFE)) 
+    \debug_out[9]_INST_0_i_3 
+       (.I0(\current_period_reg[31]_0 [1]),
+        .I1(\current_period_reg[31]_0 [2]),
+        .I2(\current_period_reg[31]_0 [4]),
+        .I3(\current_period_reg[31]_0 [3]),
+        .I4(\debug_out[9]_INST_0_i_7_n_0 ),
+        .O(\debug_out[9]_INST_0_i_3_n_0 ));
+  LUT5 #(
+    .INIT(32'h00000001)) 
+    \debug_out[9]_INST_0_i_4 
+       (.I0(\current_period_reg[31]_0 [24]),
+        .I1(\current_period_reg[31]_0 [23]),
+        .I2(\current_period_reg[31]_0 [25]),
+        .I3(\current_period_reg[31]_0 [29]),
+        .I4(\debug_out[9]_INST_0_i_8_n_0 ),
+        .O(\debug_out[9]_INST_0_i_4_n_0 ));
+  LUT5 #(
+    .INIT(32'hFFFFFFFE)) 
+    \debug_out[9]_INST_0_i_5 
+       (.I0(\current_period_reg[31]_0 [0]),
+        .I1(tooth_period),
+        .I2(\current_period_reg[31]_0 [6]),
+        .I3(\current_period_reg[31]_0 [15]),
+        .I4(\debug_out[9]_INST_0_i_9_n_0 ),
+        .O(\debug_out[9]_INST_0_i_5_n_0 ));
+  LUT5 #(
+    .INIT(32'hFFFFFFFE)) 
+    \debug_out[9]_INST_0_i_6 
+       (.I0(\current_period_reg[31]_0 [11]),
+        .I1(\current_period_reg[31]_0 [14]),
+        .I2(\current_period_reg[31]_0 [13]),
+        .I3(\current_period_reg[31]_0 [12]),
+        .I4(\debug_out[9]_INST_0_i_10_n_0 ),
+        .O(\debug_out[9]_INST_0_i_6_n_0 ));
+  LUT4 #(
+    .INIT(16'hFFFE)) 
+    \debug_out[9]_INST_0_i_7 
+       (.I0(\current_period_reg[31]_0 [20]),
+        .I1(\current_period_reg[31]_0 [22]),
+        .I2(\current_period_reg[31]_0 [17]),
+        .I3(\current_period_reg[31]_0 [19]),
+        .O(\debug_out[9]_INST_0_i_7_n_0 ));
+  LUT4 #(
+    .INIT(16'hFFFE)) 
+    \debug_out[9]_INST_0_i_8 
+       (.I0(\current_period_reg[31]_0 [30]),
+        .I1(\current_period_reg[31]_0 [28]),
+        .I2(\current_period_reg[31]_0 [26]),
+        .I3(\current_period_reg[31]_0 [27]),
+        .O(\debug_out[9]_INST_0_i_8_n_0 ));
+  LUT4 #(
+    .INIT(16'hFFFE)) 
+    \debug_out[9]_INST_0_i_9 
+       (.I0(\current_period_reg[31]_0 [21]),
+        .I1(\current_period_reg[31]_0 [5]),
+        .I2(\current_period_reg[31]_0 [18]),
+        .I3(\current_period_reg[31]_0 [16]),
+        .O(\debug_out[9]_INST_0_i_9_n_0 ));
   LUT1 #(
     .INIT(2'h1)) 
     \dividend_op[3]_i_2 
        (.I0(div_start),
         .O(\state_reg[1] ));
-  (* SOFT_HLUTNM = "soft_lutpair43" *) 
+  (* SOFT_HLUTNM = "soft_lutpair49" *) 
   LUT4 #(
     .INIT(16'hB888)) 
     \divisor_op[0]_i_1 
@@ -20321,18 +21266,11 @@ module pynq_z2_top_0_0_crank_input
         .I3(\divisor_op_reg[0] ),
         .O(\current_period_reg[0]_0 ));
   LUT3 #(
-    .INIT(8'h40)) 
-    \divisor_op[32]_i_3 
-       (.I0(zero_divide),
-        .I1(sync_state),
-        .I2(ab_edge),
-        .O(div_start));
-  LUT3 #(
     .INIT(8'h24)) 
     edge_pulse
        (.I0(edge_pulse_reg_0),
         .I1(clean_prev),
-        .I2(crank_clean),
+        .I2(clean_prev_reg_0),
         .O(edge_pulse_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -20340,13 +21278,13 @@ module pynq_z2_top_0_0_crank_input
        (.C(clk),
         .CE(1'b1),
         .D(edge_pulse_n_0),
-        .Q(edge_pulse__0),
+        .Q(edge_pulse_out),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
     edge_seen_reg
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(1'b1),
         .Q(edge_seen),
         .R(\current_period[31]_i_1_n_0 ));
@@ -20412,7 +21350,7 @@ module pynq_z2_top_0_0_crank_input
         .D(plusOp[0]),
         .Q(gap_det1__15_n_0),
         .R(gap_det1_i_1_n_0));
-  (* SOFT_HLUTNM = "soft_lutpair47" *) 
+  (* SOFT_HLUTNM = "soft_lutpair53" *) 
   LUT1 #(
     .INIT(2'h1)) 
     gap_det1__15_i_1
@@ -20460,7 +21398,7 @@ module pynq_z2_top_0_0_crank_input
         .CARRYINSEL({1'b0,1'b0,1'b0}),
         .CARRYOUT(NLW_gap_det1__16_CARRYOUT_UNCONNECTED[3:0]),
         .CEA1(1'b0),
-        .CEA2(edge_pulse__0),
+        .CEA2(edge_pulse_out),
         .CEAD(1'b0),
         .CEALUMODE(1'b0),
         .CEB1(1'b0),
@@ -20537,7 +21475,7 @@ module pynq_z2_top_0_0_crank_input
         .CARRYINSEL({1'b0,1'b0,1'b0}),
         .CARRYOUT(NLW_gap_det1__17_CARRYOUT_UNCONNECTED[3:0]),
         .CEA1(1'b0),
-        .CEA2(edge_pulse__0),
+        .CEA2(edge_pulse_out),
         .CEAD(1'b0),
         .CEALUMODE(1'b0),
         .CEB1(1'b0),
@@ -20641,8 +21579,8 @@ module pynq_z2_top_0_0_crank_input
     gap_det1_i_1
        (.I0(rst_n),
         .I1(timeout_cnt1),
-        .I2(signal_present),
-        .I3(edge_pulse__0),
+        .I2(sig_present_reg_0),
+        .I3(edge_pulse_out),
         .O(gap_det1_i_1_n_0));
   LUT6 #(
     .INIT(64'hFFFFFFFFFFFFFFFE)) 
@@ -20702,7 +21640,7 @@ module pynq_z2_top_0_0_crank_input
         .I4(period_cnt_reg__14[21]),
         .I5(period_cnt_reg__14[20]),
         .O(gap_det1_i_7_n_0));
-  (* SOFT_HLUTNM = "soft_lutpair47" *) 
+  (* SOFT_HLUTNM = "soft_lutpair53" *) 
   LUT2 #(
     .INIT(4'h7)) 
     gap_det1_i_8
@@ -20719,7 +21657,7 @@ module pynq_z2_top_0_0_crank_input
         .I4(period_cnt_reg__14[3]),
         .I5(period_cnt_reg__14[2]),
         .O(gap_det1_i_9_n_0));
-  (* SOFT_HLUTNM = "soft_lutpair44" *) 
+  (* SOFT_HLUTNM = "soft_lutpair50" *) 
   LUT4 #(
     .INIT(16'h4000)) 
     gap_det_i_1
@@ -21000,7 +21938,7 @@ module pynq_z2_top_0_0_crank_input
     gap_det_prev_reg
        (.C(clk),
         .CE(1'b1),
-        .D(gap_det_reg_n_0),
+        .D(gap_det_reg_0),
         .Q(gap_det_prev),
         .R(rst));
   FDRE #(
@@ -21009,7 +21947,7 @@ module pynq_z2_top_0_0_crank_input
        (.C(clk),
         .CE(1'b1),
         .D(gap_det_i_1_n_0),
-        .Q(gap_det_reg_n_0),
+        .Q(gap_det_reg_0),
         .R(1'b0));
   (* COMPARATOR_THRESHOLD = "11" *) 
   CARRY4 gap_det_reg_i_15
@@ -21051,7 +21989,270 @@ module pynq_z2_top_0_0_crank_input
         .DI({gap_det_i_16_n_0,gap_det_i_17_n_0,gap_det_i_18_n_0,gap_det_i_19_n_0}),
         .O(NLW_gap_det_reg_i_6_O_UNCONNECTED[3:0]),
         .S({gap_det_i_20_n_0,gap_det_i_21_n_0,gap_det_i_22_n_0,gap_det_i_23_n_0}));
-  (* SOFT_HLUTNM = "soft_lutpair43" *) 
+  LUT3 #(
+    .INIT(8'h40)) 
+    \gap_period_int[31]_i_1 
+       (.I0(gap_det_prev),
+        .I1(rst_n),
+        .I2(gap_det_reg_0),
+        .O(gap_period_int));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[0] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[0]),
+        .Q(gap_period[0]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[10] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[10]),
+        .Q(Q[6]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[11] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[11]),
+        .Q(Q[7]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[12] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[12]),
+        .Q(Q[8]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[13] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[13]),
+        .Q(Q[9]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[14] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[14]),
+        .Q(Q[10]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[15] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[15]),
+        .Q(Q[11]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[16] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[16]),
+        .Q(Q[12]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[17] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[17]),
+        .Q(Q[13]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[18] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[18]),
+        .Q(Q[14]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[19] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[19]),
+        .Q(Q[15]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[1] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[1]),
+        .Q(gap_period[1]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[20] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[20]),
+        .Q(Q[16]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[21] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[21]),
+        .Q(Q[17]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[22] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[22]),
+        .Q(Q[18]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[23] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[23]),
+        .Q(Q[19]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[24] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[24]),
+        .Q(Q[20]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[25] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[25]),
+        .Q(Q[21]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[26] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[26]),
+        .Q(Q[22]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[27] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[27]),
+        .Q(Q[23]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[28] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[28]),
+        .Q(Q[24]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[29] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[29]),
+        .Q(Q[25]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[2] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[2]),
+        .Q(gap_period[2]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[30] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[30]),
+        .Q(Q[26]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[31] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[31]),
+        .Q(Q[27]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[3] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[3]),
+        .Q(gap_period[3]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[4] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[4]),
+        .Q(Q[0]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[5] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[5]),
+        .Q(Q[1]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[6] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[6]),
+        .Q(Q[2]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[7] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[7]),
+        .Q(Q[3]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[8] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[8]),
+        .Q(Q[4]),
+        .R(1'b0));
+  FDRE #(
+    .INIT(1'b0)) 
+    \gap_period_int_reg[9] 
+       (.C(clk),
+        .CE(gap_period_int),
+        .D(period_cnt_reg__14[9]),
+        .Q(Q[5]),
+        .R(1'b0));
+  (* SOFT_HLUTNM = "soft_lutpair49" *) 
   LUT2 #(
     .INIT(4'hE)) 
     \gen_vld_en.valid_en_i_1 
@@ -21226,7 +22427,7 @@ module pynq_z2_top_0_0_crank_input
         .I2(interp_timer_reg[8]),
         .I3(minusOp[8]),
         .O(\interp_cnt[2]_i_29_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair44" *) 
+  (* SOFT_HLUTNM = "soft_lutpair50" *) 
   LUT2 #(
     .INIT(4'hB)) 
     \interp_cnt[2]_i_3 
@@ -21648,7 +22849,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(64'h0000000000000008)) 
     \interp_period[31]_i_1 
        (.I0(period_valid_reg_n_0),
-        .I1(edge_pulse__0),
+        .I1(edge_pulse_out),
         .I2(interp_active_reg_n_0),
         .I3(\tooth_cnt_reg_n_0_[1] ),
         .I4(\tooth_cnt_reg_n_0_[0] ),
@@ -21677,7 +22878,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[10] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[9]),
+        .D(\current_period_reg[31]_0 [9]),
         .Q(interp_period[10]),
         .R(rst));
   FDRE #(
@@ -21685,7 +22886,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[11] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[10]),
+        .D(\current_period_reg[31]_0 [10]),
         .Q(interp_period[11]),
         .R(rst));
   FDRE #(
@@ -21693,7 +22894,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[12] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[11]),
+        .D(\current_period_reg[31]_0 [11]),
         .Q(interp_period[12]),
         .R(rst));
   FDRE #(
@@ -21701,7 +22902,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[13] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[12]),
+        .D(\current_period_reg[31]_0 [12]),
         .Q(interp_period[13]),
         .R(rst));
   FDRE #(
@@ -21709,7 +22910,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[14] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[13]),
+        .D(\current_period_reg[31]_0 [13]),
         .Q(interp_period[14]),
         .R(rst));
   FDRE #(
@@ -21717,7 +22918,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[15] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[14]),
+        .D(\current_period_reg[31]_0 [14]),
         .Q(interp_period[15]),
         .R(rst));
   FDRE #(
@@ -21725,7 +22926,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[16] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[15]),
+        .D(\current_period_reg[31]_0 [15]),
         .Q(interp_period[16]),
         .R(rst));
   FDRE #(
@@ -21733,7 +22934,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[17] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[16]),
+        .D(\current_period_reg[31]_0 [16]),
         .Q(interp_period[17]),
         .R(rst));
   FDRE #(
@@ -21741,7 +22942,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[18] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[17]),
+        .D(\current_period_reg[31]_0 [17]),
         .Q(interp_period[18]),
         .R(rst));
   FDRE #(
@@ -21749,7 +22950,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[19] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[18]),
+        .D(\current_period_reg[31]_0 [18]),
         .Q(interp_period[19]),
         .R(rst));
   FDRE #(
@@ -21757,7 +22958,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[1] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[0]),
+        .D(\current_period_reg[31]_0 [0]),
         .Q(interp_period[1]),
         .R(rst));
   FDRE #(
@@ -21765,7 +22966,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[20] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[19]),
+        .D(\current_period_reg[31]_0 [19]),
         .Q(interp_period[20]),
         .R(rst));
   FDRE #(
@@ -21773,7 +22974,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[21] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[20]),
+        .D(\current_period_reg[31]_0 [20]),
         .Q(interp_period[21]),
         .R(rst));
   FDRE #(
@@ -21781,7 +22982,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[22] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[21]),
+        .D(\current_period_reg[31]_0 [21]),
         .Q(interp_period[22]),
         .R(rst));
   FDRE #(
@@ -21789,7 +22990,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[23] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[22]),
+        .D(\current_period_reg[31]_0 [22]),
         .Q(interp_period[23]),
         .R(rst));
   FDRE #(
@@ -21797,7 +22998,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[24] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[23]),
+        .D(\current_period_reg[31]_0 [23]),
         .Q(interp_period[24]),
         .R(rst));
   FDRE #(
@@ -21805,7 +23006,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[25] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[24]),
+        .D(\current_period_reg[31]_0 [24]),
         .Q(interp_period[25]),
         .R(rst));
   FDRE #(
@@ -21813,7 +23014,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[26] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[25]),
+        .D(\current_period_reg[31]_0 [25]),
         .Q(interp_period[26]),
         .R(rst));
   FDRE #(
@@ -21821,7 +23022,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[27] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[26]),
+        .D(\current_period_reg[31]_0 [26]),
         .Q(interp_period[27]),
         .R(rst));
   FDRE #(
@@ -21829,7 +23030,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[28] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[27]),
+        .D(\current_period_reg[31]_0 [27]),
         .Q(interp_period[28]),
         .R(rst));
   FDRE #(
@@ -21837,7 +23038,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[29] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[28]),
+        .D(\current_period_reg[31]_0 [28]),
         .Q(interp_period[29]),
         .R(rst));
   FDRE #(
@@ -21845,7 +23046,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[2] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[1]),
+        .D(\current_period_reg[31]_0 [1]),
         .Q(interp_period[2]),
         .R(rst));
   FDRE #(
@@ -21853,7 +23054,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[30] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[29]),
+        .D(\current_period_reg[31]_0 [29]),
         .Q(interp_period[30]),
         .R(rst));
   FDRE #(
@@ -21861,7 +23062,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[31] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[30]),
+        .D(\current_period_reg[31]_0 [30]),
         .Q(interp_period[31]),
         .R(rst));
   FDRE #(
@@ -21869,7 +23070,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[3] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[2]),
+        .D(\current_period_reg[31]_0 [2]),
         .Q(interp_period[3]),
         .R(rst));
   FDRE #(
@@ -21877,7 +23078,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[4] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[3]),
+        .D(\current_period_reg[31]_0 [3]),
         .Q(interp_period[4]),
         .R(rst));
   FDRE #(
@@ -21885,7 +23086,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[5] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[4]),
+        .D(\current_period_reg[31]_0 [4]),
         .Q(interp_period[5]),
         .R(rst));
   FDRE #(
@@ -21893,7 +23094,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[6] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[5]),
+        .D(\current_period_reg[31]_0 [5]),
         .Q(interp_period[6]),
         .R(rst));
   FDRE #(
@@ -21901,7 +23102,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[7] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[6]),
+        .D(\current_period_reg[31]_0 [6]),
         .Q(interp_period[7]),
         .R(rst));
   FDRE #(
@@ -21909,7 +23110,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[8] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[7]),
+        .D(\current_period_reg[31]_0 [7]),
         .Q(interp_period[8]),
         .R(rst));
   FDRE #(
@@ -21917,7 +23118,7 @@ module pynq_z2_top_0_0_crank_input
     \interp_period_reg[9] 
        (.C(clk),
         .CE(interp_active0),
-        .D(Q[8]),
+        .D(\current_period_reg[31]_0 [8]),
         .Q(interp_period[9]),
         .R(rst));
   LUT2 #(
@@ -22271,7 +23472,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \last_period_reg[0] 
        (.C(clk),
-        .CE(edge_pulse__0),
+        .CE(edge_pulse_out),
         .D(tooth_period),
         .Q(\last_period_reg_n_0_[0] ),
         .R(\current_period[31]_i_1_n_0 ));
@@ -22279,257 +23480,257 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \last_period_reg[10] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[9]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [9]),
         .Q(\last_period_reg_n_0_[10] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[11] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[10]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [10]),
         .Q(\last_period_reg_n_0_[11] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[12] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[11]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [11]),
         .Q(\last_period_reg_n_0_[12] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[13] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[12]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [12]),
         .Q(\last_period_reg_n_0_[13] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[14] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[13]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [13]),
         .Q(\last_period_reg_n_0_[14] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[15] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[14]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [14]),
         .Q(\last_period_reg_n_0_[15] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[16] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[15]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [15]),
         .Q(\last_period_reg_n_0_[16] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[17] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[16]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [16]),
         .Q(\last_period_reg_n_0_[17] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[18] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[17]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [17]),
         .Q(\last_period_reg_n_0_[18] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[19] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[18]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [18]),
         .Q(\last_period_reg_n_0_[19] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[1] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[0]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [0]),
         .Q(\last_period_reg_n_0_[1] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[20] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[19]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [19]),
         .Q(\last_period_reg_n_0_[20] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[21] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[20]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [20]),
         .Q(\last_period_reg_n_0_[21] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[22] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[21]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [21]),
         .Q(\last_period_reg_n_0_[22] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[23] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[22]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [22]),
         .Q(\last_period_reg_n_0_[23] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[24] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[23]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [23]),
         .Q(\last_period_reg_n_0_[24] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[25] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[24]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [24]),
         .Q(\last_period_reg_n_0_[25] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[26] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[25]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [25]),
         .Q(\last_period_reg_n_0_[26] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[27] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[26]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [26]),
         .Q(\last_period_reg_n_0_[27] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[28] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[27]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [27]),
         .Q(\last_period_reg_n_0_[28] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[29] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[28]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [28]),
         .Q(\last_period_reg_n_0_[29] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[2] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[1]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [1]),
         .Q(\last_period_reg_n_0_[2] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[30] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[29]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [29]),
         .Q(\last_period_reg_n_0_[30] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[31] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[30]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [30]),
         .Q(\last_period_reg_n_0_[31] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[3] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[2]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [2]),
         .Q(\last_period_reg_n_0_[3] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[4] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[3]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [3]),
         .Q(\last_period_reg_n_0_[4] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[5] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[4]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [4]),
         .Q(\last_period_reg_n_0_[5] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[6] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[5]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [5]),
         .Q(\last_period_reg_n_0_[6] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[7] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[6]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [6]),
         .Q(\last_period_reg_n_0_[7] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[8] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[7]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [7]),
         .Q(\last_period_reg_n_0_[8] ),
         .R(\current_period[31]_i_1_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \last_period_reg[9] 
        (.C(clk),
-        .CE(edge_pulse__0),
-        .D(Q[8]),
+        .CE(edge_pulse_out),
+        .D(\current_period_reg[31]_0 [8]),
         .Q(\last_period_reg_n_0_[9] ),
         .R(\current_period[31]_i_1_n_0 ));
   LUT6 #(
     .INIT(64'hAEFFFFFFA2000000)) 
     locked_offset_i_1
        (.I0(sync_offset),
-        .I1(z),
+        .I1(z_int_reg_0),
         .I2(z_prev),
-        .I3(signal_present),
+        .I3(sig_present_reg_0),
         .I4(state0),
         .I5(locked_offset_reg),
         .O(sync_offset_r_reg));
@@ -22993,32 +24194,32 @@ module pynq_z2_top_0_0_crank_input
   LUT6 #(
     .INIT(64'hFFFF0000FFFE0000)) 
     period_valid_i_2
-       (.I0(Q[1]),
-        .I1(Q[4]),
-        .I2(Q[5]),
-        .I3(Q[3]),
-        .I4(edge_pulse__0),
-        .I5(Q[2]),
+       (.I0(\current_period_reg[31]_0 [1]),
+        .I1(\current_period_reg[31]_0 [4]),
+        .I2(\current_period_reg[31]_0 [5]),
+        .I3(\current_period_reg[31]_0 [3]),
+        .I4(edge_pulse_out),
+        .I5(\current_period_reg[31]_0 [2]),
         .O(period_valid_i_2_n_0));
   LUT6 #(
     .INIT(64'hFFFF0000FFFE0000)) 
     period_valid_i_3
-       (.I0(Q[6]),
-        .I1(Q[9]),
-        .I2(Q[10]),
-        .I3(Q[8]),
-        .I4(edge_pulse__0),
-        .I5(Q[7]),
+       (.I0(\current_period_reg[31]_0 [6]),
+        .I1(\current_period_reg[31]_0 [9]),
+        .I2(\current_period_reg[31]_0 [10]),
+        .I3(\current_period_reg[31]_0 [8]),
+        .I4(edge_pulse_out),
+        .I5(\current_period_reg[31]_0 [7]),
         .O(period_valid_i_3_n_0));
   LUT6 #(
     .INIT(64'hFFFF0000FFFE0000)) 
     period_valid_i_4
-       (.I0(Q[11]),
-        .I1(Q[14]),
-        .I2(Q[15]),
-        .I3(Q[13]),
-        .I4(edge_pulse__0),
-        .I5(Q[12]),
+       (.I0(\current_period_reg[31]_0 [11]),
+        .I1(\current_period_reg[31]_0 [14]),
+        .I2(\current_period_reg[31]_0 [15]),
+        .I3(\current_period_reg[31]_0 [13]),
+        .I4(edge_pulse_out),
+        .I5(\current_period_reg[31]_0 [12]),
         .O(period_valid_i_4_n_0));
   LUT6 #(
     .INIT(64'hFFFFFFFEFFFCFFFC)) 
@@ -23027,38 +24228,38 @@ module pynq_z2_top_0_0_crank_input
         .I1(period_valid_i_6_n_0),
         .I2(period_valid_i_7_n_0),
         .I3(period_valid_i_8_n_0),
-        .I4(Q[0]),
-        .I5(edge_pulse__0),
+        .I4(\current_period_reg[31]_0 [0]),
+        .I5(edge_pulse_out),
         .O(period_valid_i_5_n_0));
   LUT6 #(
     .INIT(64'hFFFF0000FFFE0000)) 
     period_valid_i_6
-       (.I0(Q[21]),
-        .I1(Q[24]),
-        .I2(Q[25]),
-        .I3(Q[23]),
-        .I4(edge_pulse__0),
-        .I5(Q[22]),
+       (.I0(\current_period_reg[31]_0 [21]),
+        .I1(\current_period_reg[31]_0 [24]),
+        .I2(\current_period_reg[31]_0 [25]),
+        .I3(\current_period_reg[31]_0 [23]),
+        .I4(edge_pulse_out),
+        .I5(\current_period_reg[31]_0 [22]),
         .O(period_valid_i_6_n_0));
   LUT6 #(
     .INIT(64'hFFFF0000FFFE0000)) 
     period_valid_i_7
-       (.I0(Q[26]),
-        .I1(Q[29]),
-        .I2(Q[30]),
-        .I3(Q[28]),
-        .I4(edge_pulse__0),
-        .I5(Q[27]),
+       (.I0(\current_period_reg[31]_0 [26]),
+        .I1(\current_period_reg[31]_0 [29]),
+        .I2(\current_period_reg[31]_0 [30]),
+        .I3(\current_period_reg[31]_0 [28]),
+        .I4(edge_pulse_out),
+        .I5(\current_period_reg[31]_0 [27]),
         .O(period_valid_i_7_n_0));
   LUT6 #(
     .INIT(64'hFFFF0000FFFE0000)) 
     period_valid_i_8
-       (.I0(Q[16]),
-        .I1(Q[19]),
-        .I2(Q[20]),
-        .I3(Q[18]),
-        .I4(edge_pulse__0),
-        .I5(Q[17]),
+       (.I0(\current_period_reg[31]_0 [16]),
+        .I1(\current_period_reg[31]_0 [19]),
+        .I2(\current_period_reg[31]_0 [20]),
+        .I3(\current_period_reg[31]_0 [18]),
+        .I4(edge_pulse_out),
+        .I5(\current_period_reg[31]_0 [17]),
         .O(period_valid_i_8_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -23068,27 +24269,315 @@ module pynq_z2_top_0_0_crank_input
         .D(period_valid_i_1_n_0),
         .Q(period_valid_reg_n_0),
         .R(1'b0));
-  (* SOFT_HLUTNM = "soft_lutpair46" *) 
+  (* SOFT_HLUTNM = "soft_lutpair52" *) 
   LUT3 #(
     .INIT(8'hEA)) 
     sig_present_i_1
-       (.I0(edge_pulse__0),
+       (.I0(edge_pulse_out),
         .I1(timeout_cnt1),
-        .I2(signal_present),
+        .I2(sig_present_reg_0),
         .O(sig_present_i_1_n_0));
+  LUT4 #(
+    .INIT(16'h9009)) 
+    sig_present_i_10
+       (.I0(timeout_cnt_reg[27]),
+        .I1(\timeout_limit_reg_n_0_[27] ),
+        .I2(timeout_cnt_reg[26]),
+        .I3(\timeout_limit_reg_n_0_[26] ),
+        .O(sig_present_i_10_n_0));
+  LUT4 #(
+    .INIT(16'h9009)) 
+    sig_present_i_11
+       (.I0(timeout_cnt_reg[25]),
+        .I1(\timeout_limit_reg_n_0_[25] ),
+        .I2(timeout_cnt_reg[24]),
+        .I3(\timeout_limit_reg_n_0_[24] ),
+        .O(sig_present_i_11_n_0));
+  LUT4 #(
+    .INIT(16'h22B2)) 
+    sig_present_i_13
+       (.I0(\timeout_limit_reg_n_0_[23] ),
+        .I1(timeout_cnt_reg[23]),
+        .I2(\timeout_limit_reg_n_0_[22] ),
+        .I3(timeout_cnt_reg[22]),
+        .O(sig_present_i_13_n_0));
+  LUT4 #(
+    .INIT(16'h22B2)) 
+    sig_present_i_14
+       (.I0(\timeout_limit_reg_n_0_[21] ),
+        .I1(timeout_cnt_reg[21]),
+        .I2(\timeout_limit_reg_n_0_[20] ),
+        .I3(timeout_cnt_reg[20]),
+        .O(sig_present_i_14_n_0));
+  LUT4 #(
+    .INIT(16'h22B2)) 
+    sig_present_i_15
+       (.I0(\timeout_limit_reg_n_0_[19] ),
+        .I1(timeout_cnt_reg[19]),
+        .I2(\timeout_limit_reg_n_0_[18] ),
+        .I3(timeout_cnt_reg[18]),
+        .O(sig_present_i_15_n_0));
+  LUT4 #(
+    .INIT(16'h22B2)) 
+    sig_present_i_16
+       (.I0(\timeout_limit_reg_n_0_[17] ),
+        .I1(timeout_cnt_reg[17]),
+        .I2(\timeout_limit_reg_n_0_[16] ),
+        .I3(timeout_cnt_reg[16]),
+        .O(sig_present_i_16_n_0));
+  LUT4 #(
+    .INIT(16'h9009)) 
+    sig_present_i_17
+       (.I0(timeout_cnt_reg[23]),
+        .I1(\timeout_limit_reg_n_0_[23] ),
+        .I2(timeout_cnt_reg[22]),
+        .I3(\timeout_limit_reg_n_0_[22] ),
+        .O(sig_present_i_17_n_0));
+  LUT4 #(
+    .INIT(16'h9009)) 
+    sig_present_i_18
+       (.I0(timeout_cnt_reg[21]),
+        .I1(\timeout_limit_reg_n_0_[21] ),
+        .I2(timeout_cnt_reg[20]),
+        .I3(\timeout_limit_reg_n_0_[20] ),
+        .O(sig_present_i_18_n_0));
+  LUT4 #(
+    .INIT(16'h9009)) 
+    sig_present_i_19
+       (.I0(timeout_cnt_reg[19]),
+        .I1(\timeout_limit_reg_n_0_[19] ),
+        .I2(timeout_cnt_reg[18]),
+        .I3(\timeout_limit_reg_n_0_[18] ),
+        .O(sig_present_i_19_n_0));
+  LUT4 #(
+    .INIT(16'h9009)) 
+    sig_present_i_20
+       (.I0(timeout_cnt_reg[17]),
+        .I1(\timeout_limit_reg_n_0_[17] ),
+        .I2(timeout_cnt_reg[16]),
+        .I3(\timeout_limit_reg_n_0_[16] ),
+        .O(sig_present_i_20_n_0));
+  LUT4 #(
+    .INIT(16'h22B2)) 
+    sig_present_i_22
+       (.I0(\timeout_limit_reg_n_0_[15] ),
+        .I1(timeout_cnt_reg[15]),
+        .I2(\timeout_limit_reg_n_0_[14] ),
+        .I3(timeout_cnt_reg[14]),
+        .O(sig_present_i_22_n_0));
+  LUT4 #(
+    .INIT(16'h22B2)) 
+    sig_present_i_23
+       (.I0(\timeout_limit_reg_n_0_[13] ),
+        .I1(timeout_cnt_reg[13]),
+        .I2(\timeout_limit_reg_n_0_[12] ),
+        .I3(timeout_cnt_reg[12]),
+        .O(sig_present_i_23_n_0));
+  LUT4 #(
+    .INIT(16'h22B2)) 
+    sig_present_i_24
+       (.I0(\timeout_limit_reg_n_0_[11] ),
+        .I1(timeout_cnt_reg[11]),
+        .I2(\timeout_limit_reg_n_0_[10] ),
+        .I3(timeout_cnt_reg[10]),
+        .O(sig_present_i_24_n_0));
+  LUT4 #(
+    .INIT(16'h22B2)) 
+    sig_present_i_25
+       (.I0(\timeout_limit_reg_n_0_[9] ),
+        .I1(timeout_cnt_reg[9]),
+        .I2(\timeout_limit_reg_n_0_[8] ),
+        .I3(timeout_cnt_reg[8]),
+        .O(sig_present_i_25_n_0));
+  LUT4 #(
+    .INIT(16'h9009)) 
+    sig_present_i_26
+       (.I0(timeout_cnt_reg[15]),
+        .I1(\timeout_limit_reg_n_0_[15] ),
+        .I2(timeout_cnt_reg[14]),
+        .I3(\timeout_limit_reg_n_0_[14] ),
+        .O(sig_present_i_26_n_0));
+  LUT4 #(
+    .INIT(16'h9009)) 
+    sig_present_i_27
+       (.I0(timeout_cnt_reg[13]),
+        .I1(\timeout_limit_reg_n_0_[13] ),
+        .I2(timeout_cnt_reg[12]),
+        .I3(\timeout_limit_reg_n_0_[12] ),
+        .O(sig_present_i_27_n_0));
+  LUT4 #(
+    .INIT(16'h9009)) 
+    sig_present_i_28
+       (.I0(timeout_cnt_reg[11]),
+        .I1(\timeout_limit_reg_n_0_[11] ),
+        .I2(timeout_cnt_reg[10]),
+        .I3(\timeout_limit_reg_n_0_[10] ),
+        .O(sig_present_i_28_n_0));
+  LUT4 #(
+    .INIT(16'h9009)) 
+    sig_present_i_29
+       (.I0(timeout_cnt_reg[9]),
+        .I1(\timeout_limit_reg_n_0_[9] ),
+        .I2(timeout_cnt_reg[8]),
+        .I3(\timeout_limit_reg_n_0_[8] ),
+        .O(sig_present_i_29_n_0));
+  LUT4 #(
+    .INIT(16'h22B2)) 
+    sig_present_i_30
+       (.I0(\timeout_limit_reg_n_0_[7] ),
+        .I1(timeout_cnt_reg[7]),
+        .I2(\timeout_limit_reg_n_0_[6] ),
+        .I3(timeout_cnt_reg[6]),
+        .O(sig_present_i_30_n_0));
+  LUT4 #(
+    .INIT(16'h22B2)) 
+    sig_present_i_31
+       (.I0(\timeout_limit_reg_n_0_[5] ),
+        .I1(timeout_cnt_reg[5]),
+        .I2(\timeout_limit_reg_n_0_[4] ),
+        .I3(timeout_cnt_reg[4]),
+        .O(sig_present_i_31_n_0));
+  LUT4 #(
+    .INIT(16'h22B2)) 
+    sig_present_i_32
+       (.I0(\timeout_limit_reg_n_0_[3] ),
+        .I1(timeout_cnt_reg[3]),
+        .I2(\timeout_limit_reg_n_0_[2] ),
+        .I3(timeout_cnt_reg[2]),
+        .O(sig_present_i_32_n_0));
+  LUT4 #(
+    .INIT(16'h22B2)) 
+    sig_present_i_33
+       (.I0(\timeout_limit_reg_n_0_[1] ),
+        .I1(timeout_cnt_reg[1]),
+        .I2(\timeout_limit_reg_n_0_[0] ),
+        .I3(timeout_cnt_reg[0]),
+        .O(sig_present_i_33_n_0));
+  LUT4 #(
+    .INIT(16'h9009)) 
+    sig_present_i_34
+       (.I0(timeout_cnt_reg[7]),
+        .I1(\timeout_limit_reg_n_0_[7] ),
+        .I2(timeout_cnt_reg[6]),
+        .I3(\timeout_limit_reg_n_0_[6] ),
+        .O(sig_present_i_34_n_0));
+  LUT4 #(
+    .INIT(16'h9009)) 
+    sig_present_i_35
+       (.I0(timeout_cnt_reg[5]),
+        .I1(\timeout_limit_reg_n_0_[5] ),
+        .I2(timeout_cnt_reg[4]),
+        .I3(\timeout_limit_reg_n_0_[4] ),
+        .O(sig_present_i_35_n_0));
+  LUT4 #(
+    .INIT(16'h9009)) 
+    sig_present_i_36
+       (.I0(timeout_cnt_reg[3]),
+        .I1(\timeout_limit_reg_n_0_[3] ),
+        .I2(timeout_cnt_reg[2]),
+        .I3(\timeout_limit_reg_n_0_[2] ),
+        .O(sig_present_i_36_n_0));
+  LUT4 #(
+    .INIT(16'h9009)) 
+    sig_present_i_37
+       (.I0(timeout_cnt_reg[1]),
+        .I1(\timeout_limit_reg_n_0_[1] ),
+        .I2(timeout_cnt_reg[0]),
+        .I3(\timeout_limit_reg_n_0_[0] ),
+        .O(sig_present_i_37_n_0));
+  LUT4 #(
+    .INIT(16'h22B2)) 
+    sig_present_i_4
+       (.I0(\timeout_limit_reg_n_0_[31] ),
+        .I1(timeout_cnt_reg[31]),
+        .I2(\timeout_limit_reg_n_0_[30] ),
+        .I3(timeout_cnt_reg[30]),
+        .O(sig_present_i_4_n_0));
+  LUT4 #(
+    .INIT(16'h22B2)) 
+    sig_present_i_5
+       (.I0(\timeout_limit_reg_n_0_[29] ),
+        .I1(timeout_cnt_reg[29]),
+        .I2(\timeout_limit_reg_n_0_[28] ),
+        .I3(timeout_cnt_reg[28]),
+        .O(sig_present_i_5_n_0));
+  LUT4 #(
+    .INIT(16'h22B2)) 
+    sig_present_i_6
+       (.I0(\timeout_limit_reg_n_0_[27] ),
+        .I1(timeout_cnt_reg[27]),
+        .I2(\timeout_limit_reg_n_0_[26] ),
+        .I3(timeout_cnt_reg[26]),
+        .O(sig_present_i_6_n_0));
+  LUT4 #(
+    .INIT(16'h22B2)) 
+    sig_present_i_7
+       (.I0(\timeout_limit_reg_n_0_[25] ),
+        .I1(timeout_cnt_reg[25]),
+        .I2(\timeout_limit_reg_n_0_[24] ),
+        .I3(timeout_cnt_reg[24]),
+        .O(sig_present_i_7_n_0));
+  LUT4 #(
+    .INIT(16'h9009)) 
+    sig_present_i_8
+       (.I0(timeout_cnt_reg[31]),
+        .I1(\timeout_limit_reg_n_0_[31] ),
+        .I2(timeout_cnt_reg[30]),
+        .I3(\timeout_limit_reg_n_0_[30] ),
+        .O(sig_present_i_8_n_0));
+  LUT4 #(
+    .INIT(16'h9009)) 
+    sig_present_i_9
+       (.I0(timeout_cnt_reg[29]),
+        .I1(\timeout_limit_reg_n_0_[29] ),
+        .I2(timeout_cnt_reg[28]),
+        .I3(\timeout_limit_reg_n_0_[28] ),
+        .O(sig_present_i_9_n_0));
   FDRE #(
     .INIT(1'b0)) 
     sig_present_reg
        (.C(clk),
         .CE(1'b1),
         .D(sig_present_i_1_n_0),
-        .Q(signal_present),
+        .Q(sig_present_reg_0),
         .R(rst));
+  (* COMPARATOR_THRESHOLD = "11" *) 
+  CARRY4 sig_present_reg_i_12
+       (.CI(sig_present_reg_i_21_n_0),
+        .CO({sig_present_reg_i_12_n_0,sig_present_reg_i_12_n_1,sig_present_reg_i_12_n_2,sig_present_reg_i_12_n_3}),
+        .CYINIT(1'b0),
+        .DI({sig_present_i_22_n_0,sig_present_i_23_n_0,sig_present_i_24_n_0,sig_present_i_25_n_0}),
+        .O(NLW_sig_present_reg_i_12_O_UNCONNECTED[3:0]),
+        .S({sig_present_i_26_n_0,sig_present_i_27_n_0,sig_present_i_28_n_0,sig_present_i_29_n_0}));
+  (* COMPARATOR_THRESHOLD = "11" *) 
+  CARRY4 sig_present_reg_i_2
+       (.CI(sig_present_reg_i_3_n_0),
+        .CO({timeout_cnt1,sig_present_reg_i_2_n_1,sig_present_reg_i_2_n_2,sig_present_reg_i_2_n_3}),
+        .CYINIT(1'b0),
+        .DI({sig_present_i_4_n_0,sig_present_i_5_n_0,sig_present_i_6_n_0,sig_present_i_7_n_0}),
+        .O(NLW_sig_present_reg_i_2_O_UNCONNECTED[3:0]),
+        .S({sig_present_i_8_n_0,sig_present_i_9_n_0,sig_present_i_10_n_0,sig_present_i_11_n_0}));
+  (* COMPARATOR_THRESHOLD = "11" *) 
+  CARRY4 sig_present_reg_i_21
+       (.CI(1'b0),
+        .CO({sig_present_reg_i_21_n_0,sig_present_reg_i_21_n_1,sig_present_reg_i_21_n_2,sig_present_reg_i_21_n_3}),
+        .CYINIT(1'b0),
+        .DI({sig_present_i_30_n_0,sig_present_i_31_n_0,sig_present_i_32_n_0,sig_present_i_33_n_0}),
+        .O(NLW_sig_present_reg_i_21_O_UNCONNECTED[3:0]),
+        .S({sig_present_i_34_n_0,sig_present_i_35_n_0,sig_present_i_36_n_0,sig_present_i_37_n_0}));
+  (* COMPARATOR_THRESHOLD = "11" *) 
+  CARRY4 sig_present_reg_i_3
+       (.CI(sig_present_reg_i_12_n_0),
+        .CO({sig_present_reg_i_3_n_0,sig_present_reg_i_3_n_1,sig_present_reg_i_3_n_2,sig_present_reg_i_3_n_3}),
+        .CYINIT(1'b0),
+        .DI({sig_present_i_13_n_0,sig_present_i_14_n_0,sig_present_i_15_n_0,sig_present_i_16_n_0}),
+        .O(NLW_sig_present_reg_i_3_O_UNCONNECTED[3:0]),
+        .S({sig_present_i_17_n_0,sig_present_i_18_n_0,sig_present_i_19_n_0,sig_present_i_20_n_0}));
   LUT3 #(
     .INIT(8'hDF)) 
     \timeout_cnt[0]_i_1 
        (.I0(rst_n),
-        .I1(edge_pulse__0),
+        .I1(edge_pulse_out),
         .I2(timeout_cnt1),
         .O(\timeout_cnt[0]_i_1_n_0 ));
   LUT1 #(
@@ -23539,7 +25028,7 @@ module pynq_z2_top_0_0_crank_input
   LUT3 #(
     .INIT(8'h1F)) 
     \timeout_limit[31]_i_1 
-       (.I0(edge_pulse__0),
+       (.I0(edge_pulse_out),
         .I1(timeout_cnt1),
         .I2(rst_n),
         .O(\timeout_limit[31]_i_1_n_0 ));
@@ -23547,7 +25036,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(4'h8)) 
     \timeout_limit[31]_i_2 
        (.I0(period_valid_reg_n_0),
-        .I1(edge_pulse__0),
+        .I1(edge_pulse_out),
         .O(timeout_limit));
   LUT2 #(
     .INIT(4'h6)) 
@@ -23929,13 +25418,13 @@ module pynq_z2_top_0_0_crank_input
         .D(p_1_in[9]),
         .Q(\timeout_limit_reg_n_0_[9] ),
         .S(\timeout_limit[31]_i_1_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair45" *) 
+  (* SOFT_HLUTNM = "soft_lutpair51" *) 
   LUT1 #(
     .INIT(2'h1)) 
     \tooth_cnt[0]_i_1 
        (.I0(\tooth_cnt_reg_n_0_[0] ),
         .O(tooth_cnt[0]));
-  (* SOFT_HLUTNM = "soft_lutpair45" *) 
+  (* SOFT_HLUTNM = "soft_lutpair51" *) 
   LUT3 #(
     .INIT(8'h28)) 
     \tooth_cnt[1]_i_1 
@@ -23943,7 +25432,7 @@ module pynq_z2_top_0_0_crank_input
         .I1(\tooth_cnt_reg_n_0_[1] ),
         .I2(\tooth_cnt_reg_n_0_[0] ),
         .O(tooth_cnt[1]));
-  (* SOFT_HLUTNM = "soft_lutpair40" *) 
+  (* SOFT_HLUTNM = "soft_lutpair46" *) 
   LUT4 #(
     .INIT(16'h2888)) 
     \tooth_cnt[2]_i_1 
@@ -23952,7 +25441,7 @@ module pynq_z2_top_0_0_crank_input
         .I2(\tooth_cnt_reg_n_0_[0] ),
         .I3(\tooth_cnt_reg_n_0_[1] ),
         .O(tooth_cnt[2]));
-  (* SOFT_HLUTNM = "soft_lutpair40" *) 
+  (* SOFT_HLUTNM = "soft_lutpair46" *) 
   LUT5 #(
     .INIT(32'h28888888)) 
     \tooth_cnt[3]_i_1 
@@ -23972,7 +25461,7 @@ module pynq_z2_top_0_0_crank_input
         .I4(\tooth_cnt_reg_n_0_[2] ),
         .I5(\tooth_cnt_reg_n_0_[3] ),
         .O(tooth_cnt[4]));
-  (* SOFT_HLUTNM = "soft_lutpair39" *) 
+  (* SOFT_HLUTNM = "soft_lutpair45" *) 
   LUT5 #(
     .INIT(32'h28888888)) 
     \tooth_cnt[5]_i_1 
@@ -23992,7 +25481,7 @@ module pynq_z2_top_0_0_crank_input
         .I4(\tooth_cnt_reg_n_0_[1] ),
         .I5(\tooth_cnt_reg_n_0_[0] ),
         .O(\tooth_cnt[5]_i_2_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair41" *) 
+  (* SOFT_HLUTNM = "soft_lutpair47" *) 
   LUT3 #(
     .INIT(8'h80)) 
     \tooth_cnt[5]_i_3 
@@ -24000,7 +25489,7 @@ module pynq_z2_top_0_0_crank_input
         .I1(\tooth_cnt_reg_n_0_[1] ),
         .I2(\tooth_cnt_reg_n_0_[0] ),
         .O(\tooth_cnt[5]_i_3_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair41" *) 
+  (* SOFT_HLUTNM = "soft_lutpair47" *) 
   LUT5 #(
     .INIT(32'hAAAA6AAA)) 
     \tooth_cnt[6]_i_1 
@@ -24014,14 +25503,14 @@ module pynq_z2_top_0_0_crank_input
     .INIT(16'h80FF)) 
     \tooth_cnt[7]_i_1 
        (.I0(z_armed),
-        .I1(edge_pulse__0),
+        .I1(edge_pulse_out),
         .I2(edge_seen),
         .I3(rst_n),
         .O(\tooth_cnt[7]_i_1_n_0 ));
   LUT2 #(
     .INIT(4'h8)) 
     \tooth_cnt[7]_i_2 
-       (.I0(edge_pulse__0),
+       (.I0(edge_pulse_out),
         .I1(edge_seen),
         .O(tooth_cnt0));
   LUT6 #(
@@ -24034,7 +25523,7 @@ module pynq_z2_top_0_0_crank_input
         .I4(\tooth_cnt_reg_n_0_[1] ),
         .I5(\tooth_cnt_reg_n_0_[2] ),
         .O(tooth_cnt[7]));
-  (* SOFT_HLUTNM = "soft_lutpair39" *) 
+  (* SOFT_HLUTNM = "soft_lutpair45" *) 
   LUT3 #(
     .INIT(8'h7F)) 
     \tooth_cnt[7]_i_4 
@@ -24111,8 +25600,8 @@ module pynq_z2_top_0_0_crank_input
     z_armed_i_1
        (.I0(rst_n),
         .I1(gap_det_prev),
-        .I2(gap_det_reg_n_0),
-        .I3(edge_pulse__0),
+        .I2(gap_det_reg_0),
+        .I3(edge_pulse_out),
         .I4(z_armed),
         .O(z_armed_i_1_n_0));
   FDRE #(
@@ -24123,19 +25612,19 @@ module pynq_z2_top_0_0_crank_input
         .D(z_armed_i_1_n_0),
         .Q(z_armed),
         .R(1'b0));
-  (* SOFT_HLUTNM = "soft_lutpair42" *) 
+  (* SOFT_HLUTNM = "soft_lutpair48" *) 
   LUT2 #(
     .INIT(4'h2)) 
     z_edge_i_1
-       (.I0(z),
+       (.I0(z_int_reg_0),
         .I1(z_prev),
         .O(ab_count1));
   LUT4 #(
     .INIT(16'hF444)) 
     z_int_i_1
        (.I0(z_int0),
-        .I1(z),
-        .I2(edge_pulse__0),
+        .I1(z_int_reg_0),
+        .I2(edge_pulse_out),
         .I3(z_armed),
         .O(z_int_i_1_n_0));
   LUT4 #(
@@ -24285,27 +25774,27 @@ module pynq_z2_top_0_0_crank_input
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_35
-       (.I0(Q[30]),
+       (.I0(\current_period_reg[31]_0 [30]),
         .O(z_int_i_35_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_36
-       (.I0(Q[29]),
+       (.I0(\current_period_reg[31]_0 [29]),
         .O(z_int_i_36_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_37
-       (.I0(Q[28]),
+       (.I0(\current_period_reg[31]_0 [28]),
         .O(z_int_i_37_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_38
-       (.I0(Q[27]),
+       (.I0(\current_period_reg[31]_0 [27]),
         .O(z_int_i_38_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_39
-       (.I0(Q[26]),
+       (.I0(\current_period_reg[31]_0 [26]),
         .O(z_int_i_39_n_0));
   LUT4 #(
     .INIT(16'h22B2)) 
@@ -24318,32 +25807,32 @@ module pynq_z2_top_0_0_crank_input
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_40
-       (.I0(Q[25]),
+       (.I0(\current_period_reg[31]_0 [25]),
         .O(z_int_i_40_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_41
-       (.I0(Q[24]),
+       (.I0(\current_period_reg[31]_0 [24]),
         .O(z_int_i_41_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_42
-       (.I0(Q[23]),
+       (.I0(\current_period_reg[31]_0 [23]),
         .O(z_int_i_42_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_43
-       (.I0(Q[22]),
+       (.I0(\current_period_reg[31]_0 [22]),
         .O(z_int_i_43_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_44
-       (.I0(Q[21]),
+       (.I0(\current_period_reg[31]_0 [21]),
         .O(z_int_i_44_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_45
-       (.I0(Q[20]),
+       (.I0(\current_period_reg[31]_0 [20]),
         .O(z_int_i_45_n_0));
   LUT4 #(
     .INIT(16'h22B2)) 
@@ -24420,22 +25909,22 @@ module pynq_z2_top_0_0_crank_input
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_56
-       (.I0(Q[19]),
+       (.I0(\current_period_reg[31]_0 [19]),
         .O(z_int_i_56_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_57
-       (.I0(Q[18]),
+       (.I0(\current_period_reg[31]_0 [18]),
         .O(z_int_i_57_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_58
-       (.I0(Q[17]),
+       (.I0(\current_period_reg[31]_0 [17]),
         .O(z_int_i_58_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_59
-       (.I0(Q[16]),
+       (.I0(\current_period_reg[31]_0 [16]),
         .O(z_int_i_59_n_0));
   LUT4 #(
     .INIT(16'h22B2)) 
@@ -24448,47 +25937,47 @@ module pynq_z2_top_0_0_crank_input
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_60
-       (.I0(Q[15]),
+       (.I0(\current_period_reg[31]_0 [15]),
         .O(z_int_i_60_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_61
-       (.I0(Q[14]),
+       (.I0(\current_period_reg[31]_0 [14]),
         .O(z_int_i_61_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_62
-       (.I0(Q[13]),
+       (.I0(\current_period_reg[31]_0 [13]),
         .O(z_int_i_62_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_63
-       (.I0(Q[12]),
+       (.I0(\current_period_reg[31]_0 [12]),
         .O(z_int_i_63_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_65
-       (.I0(Q[11]),
+       (.I0(\current_period_reg[31]_0 [11]),
         .O(z_int_i_65_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_66
-       (.I0(Q[10]),
+       (.I0(\current_period_reg[31]_0 [10]),
         .O(z_int_i_66_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_67
-       (.I0(Q[9]),
+       (.I0(\current_period_reg[31]_0 [9]),
         .O(z_int_i_67_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_68
-       (.I0(Q[8]),
+       (.I0(\current_period_reg[31]_0 [8]),
         .O(z_int_i_68_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_69
-       (.I0(Q[7]),
+       (.I0(\current_period_reg[31]_0 [7]),
         .O(z_int_i_69_n_0));
   LUT4 #(
     .INIT(16'h22B2)) 
@@ -24501,37 +25990,37 @@ module pynq_z2_top_0_0_crank_input
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_70
-       (.I0(Q[6]),
+       (.I0(\current_period_reg[31]_0 [6]),
         .O(z_int_i_70_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_71
-       (.I0(Q[5]),
+       (.I0(\current_period_reg[31]_0 [5]),
         .O(z_int_i_71_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_72
-       (.I0(Q[4]),
+       (.I0(\current_period_reg[31]_0 [4]),
         .O(z_int_i_72_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_73
-       (.I0(Q[3]),
+       (.I0(\current_period_reg[31]_0 [3]),
         .O(z_int_i_73_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_74
-       (.I0(Q[2]),
+       (.I0(\current_period_reg[31]_0 [2]),
         .O(z_int_i_74_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_75
-       (.I0(Q[1]),
+       (.I0(\current_period_reg[31]_0 [1]),
         .O(z_int_i_75_n_0));
   LUT1 #(
     .INIT(2'h1)) 
     z_int_i_76
-       (.I0(Q[0]),
+       (.I0(\current_period_reg[31]_0 [0]),
         .O(z_int_i_76_n_0));
   LUT4 #(
     .INIT(16'h9009)) 
@@ -24555,7 +26044,7 @@ module pynq_z2_top_0_0_crank_input
        (.C(clk),
         .CE(1'b1),
         .D(z_int_i_1_n_0),
-        .Q(z),
+        .Q(z_int_reg_0),
         .R(rst));
   (* COMPARATOR_THRESHOLD = "11" *) 
   CARRY4 z_int_reg_i_12
@@ -24578,7 +26067,7 @@ module pynq_z2_top_0_0_crank_input
        (.CI(z_int_reg_i_22_n_0),
         .CO({NLW_z_int_reg_i_21_CO_UNCONNECTED[3:2],z_int_reg_i_21_n_2,z_int_reg_i_21_n_3}),
         .CYINIT(1'b0),
-        .DI({1'b0,1'b0,Q[29:28]}),
+        .DI({1'b0,1'b0,\current_period_reg[31]_0 [29:28]}),
         .O({NLW_z_int_reg_i_21_O_UNCONNECTED[3],z_int_reg_i_21_n_5,z_int_reg_i_21_n_6,z_int_reg_i_21_n_7}),
         .S({1'b0,z_int_i_35_n_0,z_int_i_36_n_0,z_int_i_37_n_0}));
   (* ADDER_THRESHOLD = "35" *) 
@@ -24586,7 +26075,7 @@ module pynq_z2_top_0_0_crank_input
        (.CI(z_int_reg_i_23_n_0),
         .CO({z_int_reg_i_22_n_0,z_int_reg_i_22_n_1,z_int_reg_i_22_n_2,z_int_reg_i_22_n_3}),
         .CYINIT(1'b0),
-        .DI(Q[27:24]),
+        .DI(\current_period_reg[31]_0 [27:24]),
         .O({z_int_reg_i_22_n_4,z_int_reg_i_22_n_5,z_int_reg_i_22_n_6,z_int_reg_i_22_n_7}),
         .S({z_int_i_38_n_0,z_int_i_39_n_0,z_int_i_40_n_0,z_int_i_41_n_0}));
   (* ADDER_THRESHOLD = "35" *) 
@@ -24594,7 +26083,7 @@ module pynq_z2_top_0_0_crank_input
        (.CI(z_int_reg_i_33_n_0),
         .CO({z_int_reg_i_23_n_0,z_int_reg_i_23_n_1,z_int_reg_i_23_n_2,z_int_reg_i_23_n_3}),
         .CYINIT(1'b0),
-        .DI(Q[23:20]),
+        .DI(\current_period_reg[31]_0 [23:20]),
         .O({z_int_reg_i_23_n_4,z_int_reg_i_23_n_5,z_int_reg_i_23_n_6,z_int_reg_i_23_n_7}),
         .S({z_int_i_42_n_0,z_int_i_43_n_0,z_int_i_44_n_0,z_int_i_45_n_0}));
   (* COMPARATOR_THRESHOLD = "11" *) 
@@ -24618,7 +26107,7 @@ module pynq_z2_top_0_0_crank_input
        (.CI(z_int_reg_i_34_n_0),
         .CO({z_int_reg_i_33_n_0,z_int_reg_i_33_n_1,z_int_reg_i_33_n_2,z_int_reg_i_33_n_3}),
         .CYINIT(1'b0),
-        .DI(Q[19:16]),
+        .DI(\current_period_reg[31]_0 [19:16]),
         .O({z_int_reg_i_33_n_4,z_int_reg_i_33_n_5,z_int_reg_i_33_n_6,z_int_reg_i_33_n_7}),
         .S({z_int_i_56_n_0,z_int_i_57_n_0,z_int_i_58_n_0,z_int_i_59_n_0}));
   (* ADDER_THRESHOLD = "35" *) 
@@ -24626,7 +26115,7 @@ module pynq_z2_top_0_0_crank_input
        (.CI(z_int_reg_i_54_n_0),
         .CO({z_int_reg_i_34_n_0,z_int_reg_i_34_n_1,z_int_reg_i_34_n_2,z_int_reg_i_34_n_3}),
         .CYINIT(1'b0),
-        .DI(Q[15:12]),
+        .DI(\current_period_reg[31]_0 [15:12]),
         .O({z_int_reg_i_34_n_4,z_int_reg_i_34_n_5,z_int_reg_i_34_n_6,z_int_reg_i_34_n_7}),
         .S({z_int_i_60_n_0,z_int_i_61_n_0,z_int_i_62_n_0,z_int_i_63_n_0}));
   (* ADDER_THRESHOLD = "35" *) 
@@ -24634,7 +26123,7 @@ module pynq_z2_top_0_0_crank_input
        (.CI(z_int_reg_i_55_n_0),
         .CO({z_int_reg_i_54_n_0,z_int_reg_i_54_n_1,z_int_reg_i_54_n_2,z_int_reg_i_54_n_3}),
         .CYINIT(1'b0),
-        .DI(Q[11:8]),
+        .DI(\current_period_reg[31]_0 [11:8]),
         .O({z_int_reg_i_54_n_4,z_int_reg_i_54_n_5,z_int_reg_i_54_n_6,z_int_reg_i_54_n_7}),
         .S({z_int_i_65_n_0,z_int_i_66_n_0,z_int_i_67_n_0,z_int_i_68_n_0}));
   (* ADDER_THRESHOLD = "35" *) 
@@ -24642,7 +26131,7 @@ module pynq_z2_top_0_0_crank_input
        (.CI(z_int_reg_i_64_n_0),
         .CO({z_int_reg_i_55_n_0,z_int_reg_i_55_n_1,z_int_reg_i_55_n_2,z_int_reg_i_55_n_3}),
         .CYINIT(1'b0),
-        .DI(Q[7:4]),
+        .DI(\current_period_reg[31]_0 [7:4]),
         .O({z_int_reg_i_55_n_4,z_int_reg_i_55_n_5,z_int_reg_i_55_n_6,z_int_reg_i_55_n_7}),
         .S({z_int_i_69_n_0,z_int_i_70_n_0,z_int_i_71_n_0,z_int_i_72_n_0}));
   (* ADDER_THRESHOLD = "35" *) 
@@ -24650,7 +26139,7 @@ module pynq_z2_top_0_0_crank_input
        (.CI(1'b0),
         .CO({z_int_reg_i_64_n_0,z_int_reg_i_64_n_1,z_int_reg_i_64_n_2,z_int_reg_i_64_n_3}),
         .CYINIT(tooth_period),
-        .DI(Q[3:0]),
+        .DI(\current_period_reg[31]_0 [3:0]),
         .O({z_int_reg_i_64_n_4,z_int_reg_i_64_n_5,z_int_reg_i_64_n_6,z_int_reg_i_64_n_7}),
         .S({z_int_i_73_n_0,z_int_i_74_n_0,z_int_i_75_n_0,z_int_i_76_n_0}));
   LUT5 #(
@@ -24658,9 +26147,9 @@ module pynq_z2_top_0_0_crank_input
     \z_timer[0]_i_1 
        (.I0(rst_n),
         .I1(z_armed),
-        .I2(edge_pulse__0),
+        .I2(edge_pulse_out),
         .I3(z_int0),
-        .I4(z),
+        .I4(z_int_reg_0),
         .O(\z_timer[0]_i_1_n_0 ));
   LUT1 #(
     .INIT(2'h1)) 
@@ -24671,7 +26160,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[0] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[0]_i_2_n_7 ),
         .Q(z_timer_reg[0]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24687,7 +26176,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[10] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[8]_i_1_n_5 ),
         .Q(z_timer_reg[10]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24695,7 +26184,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[11] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[8]_i_1_n_4 ),
         .Q(z_timer_reg[11]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24703,7 +26192,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[12] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[12]_i_1_n_7 ),
         .Q(z_timer_reg[12]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24719,7 +26208,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[13] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[12]_i_1_n_6 ),
         .Q(z_timer_reg[13]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24727,7 +26216,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[14] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[12]_i_1_n_5 ),
         .Q(z_timer_reg[14]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24735,7 +26224,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[15] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[12]_i_1_n_4 ),
         .Q(z_timer_reg[15]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24743,7 +26232,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[16] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[16]_i_1_n_7 ),
         .Q(z_timer_reg[16]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24759,7 +26248,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[17] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[16]_i_1_n_6 ),
         .Q(z_timer_reg[17]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24767,7 +26256,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[18] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[16]_i_1_n_5 ),
         .Q(z_timer_reg[18]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24775,7 +26264,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[19] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[16]_i_1_n_4 ),
         .Q(z_timer_reg[19]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24783,7 +26272,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[1] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[0]_i_2_n_6 ),
         .Q(z_timer_reg[1]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24791,7 +26280,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[20] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[20]_i_1_n_7 ),
         .Q(z_timer_reg[20]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24807,7 +26296,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[21] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[20]_i_1_n_6 ),
         .Q(z_timer_reg[21]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24815,7 +26304,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[22] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[20]_i_1_n_5 ),
         .Q(z_timer_reg[22]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24823,7 +26312,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[23] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[20]_i_1_n_4 ),
         .Q(z_timer_reg[23]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24831,7 +26320,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[24] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[24]_i_1_n_7 ),
         .Q(z_timer_reg[24]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24847,7 +26336,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[25] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[24]_i_1_n_6 ),
         .Q(z_timer_reg[25]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24855,7 +26344,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[26] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[24]_i_1_n_5 ),
         .Q(z_timer_reg[26]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24863,7 +26352,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[27] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[24]_i_1_n_4 ),
         .Q(z_timer_reg[27]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24871,7 +26360,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[28] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[28]_i_1_n_7 ),
         .Q(z_timer_reg[28]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24887,7 +26376,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[29] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[28]_i_1_n_6 ),
         .Q(z_timer_reg[29]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24895,7 +26384,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[2] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[0]_i_2_n_5 ),
         .Q(z_timer_reg[2]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24903,7 +26392,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[30] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[28]_i_1_n_5 ),
         .Q(z_timer_reg[30]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24911,7 +26400,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[31] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[28]_i_1_n_4 ),
         .Q(z_timer_reg[31]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24919,7 +26408,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[3] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[0]_i_2_n_4 ),
         .Q(z_timer_reg[3]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24927,7 +26416,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[4] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[4]_i_1_n_7 ),
         .Q(z_timer_reg[4]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24943,7 +26432,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[5] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[4]_i_1_n_6 ),
         .Q(z_timer_reg[5]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24951,7 +26440,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[6] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[4]_i_1_n_5 ),
         .Q(z_timer_reg[6]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24959,7 +26448,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[7] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[4]_i_1_n_4 ),
         .Q(z_timer_reg[7]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24967,7 +26456,7 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[8] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[8]_i_1_n_7 ),
         .Q(z_timer_reg[8]),
         .R(\z_timer[0]_i_1_n_0 ));
@@ -24983,86 +26472,10 @@ module pynq_z2_top_0_0_crank_input
     .INIT(1'b0)) 
     \z_timer_reg[9] 
        (.C(clk),
-        .CE(z),
+        .CE(z_int_reg_0),
         .D(\z_timer_reg[8]_i_1_n_6 ),
         .Q(z_timer_reg[9]),
         .R(\z_timer[0]_i_1_n_0 ));
-  LUT4 #(
-    .INIT(16'hFFFE)) 
-    zero_err_r_i_10
-       (.I0(Q[10]),
-        .I1(Q[7]),
-        .I2(Q[8]),
-        .I3(Q[9]),
-        .O(zero_err_r_i_10_n_0));
-  LUT4 #(
-    .INIT(16'h0004)) 
-    zero_err_r_i_2
-       (.I0(zero_err_r_i_3_n_0),
-        .I1(zero_err_r_i_4_n_0),
-        .I2(zero_err_r_i_5_n_0),
-        .I3(zero_err_r_i_6_n_0),
-        .O(zero_divide));
-  LUT5 #(
-    .INIT(32'hFFFFFFFE)) 
-    zero_err_r_i_3
-       (.I0(Q[1]),
-        .I1(Q[2]),
-        .I2(Q[4]),
-        .I3(Q[3]),
-        .I4(zero_err_r_i_7_n_0),
-        .O(zero_err_r_i_3_n_0));
-  LUT5 #(
-    .INIT(32'h00000001)) 
-    zero_err_r_i_4
-       (.I0(Q[24]),
-        .I1(Q[23]),
-        .I2(Q[25]),
-        .I3(Q[29]),
-        .I4(zero_err_r_i_8_n_0),
-        .O(zero_err_r_i_4_n_0));
-  LUT5 #(
-    .INIT(32'hFFFFFFFE)) 
-    zero_err_r_i_5
-       (.I0(Q[0]),
-        .I1(tooth_period),
-        .I2(Q[6]),
-        .I3(Q[15]),
-        .I4(zero_err_r_i_9_n_0),
-        .O(zero_err_r_i_5_n_0));
-  LUT5 #(
-    .INIT(32'hFFFFFFFE)) 
-    zero_err_r_i_6
-       (.I0(Q[11]),
-        .I1(Q[14]),
-        .I2(Q[13]),
-        .I3(Q[12]),
-        .I4(zero_err_r_i_10_n_0),
-        .O(zero_err_r_i_6_n_0));
-  LUT4 #(
-    .INIT(16'hFFFE)) 
-    zero_err_r_i_7
-       (.I0(Q[20]),
-        .I1(Q[22]),
-        .I2(Q[17]),
-        .I3(Q[19]),
-        .O(zero_err_r_i_7_n_0));
-  LUT4 #(
-    .INIT(16'hFFFE)) 
-    zero_err_r_i_8
-       (.I0(Q[30]),
-        .I1(Q[28]),
-        .I2(Q[26]),
-        .I3(Q[27]),
-        .O(zero_err_r_i_8_n_0));
-  LUT4 #(
-    .INIT(16'hFFFE)) 
-    zero_err_r_i_9
-       (.I0(Q[21]),
-        .I1(Q[5]),
-        .I2(Q[18]),
-        .I3(Q[16]),
-        .O(zero_err_r_i_9_n_0));
 endmodule
 
 (* ORIG_REF_NAME = "divider" *) 
@@ -25071,30 +26484,32 @@ module pynq_z2_top_0_0_divider
     E,
     Q,
     \FSM_onehot_state_reg[1]_0 ,
+    \gen_vld_en.valid_en_reg_0 ,
     \quotient_reg_reg[31]_0 ,
     rst,
-    \gen_vld_en.valid_en_reg_0 ,
+    \gen_vld_en.valid_en_reg_1 ,
     clk,
     \dividend_op_reg[3]_0 ,
     div_start,
     tooth_period,
     zero_err_r_reg_0,
-    sync_state,
+    zero_err_r_reg_1,
     zero_divide,
     \divisor_op_reg[0]_0 );
   output valid_en;
   output [0:0]E;
   output [0:0]Q;
   output [0:0]\FSM_onehot_state_reg[1]_0 ;
+  output [0:0]\gen_vld_en.valid_en_reg_0 ;
   output [31:0]\quotient_reg_reg[31]_0 ;
   input rst;
-  input \gen_vld_en.valid_en_reg_0 ;
+  input \gen_vld_en.valid_en_reg_1 ;
   input clk;
   input \dividend_op_reg[3]_0 ;
   input div_start;
   input [30:0]tooth_period;
   input [0:0]zero_err_r_reg_0;
-  input [0:0]sync_state;
+  input zero_err_r_reg_1;
   input zero_divide;
   input [0:0]\divisor_op_reg[0]_0 ;
 
@@ -25356,7 +26771,8 @@ module pynq_z2_top_0_0_divider
   wire \divisor_op[9]_i_1_n_0 ;
   wire [0:0]\divisor_op_reg[0]_0 ;
   wire \divisor_op_reg_n_0_[32] ;
-  wire \gen_vld_en.valid_en_reg_0 ;
+  wire [0:0]\gen_vld_en.valid_en_reg_0 ;
+  wire \gen_vld_en.valid_en_reg_1 ;
   wire [7:0]in2;
   wire p_0_in;
   wire p_1_in;
@@ -25437,12 +26853,12 @@ module pynq_z2_top_0_0_divider
   wire state2_carry_n_1;
   wire state2_carry_n_2;
   wire state2_carry_n_3;
-  wire [0:0]sync_state;
   wire [30:0]tooth_period;
   wire valid_en;
   wire zero_divide;
   wire zero_err_r_i_1_n_0;
   wire [0:0]zero_err_r_reg_0;
+  wire zero_err_r_reg_1;
   wire [3:0]NLW_dividend_op1_carry_O_UNCONNECTED;
   wire [3:0]NLW_dividend_op1_carry__0_O_UNCONNECTED;
   wire [3:0]NLW_dividend_op1_carry__1_O_UNCONNECTED;
@@ -25458,7 +26874,7 @@ module pynq_z2_top_0_0_divider
   wire [3:1]NLW_state2_carry__3_CO_UNCONNECTED;
   wire [3:0]NLW_state2_carry__3_O_UNCONNECTED;
 
-  (* SOFT_HLUTNM = "soft_lutpair4" *) 
+  (* SOFT_HLUTNM = "soft_lutpair5" *) 
   LUT3 #(
     .INIT(8'hB8)) 
     \FSM_onehot_state[0]_i_1 
@@ -25473,7 +26889,7 @@ module pynq_z2_top_0_0_divider
         .I1(\FSM_onehot_state[2]_i_2_n_0 ),
         .I2(p_0_in),
         .O(\FSM_onehot_state[1]_i_1_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair4" *) 
+  (* SOFT_HLUTNM = "soft_lutpair5" *) 
   LUT3 #(
     .INIT(8'hB8)) 
     \FSM_onehot_state[2]_i_1 
@@ -25536,6 +26952,14 @@ module pynq_z2_top_0_0_divider
         .D(\FSM_onehot_state[2]_i_1_n_0 ),
         .Q(p_1_in),
         .R(rst));
+  (* SOFT_HLUTNM = "soft_lutpair0" *) 
+  LUT3 #(
+    .INIT(8'h40)) 
+    \debug_out[9]_INST_0 
+       (.I0(div_start),
+        .I1(valid_en),
+        .I2(p_0_in),
+        .O(\gen_vld_en.valid_en_reg_0 ));
   (* COMPARATOR_THRESHOLD = "11" *) 
   CARRY4 dividend_op1_carry
        (.CI(1'b0),
@@ -27159,16 +28583,17 @@ module pynq_z2_top_0_0_divider
     \gen_vld_en.valid_en_reg 
        (.C(clk),
         .CE(1'b1),
-        .D(\gen_vld_en.valid_en_reg_0 ),
+        .D(\gen_vld_en.valid_en_reg_1 ),
         .Q(valid_en),
         .R(rst));
+  (* SOFT_HLUTNM = "soft_lutpair0" *) 
   LUT4 #(
-    .INIT(16'h0400)) 
+    .INIT(16'h0008)) 
     \nco_inc[31]_i_1 
-       (.I0(div_start),
-        .I1(p_0_in),
-        .I2(div_zero_err),
-        .I3(valid_en),
+       (.I0(p_0_in),
+        .I1(valid_en),
+        .I2(div_start),
+        .I3(div_zero_err),
         .O(\FSM_onehot_state_reg[1]_0 ));
   (* ADDER_THRESHOLD = "35" *) 
   (* METHODOLOGY_DRC_VIOS = "{SYNTH-8 {cell *THIS*}}" *) 
@@ -27498,7 +28923,7 @@ module pynq_z2_top_0_0_divider
         .D(\quotient_reg_reg[31]_0 [8]),
         .Q(\quotient_reg_reg[31]_0 [9]),
         .R(p_1_in));
-  (* SOFT_HLUTNM = "soft_lutpair0" *) 
+  (* SOFT_HLUTNM = "soft_lutpair1" *) 
   LUT3 #(
     .INIT(8'hA8)) 
     \shift_cnt[0]_i_1 
@@ -27506,7 +28931,7 @@ module pynq_z2_top_0_0_divider
         .I1(p_1_in),
         .I2(E),
         .O(\shift_cnt[0]_i_1_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair0" *) 
+  (* SOFT_HLUTNM = "soft_lutpair1" *) 
   LUT3 #(
     .INIT(8'hA8)) 
     \shift_cnt[1]_i_1 
@@ -27514,7 +28939,7 @@ module pynq_z2_top_0_0_divider
         .I1(p_1_in),
         .I2(E),
         .O(\shift_cnt[1]_i_1_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair1" *) 
+  (* SOFT_HLUTNM = "soft_lutpair2" *) 
   LUT3 #(
     .INIT(8'hA8)) 
     \shift_cnt[2]_i_1 
@@ -27522,7 +28947,7 @@ module pynq_z2_top_0_0_divider
         .I1(p_1_in),
         .I2(E),
         .O(\shift_cnt[2]_i_1_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair1" *) 
+  (* SOFT_HLUTNM = "soft_lutpair2" *) 
   LUT3 #(
     .INIT(8'hA8)) 
     \shift_cnt[3]_i_1 
@@ -27530,7 +28955,7 @@ module pynq_z2_top_0_0_divider
         .I1(p_1_in),
         .I2(E),
         .O(\shift_cnt[3]_i_1_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair2" *) 
+  (* SOFT_HLUTNM = "soft_lutpair3" *) 
   LUT3 #(
     .INIT(8'hA8)) 
     \shift_cnt[4]_i_1 
@@ -27538,7 +28963,7 @@ module pynq_z2_top_0_0_divider
         .I1(p_1_in),
         .I2(E),
         .O(\shift_cnt[4]_i_1_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair2" *) 
+  (* SOFT_HLUTNM = "soft_lutpair3" *) 
   LUT3 #(
     .INIT(8'hA8)) 
     \shift_cnt[5]_i_1 
@@ -27546,7 +28971,7 @@ module pynq_z2_top_0_0_divider
         .I1(p_1_in),
         .I2(E),
         .O(\shift_cnt[5]_i_1_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair3" *) 
+  (* SOFT_HLUTNM = "soft_lutpair4" *) 
   LUT3 #(
     .INIT(8'hA8)) 
     \shift_cnt[6]_i_1 
@@ -27554,7 +28979,7 @@ module pynq_z2_top_0_0_divider
         .I1(p_1_in),
         .I2(E),
         .O(\shift_cnt[6]_i_1_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair3" *) 
+  (* SOFT_HLUTNM = "soft_lutpair4" *) 
   LUT3 #(
     .INIT(8'hA8)) 
     \shift_cnt[7]_i_1 
@@ -27929,7 +29354,7 @@ module pynq_z2_top_0_0_divider
     zero_err_r_i_1
        (.I0(p_0_in),
         .I1(zero_err_r_reg_0),
-        .I2(sync_state),
+        .I2(zero_err_r_reg_1),
         .I3(zero_divide),
         .I4(div_zero_err),
         .O(zero_err_r_i_1_n_0));
@@ -27946,45 +29371,169 @@ endmodule
 (* ORIG_REF_NAME = "phase_detector" *) 
 module pynq_z2_top_0_0_phase_detector
    (ref_prev,
-    ref_detected,
+    ref_det_reg_0,
+    debug_out,
     sync_offset,
+    Q,
     rst,
-    cam_clean,
+    ref_prev_reg_0,
     clk,
     ref_det5_out,
-    sync_offset_r_reg_0);
+    E,
+    sync_offset_r_reg_0,
+    D);
   output ref_prev;
-  output ref_detected;
+  output ref_det_reg_0;
+  output [0:0]debug_out;
   output sync_offset;
+  output [12:0]Q;
   input rst;
-  input cam_clean;
+  input ref_prev_reg_0;
   input clk;
   input ref_det5_out;
+  input [0:0]E;
   input sync_offset_r_reg_0;
+  input [12:0]D;
 
-  wire cam_clean;
+  wire [12:0]D;
+  wire [0:0]E;
+  wire [12:0]Q;
   wire clk;
+  wire [0:0]debug_out;
   wire ref_det5_out;
-  wire ref_detected;
+  wire ref_det_reg_0;
   wire ref_prev;
+  wire ref_prev_reg_0;
   wire rst;
   wire sync_offset;
   wire sync_offset_r_reg_0;
 
   FDRE #(
     .INIT(1'b0)) 
+    \cam_angle_int_reg[0] 
+       (.C(clk),
+        .CE(E),
+        .D(D[0]),
+        .Q(Q[0]),
+        .R(rst));
+  FDRE #(
+    .INIT(1'b0)) 
+    \cam_angle_int_reg[10] 
+       (.C(clk),
+        .CE(E),
+        .D(D[10]),
+        .Q(Q[10]),
+        .R(rst));
+  FDRE #(
+    .INIT(1'b0)) 
+    \cam_angle_int_reg[11] 
+       (.C(clk),
+        .CE(E),
+        .D(D[11]),
+        .Q(Q[11]),
+        .R(rst));
+  FDRE #(
+    .INIT(1'b0)) 
+    \cam_angle_int_reg[12] 
+       (.C(clk),
+        .CE(E),
+        .D(D[12]),
+        .Q(Q[12]),
+        .R(rst));
+  FDRE #(
+    .INIT(1'b0)) 
+    \cam_angle_int_reg[1] 
+       (.C(clk),
+        .CE(E),
+        .D(D[1]),
+        .Q(Q[1]),
+        .R(rst));
+  FDRE #(
+    .INIT(1'b0)) 
+    \cam_angle_int_reg[2] 
+       (.C(clk),
+        .CE(E),
+        .D(D[2]),
+        .Q(Q[2]),
+        .R(rst));
+  FDRE #(
+    .INIT(1'b0)) 
+    \cam_angle_int_reg[3] 
+       (.C(clk),
+        .CE(E),
+        .D(D[3]),
+        .Q(Q[3]),
+        .R(rst));
+  FDRE #(
+    .INIT(1'b0)) 
+    \cam_angle_int_reg[4] 
+       (.C(clk),
+        .CE(E),
+        .D(D[4]),
+        .Q(Q[4]),
+        .R(rst));
+  FDRE #(
+    .INIT(1'b0)) 
+    \cam_angle_int_reg[5] 
+       (.C(clk),
+        .CE(E),
+        .D(D[5]),
+        .Q(Q[5]),
+        .R(rst));
+  FDRE #(
+    .INIT(1'b0)) 
+    \cam_angle_int_reg[6] 
+       (.C(clk),
+        .CE(E),
+        .D(D[6]),
+        .Q(Q[6]),
+        .R(rst));
+  FDRE #(
+    .INIT(1'b0)) 
+    \cam_angle_int_reg[7] 
+       (.C(clk),
+        .CE(E),
+        .D(D[7]),
+        .Q(Q[7]),
+        .R(rst));
+  FDRE #(
+    .INIT(1'b0)) 
+    \cam_angle_int_reg[8] 
+       (.C(clk),
+        .CE(E),
+        .D(D[8]),
+        .Q(Q[8]),
+        .R(rst));
+  FDRE #(
+    .INIT(1'b0)) 
+    \cam_angle_int_reg[9] 
+       (.C(clk),
+        .CE(E),
+        .D(D[9]),
+        .Q(Q[9]),
+        .R(rst));
+  FDRE #(
+    .INIT(1'b0)) 
+    cam_edge_int_reg
+       (.C(clk),
+        .CE(1'b1),
+        .D(E),
+        .Q(debug_out),
+        .R(rst));
+  FDRE #(
+    .INIT(1'b0)) 
     ref_det_reg
        (.C(clk),
         .CE(1'b1),
         .D(ref_det5_out),
-        .Q(ref_detected),
+        .Q(ref_det_reg_0),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
     ref_prev_reg
        (.C(clk),
         .CE(1'b1),
-        .D(cam_clean),
+        .D(ref_prev_reg_0),
         .Q(ref_prev),
         .R(rst));
   FDRE #(
@@ -30325,14 +31874,14 @@ module pynq_z2_top_0_0_sample_trigger
     \decim_cnt[0]_i_1 
        (.I0(decim_cnt_reg[0]),
         .O(plusOp[0]));
-  (* SOFT_HLUTNM = "soft_lutpair50" *) 
+  (* SOFT_HLUTNM = "soft_lutpair56" *) 
   LUT2 #(
     .INIT(4'h6)) 
     \decim_cnt[1]_i_1 
        (.I0(decim_cnt_reg[0]),
         .I1(decim_cnt_reg[1]),
         .O(plusOp[1]));
-  (* SOFT_HLUTNM = "soft_lutpair50" *) 
+  (* SOFT_HLUTNM = "soft_lutpair56" *) 
   LUT3 #(
     .INIT(8'h78)) 
     \decim_cnt[2]_i_1 
@@ -30340,7 +31889,7 @@ module pynq_z2_top_0_0_sample_trigger
         .I1(decim_cnt_reg[1]),
         .I2(decim_cnt_reg[2]),
         .O(plusOp[2]));
-  (* SOFT_HLUTNM = "soft_lutpair48" *) 
+  (* SOFT_HLUTNM = "soft_lutpair54" *) 
   LUT4 #(
     .INIT(16'h7F80)) 
     \decim_cnt[3]_i_1 
@@ -30349,7 +31898,7 @@ module pynq_z2_top_0_0_sample_trigger
         .I2(decim_cnt_reg[2]),
         .I3(Q[0]),
         .O(plusOp[3]));
-  (* SOFT_HLUTNM = "soft_lutpair48" *) 
+  (* SOFT_HLUTNM = "soft_lutpair54" *) 
   LUT5 #(
     .INIT(32'h7FFF8000)) 
     \decim_cnt[4]_i_1 
@@ -30369,14 +31918,14 @@ module pynq_z2_top_0_0_sample_trigger
         .I4(Q[1]),
         .I5(Q[2]),
         .O(plusOp[5]));
-  (* SOFT_HLUTNM = "soft_lutpair49" *) 
+  (* SOFT_HLUTNM = "soft_lutpair55" *) 
   LUT2 #(
     .INIT(4'h6)) 
     \decim_cnt[6]_i_1 
        (.I0(\decim_cnt[7]_i_7_n_0 ),
         .I1(Q[3]),
         .O(plusOp[6]));
-  (* SOFT_HLUTNM = "soft_lutpair49" *) 
+  (* SOFT_HLUTNM = "soft_lutpair55" *) 
   LUT3 #(
     .INIT(8'h78)) 
     \decim_cnt[7]_i_3 
@@ -30742,18 +32291,22 @@ endmodule
 
 (* ORIG_REF_NAME = "signal_conditioner" *) 
 module pynq_z2_top_0_0_signal_conditioner
-   (cam_clean,
+   (stable_int_reg_0,
+    E,
     cam_raw,
     clk,
     rst,
+    ref_prev,
     rst_n);
-  output cam_clean;
+  output stable_int_reg_0;
+  output [0:0]E;
   input cam_raw;
   input clk;
   input rst;
+  input ref_prev;
   input rst_n;
 
-  wire cam_clean;
+  wire [0:0]E;
   wire cam_raw;
   wire clk;
   wire \debounce_cnt[0]_i_1_n_0 ;
@@ -30762,13 +32315,21 @@ module pynq_z2_top_0_0_signal_conditioner
   wire \debounce_cnt_reg_n_0_[0] ;
   wire \debounce_cnt_reg_n_0_[1] ;
   wire \debounce_cnt_reg_n_0_[2] ;
+  wire ref_prev;
   wire rst;
   wire rst_n;
   wire sig_prev_reg_n_0;
   wire stable_int_i_1__0_n_0;
+  wire stable_int_reg_0;
   wire sync0_reg_n_0;
   wire sync1_reg_n_0;
 
+  LUT2 #(
+    .INIT(4'h2)) 
+    cam_edge_int_i_1
+       (.I0(stable_int_reg_0),
+        .I1(ref_prev),
+        .O(E));
   LUT6 #(
     .INIT(64'hB50000000000B500)) 
     \debounce_cnt[0]_i_1 
@@ -30839,7 +32400,7 @@ module pynq_z2_top_0_0_signal_conditioner
         .I2(\debounce_cnt_reg_n_0_[2] ),
         .I3(\debounce_cnt_reg_n_0_[1] ),
         .I4(\debounce_cnt_reg_n_0_[0] ),
-        .I5(cam_clean),
+        .I5(stable_int_reg_0),
         .O(stable_int_i_1__0_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -30847,7 +32408,7 @@ module pynq_z2_top_0_0_signal_conditioner
        (.C(clk),
         .CE(1'b1),
         .D(stable_int_i_1__0_n_0),
-        .Q(cam_clean),
+        .Q(stable_int_reg_0),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -30869,13 +32430,13 @@ endmodule
 
 (* ORIG_REF_NAME = "signal_conditioner" *) 
 module pynq_z2_top_0_0_signal_conditioner_0
-   (crank_clean,
+   (stable_int_reg_0,
     in_debounce,
     crank_raw,
     clk,
     rst,
     rst_n);
-  output crank_clean;
+  output stable_int_reg_0;
   output in_debounce;
   input crank_raw;
   input clk;
@@ -30883,7 +32444,6 @@ module pynq_z2_top_0_0_signal_conditioner_0
   input rst_n;
 
   wire clk;
-  wire crank_clean;
   wire crank_raw;
   wire [2:0]debounce_cnt;
   wire \debounce_cnt[0]_i_1_n_0 ;
@@ -30895,6 +32455,7 @@ module pynq_z2_top_0_0_signal_conditioner_0
   wire rst_n;
   wire sig_prev;
   wire stable_int_i_1_n_0;
+  wire stable_int_reg_0;
   wire sync0;
   wire sync1;
 
@@ -30986,7 +32547,7 @@ module pynq_z2_top_0_0_signal_conditioner_0
         .I2(debounce_cnt[2]),
         .I3(debounce_cnt[1]),
         .I4(debounce_cnt[0]),
-        .I5(crank_clean),
+        .I5(stable_int_reg_0),
         .O(stable_int_i_1_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -30994,7 +32555,7 @@ module pynq_z2_top_0_0_signal_conditioner_0
        (.C(clk),
         .CE(1'b1),
         .D(stable_int_i_1_n_0),
-        .Q(crank_clean),
+        .Q(stable_int_reg_0),
         .R(rst));
   FDRE #(
     .INIT(1'b0)) 
@@ -31020,19 +32581,23 @@ module pynq_z2_top_0_0_sync
     phase_fault_count,
     locked_offset_reg_0,
     phase_fault,
+    ab_prev,
     SR,
-    sync_state,
     \state_reg[1]_0 ,
+    \state_reg[1]_1 ,
+    sync_state,
     \state_reg[0]_0 ,
     rst_n_0,
     E,
     state0,
     Q,
     rst_n_1,
+    ab_prev_reg_0,
     rst,
-    ref_detected,
+    ref_prev_reg_0,
     clk,
     locked_offset_reg_1,
+    ab_prev_reg_1,
     rst_n,
     sample_pulse_int_reg,
     sample_pulse_int_reg_0,
@@ -31042,27 +32607,30 @@ module pynq_z2_top_0_0_sync
     fault_clear,
     sync_offset,
     z_prev,
-    z,
-    signal_present,
-    D,
+    \ab_count_reg[0]_0 ,
+    \sync_loss_cnt_reg[0]_0 ,
     \ab_count_reg[7]_1 );
   output [15:0]sync_loss_count;
   output [15:0]phase_fault_count;
   output locked_offset_reg_0;
   output phase_fault;
+  output ab_prev;
   output [0:0]SR;
-  output [1:0]sync_state;
-  output [0:0]\state_reg[1]_0 ;
+  output \state_reg[1]_0 ;
+  output [0:0]\state_reg[1]_1 ;
+  output [0:0]sync_state;
   output [0:0]\state_reg[0]_0 ;
   output rst_n_0;
   output [0:0]E;
   output state0;
-  output [0:0]Q;
+  output [7:0]Q;
   output rst_n_1;
+  output ab_prev_reg_0;
   input rst;
-  input ref_detected;
+  input ref_prev_reg_0;
   input clk;
   input locked_offset_reg_1;
+  input ab_prev_reg_1;
   input rst_n;
   input [0:0]sample_pulse_int_reg;
   input sample_pulse_int_reg_0;
@@ -31072,22 +32640,23 @@ module pynq_z2_top_0_0_sync
   input fault_clear;
   input sync_offset;
   input z_prev;
-  input z;
-  input signal_present;
-  input [0:0]D;
+  input \ab_count_reg[0]_0 ;
+  input \sync_loss_cnt_reg[0]_0 ;
   input [0:0]\ab_count_reg[7]_1 ;
 
-  wire [0:0]D;
   wire [0:0]E;
-  wire [0:0]Q;
+  wire [7:0]Q;
   wire [0:0]SR;
   wire ab_count1;
   wire \ab_count[5]_i_2_n_0 ;
   wire \ab_count[7]_i_4_n_0 ;
-  wire [7:1]ab_count_reg;
+  wire \ab_count_reg[0]_0 ;
   wire \ab_count_reg[7]_0 ;
   wire [0:0]\ab_count_reg[7]_1 ;
   wire ab_edge;
+  wire ab_prev;
+  wire ab_prev_reg_0;
+  wire ab_prev_reg_1;
   wire clk;
   wire fault_clear;
   wire locked_offset_reg_0;
@@ -31096,7 +32665,7 @@ module pynq_z2_top_0_0_sync
   wire offset_locked_i_2_n_0;
   wire offset_locked_i_3_n_0;
   wire offset_locked_reg_n_0;
-  wire [7:1]p_0_in;
+  wire [7:0]p_0_in;
   wire phase_fault;
   wire [15:0]phase_fault_count;
   wire phase_flt0;
@@ -31138,22 +32707,22 @@ module pynq_z2_top_0_0_sync
   wire \phase_flt_cnt_reg[8]_i_1_n_6 ;
   wire \phase_flt_cnt_reg[8]_i_1_n_7 ;
   wire phase_flt_i_1_n_0;
-  wire ref_detected;
   wire ref_prev;
+  wire ref_prev_reg_0;
   wire rst;
   wire rst_n;
   wire rst_n_0;
   wire rst_n_1;
   wire [0:0]sample_pulse_int_reg;
   wire sample_pulse_int_reg_0;
-  wire signal_present;
   wire state0;
   wire \state[0]_i_1_n_0 ;
   wire \state[1]_i_1_n_0 ;
   wire \state[1]_i_2_n_0 ;
   wire \state[1]_i_3_n_0 ;
   wire [0:0]\state_reg[0]_0 ;
-  wire [0:0]\state_reg[1]_0 ;
+  wire \state_reg[1]_0 ;
+  wire [0:0]\state_reg[1]_1 ;
   wire \sync_loss_cnt[0]_i_1_n_0 ;
   wire \sync_loss_cnt[0]_i_3_n_0 ;
   wire \sync_loss_cnt[0]_i_4_n_0 ;
@@ -31162,6 +32731,7 @@ module pynq_z2_top_0_0_sync
   wire \sync_loss_cnt[0]_i_7_n_0 ;
   wire \sync_loss_cnt[0]_i_8_n_0 ;
   wire \sync_loss_cnt[0]_i_9_n_0 ;
+  wire \sync_loss_cnt_reg[0]_0 ;
   wire \sync_loss_cnt_reg[0]_i_2_n_0 ;
   wire \sync_loss_cnt_reg[0]_i_2_n_1 ;
   wire \sync_loss_cnt_reg[0]_i_2_n_2 ;
@@ -31195,104 +32765,113 @@ module pynq_z2_top_0_0_sync
   wire \sync_loss_cnt_reg[8]_i_1_n_7 ;
   wire [15:0]sync_loss_count;
   wire sync_offset;
-  wire [1:0]sync_state;
-  wire z;
+  wire [0:0]sync_state;
   wire z_prev;
   wire [3:3]\NLW_phase_flt_cnt_reg[12]_i_1_CO_UNCONNECTED ;
   wire [3:3]\NLW_sync_loss_cnt_reg[12]_i_1_CO_UNCONNECTED ;
 
-  (* SOFT_HLUTNM = "soft_lutpair52" *) 
+  (* SOFT_HLUTNM = "soft_lutpair60" *) 
+  LUT5 #(
+    .INIT(32'h0060FF6F)) 
+    \ab_count[0]_i_1 
+       (.I0(ab_prev),
+        .I1(ab_prev_reg_1),
+        .I2(\ab_count_reg[0]_0 ),
+        .I3(z_prev),
+        .I4(Q[0]),
+        .O(p_0_in[0]));
+  (* SOFT_HLUTNM = "soft_lutpair58" *) 
   LUT4 #(
     .INIT(16'h0DD0)) 
     \ab_count[1]_i_1 
-       (.I0(z),
+       (.I0(\ab_count_reg[0]_0 ),
         .I1(z_prev),
-        .I2(Q),
-        .I3(ab_count_reg[1]),
+        .I2(Q[0]),
+        .I3(Q[1]),
         .O(p_0_in[1]));
-  (* SOFT_HLUTNM = "soft_lutpair52" *) 
+  (* SOFT_HLUTNM = "soft_lutpair58" *) 
   LUT5 #(
     .INIT(32'h70778088)) 
     \ab_count[2]_i_1 
-       (.I0(ab_count_reg[1]),
-        .I1(Q),
+       (.I0(Q[1]),
+        .I1(Q[0]),
         .I2(z_prev),
-        .I3(z),
-        .I4(ab_count_reg[2]),
+        .I3(\ab_count_reg[0]_0 ),
+        .I4(Q[2]),
         .O(p_0_in[2]));
   LUT6 #(
     .INIT(64'h7F007F7F80008080)) 
     \ab_count[3]_i_1 
-       (.I0(ab_count_reg[2]),
-        .I1(Q),
-        .I2(ab_count_reg[1]),
+       (.I0(Q[2]),
+        .I1(Q[0]),
+        .I2(Q[1]),
         .I3(z_prev),
-        .I4(z),
-        .I5(ab_count_reg[3]),
+        .I4(\ab_count_reg[0]_0 ),
+        .I5(Q[3]),
         .O(p_0_in[3]));
   LUT6 #(
     .INIT(64'h00007FFF00008000)) 
     \ab_count[4]_i_1 
-       (.I0(ab_count_reg[3]),
-        .I1(ab_count_reg[1]),
-        .I2(Q),
-        .I3(ab_count_reg[2]),
+       (.I0(Q[3]),
+        .I1(Q[1]),
+        .I2(Q[0]),
+        .I3(Q[2]),
         .I4(ab_count1),
-        .I5(ab_count_reg[4]),
+        .I5(Q[4]),
         .O(p_0_in[4]));
   LUT4 #(
     .INIT(16'h458A)) 
     \ab_count[5]_i_1 
        (.I0(\ab_count[5]_i_2_n_0 ),
         .I1(z_prev),
-        .I2(z),
-        .I3(ab_count_reg[5]),
+        .I2(\ab_count_reg[0]_0 ),
+        .I3(Q[5]),
         .O(p_0_in[5]));
   LUT5 #(
     .INIT(32'h80000000)) 
     \ab_count[5]_i_2 
-       (.I0(ab_count_reg[4]),
-        .I1(ab_count_reg[2]),
-        .I2(Q),
-        .I3(ab_count_reg[1]),
-        .I4(ab_count_reg[3]),
+       (.I0(Q[4]),
+        .I1(Q[2]),
+        .I2(Q[0]),
+        .I3(Q[1]),
+        .I4(Q[3]),
         .O(\ab_count[5]_i_2_n_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair53" *) 
+  (* SOFT_HLUTNM = "soft_lutpair59" *) 
   LUT4 #(
     .INIT(16'h458A)) 
     \ab_count[6]_i_1 
        (.I0(\ab_count[7]_i_4_n_0 ),
         .I1(z_prev),
-        .I2(z),
-        .I3(ab_count_reg[6]),
+        .I2(\ab_count_reg[0]_0 ),
+        .I3(Q[6]),
         .O(p_0_in[6]));
-  (* SOFT_HLUTNM = "soft_lutpair53" *) 
+  (* SOFT_HLUTNM = "soft_lutpair59" *) 
   LUT5 #(
     .INIT(32'h70778088)) 
     \ab_count[7]_i_3 
-       (.I0(ab_count_reg[6]),
+       (.I0(Q[6]),
         .I1(\ab_count[7]_i_4_n_0 ),
         .I2(z_prev),
-        .I3(z),
-        .I4(ab_count_reg[7]),
+        .I3(\ab_count_reg[0]_0 ),
+        .I4(Q[7]),
         .O(p_0_in[7]));
   LUT6 #(
     .INIT(64'h8000000000000000)) 
     \ab_count[7]_i_4 
-       (.I0(ab_count_reg[5]),
-        .I1(ab_count_reg[3]),
-        .I2(ab_count_reg[1]),
-        .I3(Q),
-        .I4(ab_count_reg[2]),
-        .I5(ab_count_reg[4]),
+       (.I0(Q[5]),
+        .I1(Q[3]),
+        .I2(Q[1]),
+        .I3(Q[0]),
+        .I4(Q[2]),
+        .I5(Q[4]),
         .O(\ab_count[7]_i_4_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
     \ab_count_reg[0] 
        (.C(clk),
         .CE(\ab_count_reg[7]_1 ),
-        .D(D),
-        .Q(Q),
+        .D(p_0_in[0]),
+        .Q(Q[0]),
         .R(\ab_count_reg[7]_0 ));
   FDRE #(
     .INIT(1'b0)) 
@@ -31300,7 +32879,7 @@ module pynq_z2_top_0_0_sync
        (.C(clk),
         .CE(\ab_count_reg[7]_1 ),
         .D(p_0_in[1]),
-        .Q(ab_count_reg[1]),
+        .Q(Q[1]),
         .R(\ab_count_reg[7]_0 ));
   FDRE #(
     .INIT(1'b0)) 
@@ -31308,7 +32887,7 @@ module pynq_z2_top_0_0_sync
        (.C(clk),
         .CE(\ab_count_reg[7]_1 ),
         .D(p_0_in[2]),
-        .Q(ab_count_reg[2]),
+        .Q(Q[2]),
         .R(\ab_count_reg[7]_0 ));
   FDRE #(
     .INIT(1'b0)) 
@@ -31316,7 +32895,7 @@ module pynq_z2_top_0_0_sync
        (.C(clk),
         .CE(\ab_count_reg[7]_1 ),
         .D(p_0_in[3]),
-        .Q(ab_count_reg[3]),
+        .Q(Q[3]),
         .R(\ab_count_reg[7]_0 ));
   FDRE #(
     .INIT(1'b0)) 
@@ -31324,7 +32903,7 @@ module pynq_z2_top_0_0_sync
        (.C(clk),
         .CE(\ab_count_reg[7]_1 ),
         .D(p_0_in[4]),
-        .Q(ab_count_reg[4]),
+        .Q(Q[4]),
         .R(\ab_count_reg[7]_0 ));
   FDRE #(
     .INIT(1'b0)) 
@@ -31332,7 +32911,7 @@ module pynq_z2_top_0_0_sync
        (.C(clk),
         .CE(\ab_count_reg[7]_1 ),
         .D(p_0_in[5]),
-        .Q(ab_count_reg[5]),
+        .Q(Q[5]),
         .R(\ab_count_reg[7]_0 ));
   FDRE #(
     .INIT(1'b0)) 
@@ -31340,7 +32919,7 @@ module pynq_z2_top_0_0_sync
        (.C(clk),
         .CE(\ab_count_reg[7]_1 ),
         .D(p_0_in[6]),
-        .Q(ab_count_reg[6]),
+        .Q(Q[6]),
         .R(\ab_count_reg[7]_0 ));
   FDRE #(
     .INIT(1'b0)) 
@@ -31348,25 +32927,40 @@ module pynq_z2_top_0_0_sync
        (.C(clk),
         .CE(\ab_count_reg[7]_1 ),
         .D(p_0_in[7]),
-        .Q(ab_count_reg[7]),
+        .Q(Q[7]),
         .R(\ab_count_reg[7]_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair51" *) 
+  (* SOFT_HLUTNM = "soft_lutpair60" *) 
+  LUT2 #(
+    .INIT(4'h6)) 
+    ab_edge_i_1
+       (.I0(ab_prev),
+        .I1(ab_prev_reg_1),
+        .O(ab_prev_reg_0));
+  FDRE #(
+    .INIT(1'b0)) 
+    ab_prev_reg
+       (.C(clk),
+        .CE(1'b1),
+        .D(ab_prev_reg_1),
+        .Q(ab_prev),
+        .R(rst));
+  (* SOFT_HLUTNM = "soft_lutpair57" *) 
   LUT5 #(
     .INIT(32'h8FFFFFFF)) 
     \decim_cnt[7]_i_1 
        (.I0(sample_pulse_int_reg),
         .I1(sample_pulse_int_reg_0),
-        .I2(sync_state[1]),
-        .I3(sync_state[0]),
+        .I2(\state_reg[1]_0 ),
+        .I3(sync_state),
         .I4(rst_n),
-        .O(\state_reg[1]_0 ));
+        .O(\state_reg[1]_1 ));
   LUT4 #(
     .INIT(16'h0400)) 
     locked_offset_i_2
-       (.I0(sync_state[0]),
-        .I1(sync_state[1]),
+       (.I0(sync_state),
+        .I1(\state_reg[1]_0 ),
         .I2(ref_prev),
-        .I3(ref_detected),
+        .I3(ref_prev_reg_0),
         .O(state0));
   FDRE #(
     .INIT(1'b0)) 
@@ -31386,18 +32980,18 @@ module pynq_z2_top_0_0_sync
         .I4(offset_locked_i_3_n_0),
         .I5(\ab_count_reg[7]_0 ),
         .O(offset_locked_i_1_n_0));
-  (* SOFT_HLUTNM = "soft_lutpair54" *) 
+  (* SOFT_HLUTNM = "soft_lutpair61" *) 
   LUT2 #(
     .INIT(4'h7)) 
     offset_locked_i_2
-       (.I0(sync_state[1]),
-        .I1(sync_state[0]),
+       (.I0(\state_reg[1]_0 ),
+        .I1(sync_state),
         .O(offset_locked_i_2_n_0));
   LUT2 #(
     .INIT(4'hB)) 
     offset_locked_i_3
        (.I0(\sync_loss_cnt[0]_i_4_n_0 ),
-        .I1(signal_present),
+        .I1(\sync_loss_cnt_reg[0]_0 ),
         .O(offset_locked_i_3_n_0));
   FDRE #(
     .INIT(1'b0)) 
@@ -31410,7 +33004,7 @@ module pynq_z2_top_0_0_sync
   LUT2 #(
     .INIT(4'h8)) 
     phase_error1_i_1
-       (.I0(sync_state[1]),
+       (.I0(\state_reg[1]_0 ),
         .I1(ab_edge),
         .O(E));
   LUT4 #(
@@ -31424,7 +33018,7 @@ module pynq_z2_top_0_0_sync
   LUT6 #(
     .INIT(64'h0000020002000000)) 
     \phase_flt_cnt[0]_i_3 
-       (.I0(ref_detected),
+       (.I0(ref_prev_reg_0),
         .I1(ref_prev),
         .I2(offset_locked_i_2_n_0),
         .I3(offset_locked_reg_n_0),
@@ -31650,13 +33244,13 @@ module pynq_z2_top_0_0_sync
     .INIT(4'h7)) 
     pi_i_term0_i_1
        (.I0(rst_n),
-        .I1(sync_state[1]),
+        .I1(\state_reg[1]_0 ),
         .O(SR));
   LUT3 #(
     .INIT(8'h80)) 
     pi_stage2_i_1
        (.I0(rst_n),
-        .I1(sync_state[1]),
+        .I1(\state_reg[1]_0 ),
         .I2(ab_edge),
         .O(rst_n_0));
   FDRE #(
@@ -31664,7 +33258,7 @@ module pynq_z2_top_0_0_sync
     ref_prev_reg
        (.C(clk),
         .CE(1'b1),
-        .D(ref_detected),
+        .D(ref_prev_reg_0),
         .Q(ref_prev),
         .R(rst));
   LUT4 #(
@@ -31672,58 +33266,58 @@ module pynq_z2_top_0_0_sync
     \sample_angle_int[15]_i_1 
        (.I0(sample_pulse_int_reg),
         .I1(sample_pulse_int_reg_0),
-        .I2(sync_state[0]),
-        .I3(sync_state[1]),
+        .I2(sync_state),
+        .I3(\state_reg[1]_0 ),
         .O(\state_reg[0]_0 ));
-  (* SOFT_HLUTNM = "soft_lutpair51" *) 
+  (* SOFT_HLUTNM = "soft_lutpair57" *) 
   LUT5 #(
     .INIT(32'h80000000)) 
     sample_pulse_int_i_1
        (.I0(sample_pulse_int_reg_0),
         .I1(rst_n),
-        .I2(sync_state[0]),
-        .I3(sync_state[1]),
+        .I2(sync_state),
+        .I3(\state_reg[1]_0 ),
         .I4(sample_pulse_int_reg),
         .O(rst_n_1));
-  (* SOFT_HLUTNM = "soft_lutpair54" *) 
+  (* SOFT_HLUTNM = "soft_lutpair61" *) 
   LUT5 #(
     .INIT(32'h0000E2E6)) 
     \state[0]_i_1 
-       (.I0(sync_state[0]),
+       (.I0(sync_state),
         .I1(\state[1]_i_2_n_0 ),
         .I2(\state[1]_i_3_n_0 ),
-        .I3(sync_state[1]),
+        .I3(\state_reg[1]_0 ),
         .I4(\ab_count_reg[7]_0 ),
         .O(\state[0]_i_1_n_0 ));
   LUT6 #(
     .INIT(64'h00000000E6E2E2E2)) 
     \state[1]_i_1 
-       (.I0(sync_state[1]),
+       (.I0(\state_reg[1]_0 ),
         .I1(\state[1]_i_2_n_0 ),
         .I2(\state[1]_i_3_n_0 ),
-        .I3(signal_present),
-        .I4(sync_state[0]),
+        .I3(\sync_loss_cnt_reg[0]_0 ),
+        .I4(sync_state),
         .I5(\ab_count_reg[7]_0 ),
         .O(\state[1]_i_1_n_0 ));
   LUT6 #(
     .INIT(64'hFFFFFFFFAF7C0000)) 
     \state[1]_i_2 
        (.I0(\sync_loss_cnt[0]_i_4_n_0 ),
-        .I1(sync_state[0]),
-        .I2(signal_present),
-        .I3(sync_state[1]),
+        .I1(sync_state),
+        .I2(\sync_loss_cnt_reg[0]_0 ),
+        .I3(\state_reg[1]_0 ),
         .I4(ab_count1),
         .I5(\state[1]_i_3_n_0 ),
         .O(\state[1]_i_2_n_0 ));
   LUT6 #(
     .INIT(64'h0020000000200020)) 
     \state[1]_i_3 
-       (.I0(ref_detected),
+       (.I0(ref_prev_reg_0),
         .I1(ref_prev),
-        .I2(sync_state[1]),
-        .I3(sync_state[0]),
+        .I2(\state_reg[1]_0 ),
+        .I3(sync_state),
         .I4(z_prev),
-        .I5(z),
+        .I5(\ab_count_reg[0]_0 ),
         .O(\state[1]_i_3_n_0 ));
   FDRE #(
     .INIT(1'b0)) 
@@ -31731,7 +33325,7 @@ module pynq_z2_top_0_0_sync
        (.C(clk),
         .CE(1'b1),
         .D(\state[0]_i_1_n_0 ),
-        .Q(sync_state[0]),
+        .Q(sync_state),
         .R(1'b0));
   FDRE #(
     .INIT(1'b0)) 
@@ -31739,17 +33333,17 @@ module pynq_z2_top_0_0_sync
        (.C(clk),
         .CE(1'b1),
         .D(\state[1]_i_1_n_0 ),
-        .Q(sync_state[1]),
+        .Q(\state_reg[1]_0 ),
         .R(1'b0));
   LUT6 #(
     .INIT(64'h8000800080000000)) 
     \sync_loss_cnt[0]_i_1 
        (.I0(\sync_loss_cnt[0]_i_3_n_0 ),
         .I1(ab_count1),
-        .I2(signal_present),
+        .I2(\sync_loss_cnt_reg[0]_0 ),
         .I3(\sync_loss_cnt[0]_i_4_n_0 ),
-        .I4(sync_state[1]),
-        .I5(sync_state[0]),
+        .I4(\state_reg[1]_0 ),
+        .I5(sync_state),
         .O(\sync_loss_cnt[0]_i_1_n_0 ));
   LUT6 #(
     .INIT(64'hFFFFFFFFBFFFFFFF)) 
@@ -31764,10 +33358,10 @@ module pynq_z2_top_0_0_sync
   LUT5 #(
     .INIT(32'hFFFFFFFE)) 
     \sync_loss_cnt[0]_i_4 
-       (.I0(ab_count_reg[7]),
-        .I1(ab_count_reg[6]),
-        .I2(Q),
-        .I3(ab_count_reg[1]),
+       (.I0(Q[7]),
+        .I1(Q[6]),
+        .I2(Q[0]),
+        .I3(Q[1]),
         .I4(\sync_loss_cnt[0]_i_8_n_0 ),
         .O(\sync_loss_cnt[0]_i_4_n_0 ));
   LUT1 #(
@@ -31795,10 +33389,10 @@ module pynq_z2_top_0_0_sync
   LUT4 #(
     .INIT(16'h7FFF)) 
     \sync_loss_cnt[0]_i_8 
-       (.I0(ab_count_reg[3]),
-        .I1(ab_count_reg[2]),
-        .I2(ab_count_reg[5]),
-        .I3(ab_count_reg[4]),
+       (.I0(Q[3]),
+        .I1(Q[2]),
+        .I2(Q[5]),
+        .I3(Q[4]),
         .O(\sync_loss_cnt[0]_i_8_n_0 ));
   LUT4 #(
     .INIT(16'h7FFF)) 
@@ -31972,7 +33566,15 @@ endmodule
 
 (* ORIG_REF_NAME = "top" *) 
 module pynq_z2_top_0_0_top
-   (sample_pulse_int_reg,
+   (debug_out,
+    sig_present_reg,
+    z_int_reg,
+    sample_pulse_int_reg,
+    \state_reg[1] ,
+    stable_int_reg,
+    gap_det_reg,
+    ab_int_reg,
+    \gen_vld_en.valid_en_reg ,
     m_axis_tlast,
     m_axis_tdata,
     m_axis_tvalid,
@@ -32001,7 +33603,15 @@ module pynq_z2_top_0_0_top
     s_axi_rready,
     crank_raw,
     cam_raw);
+  output [2:0]debug_out;
+  output sig_present_reg;
+  output z_int_reg;
   output sample_pulse_int_reg;
+  output \state_reg[1] ;
+  output stable_int_reg;
+  output gap_det_reg;
+  output ab_int_reg;
+  output [1:0]\gen_vld_en.valid_en_reg ;
   output m_axis_tlast;
   output [31:0]m_axis_tdata;
   output m_axis_tvalid;
@@ -32031,17 +33641,19 @@ module pynq_z2_top_0_0_top
   input crank_raw;
   input cam_raw;
 
-  wire ab;
+  wire [7:0]ab_count;
   wire ab_count1;
-  wire [0:0]ab_count_reg;
   wire ab_edge;
+  wire ab_int_reg;
+  wire ab_prev;
   wire [79:0]adc_data;
-  wire cam_clean;
+  wire [12:0]cam_angle;
   wire cam_raw;
   wire clk;
+  wire [31:0]correction;
   wire [15:3]crank_angle;
-  wire crank_clean;
   wire crank_raw;
+  wire [2:0]debug_out;
   wire [7:3]decim_cnt_reg;
   wire [2:0]decimation;
   wire [7:0]digital_inputs;
@@ -32052,7 +33664,10 @@ module pynq_z2_top_0_0_top
   wire [15:0]engine_angle_prev;
   wire [12:0]expected_phase_angle;
   wire fault_clear;
+  wire gap_det_reg;
+  wire [31:4]gap_period;
   wire [7:0]gap_threshold;
+  wire [1:0]\gen_vld_en.valid_en_reg ;
   wire in_debounce;
   wire [15:0]ki;
   wire [15:0]kp;
@@ -32061,14 +33676,15 @@ module pynq_z2_top_0_0_top
   wire m_axis_tready;
   wire m_axis_tvalid;
   wire [15:0]max_correction;
+  wire [31:0]nco_inc;
   wire [15:0]overflow_count;
-  wire [0:0]p_0_in;
   wire [31:0]packet_count;
+  wire [31:0]phase_error;
   wire phase_fault;
   wire [15:0]phase_fault_count;
   wire [12:0]raw_angle;
+  wire ref_det1;
   wire ref_det5_out;
-  wire ref_detected;
   wire ref_prev;
   wire rst;
   wire rst_n;
@@ -32089,63 +33705,83 @@ module pynq_z2_top_0_0_top
   wire s_axi_wvalid;
   wire [15:0]sample_angle;
   wire sample_pulse_int_reg;
-  wire signal_present;
+  wire [1:0]sel0;
+  wire sig_present_reg;
+  wire stable_int_reg;
   wire state0;
+  wire \state_reg[1] ;
   wire [15:0]sync_loss_count;
   wire sync_offset;
-  wire [1:0]sync_state;
+  wire [0:0]sync_state;
   wire [15:0]tdc_offset;
   wire [31:1]tooth_period;
-  wire u_angle_engine_n_25;
-  wire u_angle_engine_n_40;
-  wire u_angle_engine_n_41;
-  wire u_angle_engine_n_42;
-  wire u_angle_engine_n_43;
-  wire u_angle_engine_n_44;
-  wire u_angle_engine_n_45;
-  wire u_angle_engine_n_46;
-  wire u_angle_engine_n_47;
+  wire u_angle_engine_n_13;
+  wire u_angle_engine_n_130;
+  wire u_angle_engine_n_131;
+  wire u_angle_engine_n_132;
+  wire u_angle_engine_n_133;
+  wire u_angle_engine_n_134;
+  wire u_angle_engine_n_135;
+  wire u_angle_engine_n_136;
+  wire u_angle_engine_n_137;
+  wire u_angle_engine_n_138;
+  wire u_angle_engine_n_139;
+  wire u_angle_engine_n_14;
+  wire u_angle_engine_n_140;
+  wire u_angle_engine_n_141;
+  wire u_angle_engine_n_142;
+  wire u_angle_engine_n_143;
+  wire u_angle_engine_n_144;
+  wire u_angle_engine_n_145;
+  wire u_angle_engine_n_146;
+  wire u_angle_engine_n_147;
+  wire u_angle_engine_n_148;
+  wire u_angle_engine_n_149;
+  wire u_angle_engine_n_15;
+  wire u_angle_engine_n_150;
+  wire u_angle_engine_n_151;
+  wire u_angle_engine_n_152;
+  wire u_angle_engine_n_153;
+  wire u_angle_engine_n_154;
+  wire u_angle_engine_n_155;
+  wire u_angle_engine_n_156;
+  wire u_angle_engine_n_157;
+  wire u_angle_engine_n_158;
+  wire u_angle_engine_n_159;
+  wire u_angle_engine_n_160;
+  wire u_angle_engine_n_161;
+  wire u_angle_engine_n_178;
+  wire u_angle_engine_n_179;
+  wire u_angle_engine_n_180;
+  wire u_angle_engine_n_181;
+  wire u_angle_engine_n_182;
+  wire u_angle_engine_n_186;
+  wire u_angle_engine_n_187;
+  wire u_angle_engine_n_188;
+  wire u_angle_engine_n_189;
+  wire u_angle_engine_n_190;
+  wire u_angle_engine_n_191;
+  wire u_angle_engine_n_192;
+  wire u_angle_engine_n_193;
+  wire u_angle_engine_n_194;
+  wire u_angle_engine_n_195;
+  wire u_angle_engine_n_196;
+  wire u_angle_engine_n_197;
+  wire u_angle_engine_n_198;
+  wire u_angle_engine_n_199;
+  wire u_angle_engine_n_200;
+  wire u_angle_engine_n_201;
+  wire u_angle_engine_n_202;
   wire u_angle_engine_n_48;
   wire u_angle_engine_n_49;
-  wire u_angle_engine_n_5;
   wire u_angle_engine_n_50;
   wire u_angle_engine_n_51;
-  wire u_angle_engine_n_52;
-  wire u_angle_engine_n_53;
-  wire u_angle_engine_n_54;
-  wire u_angle_engine_n_55;
-  wire u_angle_engine_n_56;
-  wire u_angle_engine_n_57;
-  wire u_angle_engine_n_58;
-  wire u_angle_engine_n_59;
-  wire u_angle_engine_n_6;
-  wire u_angle_engine_n_60;
-  wire u_angle_engine_n_61;
-  wire u_angle_engine_n_62;
-  wire u_angle_engine_n_63;
-  wire u_angle_engine_n_64;
-  wire u_angle_engine_n_65;
-  wire u_angle_engine_n_66;
-  wire u_angle_engine_n_67;
-  wire u_angle_engine_n_68;
-  wire u_angle_engine_n_69;
-  wire u_angle_engine_n_7;
-  wire u_angle_engine_n_70;
-  wire u_angle_engine_n_71;
-  wire u_angle_engine_n_72;
-  wire u_angle_engine_n_76;
-  wire u_angle_engine_n_77;
-  wire u_angle_engine_n_78;
-  wire u_angle_engine_n_79;
-  wire u_angle_engine_n_8;
-  wire u_angle_engine_n_80;
-  wire u_angle_engine_n_81;
-  wire u_angle_engine_n_82;
-  wire u_angle_engine_n_83;
-  wire u_angle_engine_n_84;
+  wire [15:8]\u_angle_offset/engine_angle0 ;
+  wire \u_angle_offset/engine_angle1 ;
+  wire u_axi_lite_regs_n_114;
   wire u_axi_lite_regs_n_13;
   wire u_axi_lite_regs_n_14;
-  wire u_axi_lite_regs_n_16;
+  wire u_axi_lite_regs_n_15;
   wire u_axi_lite_regs_n_17;
   wire u_axi_lite_regs_n_18;
   wire u_axi_lite_regs_n_19;
@@ -32163,11 +33799,16 @@ module pynq_z2_top_0_0_top
   wire u_axi_lite_regs_n_31;
   wire u_axi_lite_regs_n_32;
   wire u_axi_lite_regs_n_33;
-  wire u_crank_input_n_1;
-  wire u_crank_input_n_3;
-  wire u_crank_input_n_39;
-  wire u_crank_input_n_5;
-  wire u_crank_input_n_6;
+  wire u_crank_input_n_2;
+  wire u_crank_input_n_4;
+  wire u_crank_input_n_64;
+  wire u_crank_input_n_65;
+  wire u_crank_input_n_66;
+  wire u_crank_input_n_67;
+  wire u_crank_input_n_69;
+  wire u_crank_input_n_70;
+  wire u_crank_input_n_72;
+  wire u_crank_input_n_74;
   wire [2:2]\u_divider/SHIFT_LEFT ;
   wire \u_divider/quotient_reg ;
   wire \u_divider/valid_en ;
@@ -32176,120 +33817,159 @@ module pynq_z2_top_0_0_top
   wire u_sample_trigger_n_1;
   wire u_sample_trigger_n_7;
   wire u_sync_n_32;
-  wire u_sync_n_34;
+  wire u_sync_n_35;
   wire u_sync_n_37;
-  wire u_sync_n_38;
   wire u_sync_n_39;
-  wire u_sync_n_43;
+  wire u_sync_n_40;
+  wire u_sync_n_51;
+  wire u_sync_n_52;
   wire [4:0]xadc_channel;
   wire [15:0]xadc_do;
   wire xadc_eoc;
   wire xadc_eos;
-  wire z;
+  wire z_int_reg;
   wire z_prev;
 
   pynq_z2_top_0_0_angle_engine u_angle_engine
-       (.CO(u_angle_engine_n_44),
+       (.CO(u_angle_engine_n_134),
         .D(engine_angle),
-        .DI({u_angle_engine_n_40,u_angle_engine_n_41}),
+        .DI({u_angle_engine_n_130,u_angle_engine_n_131}),
         .E(div_start0),
-        .O({u_angle_engine_n_5,u_angle_engine_n_6,u_angle_engine_n_7,u_angle_engine_n_8}),
+        .O({u_angle_engine_n_13,u_angle_engine_n_14,u_angle_engine_n_15}),
         .Q(\u_divider/SHIFT_LEFT ),
         .S({u_axi_lite_regs_n_17,u_axi_lite_regs_n_18,u_axi_lite_regs_n_19}),
-        .SR(u_sync_n_34),
-        .ab(ab),
+        .SR(u_sync_n_35),
         .ab_count1(ab_count1),
-        .\ab_count_reg[0] (ab_count_reg),
         .ab_edge(ab_edge),
-        .ab_prev_reg_0(p_0_in),
+        .ab_edge_reg_0(u_sync_n_52),
+        .\angle_temp_reg[32]_0 (\state_reg[1] ),
         .clk(clk),
+        .\correction_reg[31]_0 (correction),
         .crank_angle({crank_angle[15],crank_angle[13],crank_angle[3]}),
         .\decim_cnt_reg[7] (engine_angle_prev),
         .div_start(div_start),
-        .\dividend_op_reg[3] (u_crank_input_n_3),
-        .\divisor_op_reg[0] (u_crank_input_n_6),
-        .\engine_angle_prev_reg[15] (u_angle_engine_n_72),
+        .\dividend_op_reg[3] (u_crank_input_n_67),
+        .\divisor_op_reg[0] (u_crank_input_n_70),
+        .engine_angle1(\u_angle_offset/engine_angle1 ),
+        .\engine_angle_prev_reg[15] (u_angle_engine_n_178),
         .expected_phase_angle(expected_phase_angle),
-        .\gen_vld_en.valid_en_reg (u_crank_input_n_5),
+        .\gen_vld_en.valid_en_reg (\gen_vld_en.valid_en_reg [1]),
+        .\gen_vld_en.valid_en_reg_0 (u_crank_input_n_69),
         .ki(ki),
         .kp(kp),
         .max_correction(max_correction),
-        .pi_stage2_reg_0(u_sync_n_39),
+        .\nco_inc_reg[31]_0 (nco_inc),
+        .\phase_error_reg[31]_0 (phase_error),
+        .pi_stage2_reg_0(u_sync_n_40),
         .quotient_reg(\u_divider/quotient_reg ),
-        .\raw_angle_int_reg[11]_0 ({u_angle_engine_n_42,u_angle_engine_n_43}),
-        .\raw_angle_int_reg[11]_1 ({u_angle_engine_n_46,u_angle_engine_n_47,u_angle_engine_n_48,u_angle_engine_n_49}),
-        .\raw_angle_int_reg[11]_10 (u_angle_engine_n_83),
-        .\raw_angle_int_reg[11]_11 (u_angle_engine_n_84),
-        .\raw_angle_int_reg[11]_2 ({u_angle_engine_n_59,u_angle_engine_n_60,u_angle_engine_n_61,u_angle_engine_n_62}),
-        .\raw_angle_int_reg[11]_3 (u_angle_engine_n_76),
-        .\raw_angle_int_reg[11]_4 (u_angle_engine_n_77),
-        .\raw_angle_int_reg[11]_5 (u_angle_engine_n_78),
-        .\raw_angle_int_reg[11]_6 (u_angle_engine_n_79),
-        .\raw_angle_int_reg[11]_7 (u_angle_engine_n_80),
-        .\raw_angle_int_reg[11]_8 (u_angle_engine_n_81),
-        .\raw_angle_int_reg[11]_9 (u_angle_engine_n_82),
+        .\raw_angle_int_reg[11]_0 ({u_angle_engine_n_132,u_angle_engine_n_133}),
+        .\raw_angle_int_reg[11]_1 ({u_angle_engine_n_136,u_angle_engine_n_137,u_angle_engine_n_138,u_angle_engine_n_139}),
+        .\raw_angle_int_reg[11]_10 (u_angle_engine_n_193),
+        .\raw_angle_int_reg[11]_11 (u_angle_engine_n_194),
+        .\raw_angle_int_reg[11]_2 ({u_angle_engine_n_149,u_angle_engine_n_150,u_angle_engine_n_151,u_angle_engine_n_152}),
+        .\raw_angle_int_reg[11]_3 (u_angle_engine_n_186),
+        .\raw_angle_int_reg[11]_4 (u_angle_engine_n_187),
+        .\raw_angle_int_reg[11]_5 (u_angle_engine_n_188),
+        .\raw_angle_int_reg[11]_6 (u_angle_engine_n_189),
+        .\raw_angle_int_reg[11]_7 (u_angle_engine_n_190),
+        .\raw_angle_int_reg[11]_8 (u_angle_engine_n_191),
+        .\raw_angle_int_reg[11]_9 (u_angle_engine_n_192),
         .\raw_angle_int_reg[12]_0 (raw_angle),
-        .\raw_angle_int_reg[12]_1 (u_angle_engine_n_58),
-        .\raw_angle_int_reg[12]_2 (u_angle_engine_n_71),
-        .\raw_angle_int_reg[3]_0 ({u_angle_engine_n_50,u_angle_engine_n_51,u_angle_engine_n_52,u_angle_engine_n_53}),
-        .\raw_angle_int_reg[3]_1 ({u_angle_engine_n_63,u_angle_engine_n_64,u_angle_engine_n_65,u_angle_engine_n_66}),
-        .\raw_angle_int_reg[7]_0 (u_angle_engine_n_45),
-        .\raw_angle_int_reg[7]_1 ({u_angle_engine_n_54,u_angle_engine_n_55,u_angle_engine_n_56,u_angle_engine_n_57}),
-        .\raw_angle_int_reg[7]_2 ({u_angle_engine_n_67,u_angle_engine_n_68,u_angle_engine_n_69,u_angle_engine_n_70}),
+        .\raw_angle_int_reg[12]_1 (u_angle_engine_n_148),
+        .\raw_angle_int_reg[12]_2 (u_angle_engine_n_161),
+        .\raw_angle_int_reg[3]_0 ({u_angle_engine_n_140,u_angle_engine_n_141,u_angle_engine_n_142,u_angle_engine_n_143}),
+        .\raw_angle_int_reg[3]_1 ({u_angle_engine_n_153,u_angle_engine_n_154,u_angle_engine_n_155,u_angle_engine_n_156}),
+        .\raw_angle_int_reg[7]_0 (u_angle_engine_n_135),
+        .\raw_angle_int_reg[7]_1 ({u_angle_engine_n_144,u_angle_engine_n_145,u_angle_engine_n_146,u_angle_engine_n_147}),
+        .\raw_angle_int_reg[7]_2 ({u_angle_engine_n_157,u_angle_engine_n_158,u_angle_engine_n_159,u_angle_engine_n_160}),
         .ref_det_reg_i_148(u_axi_lite_regs_n_31),
         .ref_det_reg_i_148_0({u_axi_lite_regs_n_20,u_axi_lite_regs_n_21,u_axi_lite_regs_n_22}),
         .ref_det_reg_i_179(u_axi_lite_regs_n_32),
         .ref_det_reg_i_34({u_axi_lite_regs_n_27,u_axi_lite_regs_n_28,u_axi_lite_regs_n_29,u_axi_lite_regs_n_30}),
         .ref_det_reg_i_57({u_axi_lite_regs_n_23,u_axi_lite_regs_n_24,u_axi_lite_regs_n_25,u_axi_lite_regs_n_26}),
         .ref_det_reg_i_74({u_axi_lite_regs_n_13,u_axi_lite_regs_n_14}),
+        .\reg_tdc_off_reg[11] ({u_angle_engine_n_179,u_angle_engine_n_180,u_angle_engine_n_181,u_angle_engine_n_182}),
+        .\reg_tdc_off_reg[15] ({\u_angle_offset/engine_angle0 [15:14],\u_angle_offset/engine_angle0 [12:8]}),
+        .\reg_tdc_off_reg[15]_0 (u_angle_engine_n_195),
+        .\reg_tdc_off_reg[15]_1 (u_angle_engine_n_196),
+        .\reg_tdc_off_reg[15]_2 (u_angle_engine_n_197),
+        .\reg_tdc_off_reg[15]_3 (u_angle_engine_n_198),
+        .\reg_tdc_off_reg[15]_4 (u_angle_engine_n_199),
+        .\reg_tdc_off_reg[15]_5 (u_angle_engine_n_200),
+        .\reg_tdc_off_reg[15]_6 (u_angle_engine_n_201),
+        .\reg_tdc_off_reg[15]_7 (u_angle_engine_n_202),
+        .\reg_tdc_off_reg[3] ({u_angle_engine_n_48,u_angle_engine_n_49,u_angle_engine_n_50,u_angle_engine_n_51}),
         .rst(rst),
         .rst_n(rst_n),
         .sync_offset(sync_offset),
-        .sync_state(sync_state[1]),
         .tdc_offset(tdc_offset),
         .tooth_period(tooth_period),
         .valid_en(\u_divider/valid_en ),
-        .z(z),
         .z_prev(z_prev),
-        .z_prev_reg_0(u_angle_engine_n_25),
+        .z_prev_reg_0(z_int_reg),
         .zero_divide(\u_divider/zero_divide ));
   pynq_z2_top_0_0_axi_lite_regs u_axi_lite_regs
-       (.CO(u_angle_engine_n_44),
-        .D(engine_angle[15:4]),
-        .DI({u_angle_engine_n_40,u_angle_engine_n_41}),
-        .O({u_angle_engine_n_5,u_angle_engine_n_6,u_angle_engine_n_7,u_angle_engine_n_8}),
+       (.CO(u_angle_engine_n_134),
+        .D(engine_angle[13]),
+        .DI({u_angle_engine_n_130,u_angle_engine_n_131}),
+        .O({u_angle_engine_n_13,u_angle_engine_n_14,u_angle_engine_n_15}),
         .Q(expected_phase_angle),
         .S({u_axi_lite_regs_n_17,u_axi_lite_regs_n_18,u_axi_lite_regs_n_19}),
-        .\axi_rdata_reg[10]_i_2_0 (u_angle_engine_n_82),
-        .\axi_rdata_reg[11]_i_2_0 (u_angle_engine_n_83),
-        .\axi_rdata_reg[12]_i_2_0 (u_angle_engine_n_84),
-        .\axi_rdata_reg[4]_i_2_0 (u_angle_engine_n_76),
-        .\axi_rdata_reg[5]_i_2_0 (u_angle_engine_n_77),
-        .\axi_rdata_reg[6]_i_2_0 (u_angle_engine_n_78),
-        .\axi_rdata_reg[7]_i_2_0 (u_angle_engine_n_79),
-        .\axi_rdata_reg[8]_i_2_0 (u_angle_engine_n_80),
-        .\axi_rdata_reg[9]_i_2_0 (u_angle_engine_n_81),
-        .cam_clean(cam_clean),
+        .ab_count_out(ab_count[7:4]),
+        .\axi_rdata[31]_i_3_0 (correction),
+        .\axi_rdata[31]_i_3_1 (phase_error),
+        .\axi_rdata[31]_i_3_2 (nco_inc),
+        .\axi_rdata_reg[0]_0 (u_crank_input_n_66),
+        .\axi_rdata_reg[10]_i_3_0 (u_angle_engine_n_192),
+        .\axi_rdata_reg[11]_i_2_0 ({u_angle_engine_n_179,u_angle_engine_n_180,u_angle_engine_n_181,u_angle_engine_n_182}),
+        .\axi_rdata_reg[11]_i_3_0 (u_angle_engine_n_193),
+        .\axi_rdata_reg[12]_i_2_0 (cam_angle),
+        .\axi_rdata_reg[12]_i_3_0 (u_angle_engine_n_194),
+        .\axi_rdata_reg[15]_i_2_0 ({\u_angle_offset/engine_angle0 [15:14],\u_angle_offset/engine_angle0 [12:8]}),
+        .\axi_rdata_reg[1]_0 (u_crank_input_n_65),
+        .\axi_rdata_reg[2]_0 (u_crank_input_n_64),
+        .\axi_rdata_reg[3]_0 (u_crank_input_n_4),
+        .\axi_rdata_reg[4]_i_2_0 (u_angle_engine_n_196),
+        .\axi_rdata_reg[4]_i_2_1 (u_angle_engine_n_195),
+        .\axi_rdata_reg[4]_i_3_0 (u_angle_engine_n_186),
+        .\axi_rdata_reg[4]_i_3_1 (sig_present_reg),
+        .\axi_rdata_reg[5]_i_2_0 (u_angle_engine_n_198),
+        .\axi_rdata_reg[5]_i_2_1 (u_angle_engine_n_197),
+        .\axi_rdata_reg[5]_i_3_0 (u_angle_engine_n_187),
+        .\axi_rdata_reg[5]_i_3_1 (\state_reg[1] ),
+        .\axi_rdata_reg[6]_i_2_0 (u_angle_engine_n_200),
+        .\axi_rdata_reg[6]_i_2_1 (u_angle_engine_n_199),
+        .\axi_rdata_reg[6]_i_3_0 (u_angle_engine_n_188),
+        .\axi_rdata_reg[7]_i_2_0 (u_angle_engine_n_202),
+        .\axi_rdata_reg[7]_i_2_1 (u_angle_engine_n_201),
+        .\axi_rdata_reg[7]_i_3_0 (u_angle_engine_n_189),
+        .\axi_rdata_reg[8]_i_3_0 (u_angle_engine_n_190),
+        .\axi_rdata_reg[9]_i_3_0 (u_angle_engine_n_191),
         .crank_angle({crank_angle[15],crank_angle[13],crank_angle[3]}),
         .\decim_cnt_reg[3] (u_axi_lite_regs_n_33),
+        .engine_angle1(\u_angle_offset/engine_angle1 ),
         .fault_clear(fault_clear),
+        .gap_period(gap_period),
         .overflow_count(overflow_count),
         .packet_count(packet_count),
         .phase_fault(phase_fault),
         .phase_fault_count(phase_fault_count),
         .\raw_angle_int_reg[7] ({u_axi_lite_regs_n_20,u_axi_lite_regs_n_21,u_axi_lite_regs_n_22}),
+        .\read_addr_reg[2]_rep_0 (u_axi_lite_regs_n_114),
+        .\read_addr_reg[3]_0 (sel0),
         .ref_det5_out(ref_det5_out),
-        .ref_det_i_12_0({u_angle_engine_n_59,u_angle_engine_n_60,u_angle_engine_n_61,u_angle_engine_n_62}),
-        .ref_det_i_141_0(u_angle_engine_n_45),
-        .ref_det_i_141_1({u_angle_engine_n_42,u_angle_engine_n_43}),
-        .ref_det_i_21_0({u_angle_engine_n_46,u_angle_engine_n_47,u_angle_engine_n_48,u_angle_engine_n_49}),
-        .ref_det_i_25_0({u_angle_engine_n_63,u_angle_engine_n_64,u_angle_engine_n_65,u_angle_engine_n_66}),
-        .ref_det_i_27_0({u_angle_engine_n_67,u_angle_engine_n_68,u_angle_engine_n_69,u_angle_engine_n_70}),
-        .ref_det_i_42_0({u_angle_engine_n_50,u_angle_engine_n_51,u_angle_engine_n_52,u_angle_engine_n_53}),
-        .ref_det_i_44_0({u_angle_engine_n_54,u_angle_engine_n_55,u_angle_engine_n_56,u_angle_engine_n_57}),
-        .ref_det_reg_i_32_0(u_angle_engine_n_71),
-        .ref_det_reg_i_49_0(u_angle_engine_n_58),
-        .ref_det_reg_i_74_0(raw_angle),
+        .ref_det_i_12_0({u_angle_engine_n_136,u_angle_engine_n_137,u_angle_engine_n_138,u_angle_engine_n_139}),
+        .ref_det_i_141_0(u_angle_engine_n_135),
+        .ref_det_i_141_1({u_angle_engine_n_132,u_angle_engine_n_133}),
+        .ref_det_i_21_0({u_angle_engine_n_149,u_angle_engine_n_150,u_angle_engine_n_151,u_angle_engine_n_152}),
+        .ref_det_i_25_0({u_angle_engine_n_140,u_angle_engine_n_141,u_angle_engine_n_142,u_angle_engine_n_143}),
+        .ref_det_i_27_0({u_angle_engine_n_144,u_angle_engine_n_145,u_angle_engine_n_146,u_angle_engine_n_147}),
+        .ref_det_i_42_0({u_angle_engine_n_153,u_angle_engine_n_154,u_angle_engine_n_155,u_angle_engine_n_156}),
+        .ref_det_i_44_0({u_angle_engine_n_157,u_angle_engine_n_158,u_angle_engine_n_159,u_angle_engine_n_160}),
+        .ref_det_reg(\gen_vld_en.valid_en_reg [0]),
+        .ref_det_reg_i_106_0(raw_angle),
+        .ref_det_reg_i_32_0(u_angle_engine_n_148),
+        .ref_det_reg_i_49_0(u_angle_engine_n_161),
         .ref_prev(ref_prev),
         .\reg_control_reg[0]_0 (edge_select),
         .\reg_decimation_reg[2]_0 (decimation),
@@ -32321,49 +34001,66 @@ module pynq_z2_top_0_0_top
         .s_axi_wvalid(s_axi_wvalid),
         .sample_pulse_int_i_2_0(decim_cnt_reg),
         .sample_pulse_int_reg(u_sample_trigger_n_7),
-        .signal_present(signal_present),
-        .stable_int_reg(u_axi_lite_regs_n_16),
+        .stable_int_reg(u_axi_lite_regs_n_15),
         .sync_loss_count(sync_loss_count),
         .sync_offset(sync_offset),
-        .sync_state(sync_state));
+        .sync_state(sync_state),
+        .tooth_period(tooth_period[31:4]));
   pynq_z2_top_0_0_crank_input u_crank_input
-       (.Q(tooth_period),
-        .ab(ab),
+       (.E(u_crank_input_n_72),
+        .Q(gap_period),
         .ab_count1(ab_count1),
         .ab_edge(ab_edge),
+        .ab_int_reg_0(ab_int_reg),
+        .ab_prev(ab_prev),
+        .\axi_rdata_reg[3] ({u_angle_engine_n_48,u_angle_engine_n_49,u_angle_engine_n_50,u_angle_engine_n_51}),
+        .\axi_rdata_reg[3]_0 (sel0),
+        .\axi_rdata_reg[3]_1 (ab_count[3:0]),
+        .\axi_rdata_reg[3]_2 (u_axi_lite_regs_n_114),
+        .clean_prev_reg_0(stable_int_reg),
         .clk(clk),
-        .crank_clean(crank_clean),
-        .\current_period_reg[0]_0 (u_crank_input_n_6),
+        .\current_period_reg[0]_0 (u_crank_input_n_70),
+        .\current_period_reg[31]_0 (tooth_period),
         .div_start(div_start),
         .\divisor_op_reg[0] (\u_divider/SHIFT_LEFT ),
+        .edge_pulse_out(debug_out[0]),
         .edge_pulse_reg_0(edge_select),
+        .gap_det_reg_0(gap_det_reg),
+        .\gap_period_int_reg[0]_0 (u_crank_input_n_66),
+        .\gap_period_int_reg[1]_0 (u_crank_input_n_65),
+        .\gap_period_int_reg[2]_0 (u_crank_input_n_64),
+        .\gap_period_int_reg[3]_0 (u_crank_input_n_4),
         .gap_threshold(gap_threshold),
-        .\gen_vld_en.valid_en_reg (u_crank_input_n_5),
+        .\gen_vld_en.valid_en_reg (u_crank_input_n_69),
+        .\gen_vld_en.valid_en_reg_0 (\state_reg[1] ),
         .in_debounce(in_debounce),
         .locked_offset_reg(u_sync_n_32),
         .quotient_reg(\u_divider/quotient_reg ),
         .rst(rst),
         .rst_n(rst_n),
-        .sig_present_reg_0(u_crank_input_n_1),
-        .signal_present(signal_present),
+        .sig_present_reg_0(sig_present_reg),
+        .sig_present_reg_1(u_crank_input_n_2),
         .state0(state0),
-        .\state_reg[1] (u_crank_input_n_3),
+        .\state_reg[1] (u_crank_input_n_67),
         .sync_offset(sync_offset),
-        .sync_offset_r_reg(u_crank_input_n_39),
-        .sync_state(sync_state[1]),
+        .sync_offset_r_reg(u_crank_input_n_74),
         .valid_en(\u_divider/valid_en ),
-        .z(z),
+        .z_int_reg_0(z_int_reg),
         .z_prev(z_prev),
         .zero_divide(\u_divider/zero_divide ));
   pynq_z2_top_0_0_phase_detector u_phase_detector
-       (.cam_clean(cam_clean),
+       (.D(raw_angle),
+        .E(ref_det1),
+        .Q(cam_angle),
         .clk(clk),
+        .debug_out(debug_out[1]),
         .ref_det5_out(ref_det5_out),
-        .ref_detected(ref_detected),
+        .ref_det_reg_0(debug_out[2]),
         .ref_prev(ref_prev),
+        .ref_prev_reg_0(\gen_vld_en.valid_en_reg [0]),
         .rst(rst),
         .sync_offset(sync_offset),
-        .sync_offset_r_reg_0(u_axi_lite_regs_n_16));
+        .sync_offset_r_reg_0(u_axi_lite_regs_n_15));
   pynq_z2_top_0_0_sample_packer u_sample_packer
        (.D({digital_inputs,adc_data[79:64]}),
         .E(u_sample_trigger_n_1),
@@ -32387,58 +34084,63 @@ module pynq_z2_top_0_0_top
         .SR(u_sync_n_37),
         .clk(clk),
         .\decim_cnt_reg[0]_0 (u_sample_trigger_n_7),
-        .\decim_cnt_reg[7]_0 (u_angle_engine_n_72),
+        .\decim_cnt_reg[7]_0 (u_angle_engine_n_178),
         .\engine_angle_prev_reg[15]_0 (engine_angle_prev),
         .\packet_reg[0][0] (u_sample_packer_n_1),
         .rst(rst),
-        .\sample_angle_int_reg[0]_0 (u_sync_n_38),
+        .\sample_angle_int_reg[0]_0 (u_sync_n_39),
         .\sample_angle_int_reg[15]_0 (sample_angle),
         .sample_pulse_int_i_2(decimation),
         .sample_pulse_int_reg_0(sample_pulse_int_reg),
-        .sample_pulse_int_reg_1(u_sync_n_43));
+        .sample_pulse_int_reg_1(u_sync_n_51));
   pynq_z2_top_0_0_signal_conditioner u_sig_cond_cam
-       (.cam_clean(cam_clean),
+       (.E(ref_det1),
         .cam_raw(cam_raw),
         .clk(clk),
+        .ref_prev(ref_prev),
         .rst(rst),
-        .rst_n(rst_n));
+        .rst_n(rst_n),
+        .stable_int_reg_0(\gen_vld_en.valid_en_reg [0]));
   pynq_z2_top_0_0_signal_conditioner_0 u_sig_cond_crank
        (.clk(clk),
-        .crank_clean(crank_clean),
         .crank_raw(crank_raw),
         .in_debounce(in_debounce),
         .rst(rst),
-        .rst_n(rst_n));
+        .rst_n(rst_n),
+        .stable_int_reg_0(stable_int_reg));
   pynq_z2_top_0_0_sync u_sync
-       (.D(p_0_in),
-        .E(div_start0),
-        .Q(ab_count_reg),
-        .SR(u_sync_n_34),
+       (.E(div_start0),
+        .Q(ab_count),
+        .SR(u_sync_n_35),
         .ab_count1(ab_count1),
-        .\ab_count_reg[7]_0 (u_crank_input_n_1),
-        .\ab_count_reg[7]_1 (u_angle_engine_n_25),
+        .\ab_count_reg[0]_0 (z_int_reg),
+        .\ab_count_reg[7]_0 (u_crank_input_n_2),
+        .\ab_count_reg[7]_1 (u_crank_input_n_72),
         .ab_edge(ab_edge),
+        .ab_prev(ab_prev),
+        .ab_prev_reg_0(u_sync_n_52),
+        .ab_prev_reg_1(ab_int_reg),
         .clk(clk),
         .fault_clear(fault_clear),
         .locked_offset_reg_0(u_sync_n_32),
-        .locked_offset_reg_1(u_crank_input_n_39),
+        .locked_offset_reg_1(u_crank_input_n_74),
         .phase_fault(phase_fault),
         .phase_fault_count(phase_fault_count),
-        .ref_detected(ref_detected),
+        .ref_prev_reg_0(debug_out[2]),
         .rst(rst),
         .rst_n(rst_n),
-        .rst_n_0(u_sync_n_39),
-        .rst_n_1(u_sync_n_43),
-        .sample_pulse_int_reg(u_angle_engine_n_72),
+        .rst_n_0(u_sync_n_40),
+        .rst_n_1(u_sync_n_51),
+        .sample_pulse_int_reg(u_angle_engine_n_178),
         .sample_pulse_int_reg_0(u_axi_lite_regs_n_33),
-        .signal_present(signal_present),
         .state0(state0),
-        .\state_reg[0]_0 (u_sync_n_38),
-        .\state_reg[1]_0 (u_sync_n_37),
+        .\state_reg[0]_0 (u_sync_n_39),
+        .\state_reg[1]_0 (\state_reg[1] ),
+        .\state_reg[1]_1 (u_sync_n_37),
+        .\sync_loss_cnt_reg[0]_0 (sig_present_reg),
         .sync_loss_count(sync_loss_count),
         .sync_offset(sync_offset),
         .sync_state(sync_state),
-        .z(z),
         .z_prev(z_prev));
   pynq_z2_top_0_0_xadc_buffer u_xadc_buffer
        (.adc_data(adc_data),
@@ -32491,14 +34193,14 @@ module pynq_z2_top_0_0_xadc_buffer
   wire xadc_eoc;
   wire xadc_eos;
 
-  (* SOFT_HLUTNM = "soft_lutpair55" *) 
+  (* SOFT_HLUTNM = "soft_lutpair62" *) 
   LUT2 #(
     .INIT(4'h4)) 
     ch_idx0
        (.I0(xadc_channel[3]),
         .I1(xadc_channel[4]),
         .O(ch_idx0__0));
-  (* SOFT_HLUTNM = "soft_lutpair55" *) 
+  (* SOFT_HLUTNM = "soft_lutpair62" *) 
   LUT4 #(
     .INIT(16'hEF20)) 
     \ch_idx[0]_i_1 

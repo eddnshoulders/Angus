@@ -1,7 +1,7 @@
 {
   "design": {
     "design_info": {
-      "boundary_crc": "0xFE88FBE8D2763976",
+      "boundary_crc": "0xE5C31E4FC6DE4359",
       "device": "xc7z020clg400-1",
       "gen_directory": "../../../../angus.gen/sources_1/bd/pynq_z2",
       "name": "pynq_z2",
@@ -232,6 +232,11 @@
       },
       "CAN0_PHY_RX_0": {
         "direction": "I"
+      },
+      "debug_out_0": {
+        "direction": "O",
+        "left": "11",
+        "right": "0"
       }
     },
     "components": {
@@ -3008,6 +3013,11 @@
                 "value_src": "constant"
               }
             }
+          },
+          "debug_out": {
+            "direction": "O",
+            "left": "11",
+            "right": "0"
           }
         }
       },
@@ -3219,6 +3229,12 @@
         "ports": [
           "processing_system7_0/FCLK_RESET0_N",
           "proc_sys_reset_0/ext_reset_in"
+        ]
+      },
+      "top_0_debug_out": {
+        "ports": [
+          "top_0/debug_out",
+          "debug_out_0"
         ]
       },
       "top_0_xadc_convst": {

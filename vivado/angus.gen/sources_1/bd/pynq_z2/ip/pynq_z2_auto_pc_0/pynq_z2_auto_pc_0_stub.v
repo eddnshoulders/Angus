@@ -2,7 +2,7 @@
 // Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
 // --------------------------------------------------------------------------------
 // Tool Version: Vivado v.2024.1 (lin64) Build 5076996 Wed May 22 18:36:09 MDT 2024
-// Date        : Thu May 21 01:48:26 2026
+// Date        : Sun May 24 08:07:50 2026
 // Host        : yocto running 64-bit Ubuntu 22.04.5 LTS
 // Command     : write_verilog -force -mode synth_stub -rename_top pynq_z2_auto_pc_0 -prefix
 //               pynq_z2_auto_pc_0_ pynq_z2_auto_pc_0_stub.v

@@ -2,7 +2,7 @@
 // Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
 // --------------------------------------------------------------------------------
 // Tool Version: Vivado v.2024.1 (lin64) Build 5076996 Wed May 22 18:36:09 MDT 2024
-// Date        : Fri May 22 17:23:17 2026
+// Date        : Mon May 25 11:36:26 2026
 // Host        : yocto running 64-bit Ubuntu 22.04.5 LTS
 // Command     : write_verilog -force -mode synth_stub
 //               /mnt/hgfs/yocto/angus/vivado/angus.gen/sources_1/bd/pynq_z2/ip/pynq_z2_top_0_0/pynq_z2_top_0_0_stub.v
@@ -20,8 +20,9 @@ module pynq_z2_top_0_0(clk, rst_n, crank_raw, cam_raw, digital_inputs,
   xadc_daddr, xadc_di, s_axi_aclk, s_axi_aresetn, s_axi_awaddr, s_axi_awvalid, s_axi_awready, 
   s_axi_wdata, s_axi_wstrb, s_axi_wvalid, s_axi_wready, s_axi_bresp, s_axi_bvalid, 
   s_axi_bready, s_axi_araddr, s_axi_arvalid, s_axi_arready, s_axi_rdata, s_axi_rresp, 
-  s_axi_rvalid, s_axi_rready, m_axis_tdata, m_axis_tvalid, m_axis_tready, m_axis_tlast)
-/* synthesis syn_black_box black_box_pad_pin="rst_n,crank_raw,cam_raw,digital_inputs[7:0],xadc_do[15:0],xadc_channel[4:0],xadc_eoc,xadc_eos,xadc_busy,xadc_convst,xadc_den,xadc_dwe,xadc_daddr[6:0],xadc_di[15:0],s_axi_aresetn,s_axi_awaddr[6:0],s_axi_awvalid,s_axi_awready,s_axi_wdata[31:0],s_axi_wstrb[3:0],s_axi_wvalid,s_axi_wready,s_axi_bresp[1:0],s_axi_bvalid,s_axi_bready,s_axi_araddr[6:0],s_axi_arvalid,s_axi_arready,s_axi_rdata[31:0],s_axi_rresp[1:0],s_axi_rvalid,s_axi_rready,m_axis_tdata[31:0],m_axis_tvalid,m_axis_tready,m_axis_tlast" */
+  s_axi_rvalid, s_axi_rready, m_axis_tdata, m_axis_tvalid, m_axis_tready, m_axis_tlast, 
+  debug_out)
+/* synthesis syn_black_box black_box_pad_pin="rst_n,crank_raw,cam_raw,digital_inputs[7:0],xadc_do[15:0],xadc_channel[4:0],xadc_eoc,xadc_eos,xadc_busy,xadc_convst,xadc_den,xadc_dwe,xadc_daddr[6:0],xadc_di[15:0],s_axi_aresetn,s_axi_awaddr[6:0],s_axi_awvalid,s_axi_awready,s_axi_wdata[31:0],s_axi_wstrb[3:0],s_axi_wvalid,s_axi_wready,s_axi_bresp[1:0],s_axi_bvalid,s_axi_bready,s_axi_araddr[6:0],s_axi_arvalid,s_axi_arready,s_axi_rdata[31:0],s_axi_rresp[1:0],s_axi_rvalid,s_axi_rready,m_axis_tdata[31:0],m_axis_tvalid,m_axis_tready,m_axis_tlast,debug_out[11:0]" */
 /* synthesis syn_force_seq_prim="clk" */
 /* synthesis syn_force_seq_prim="xadc_dclk" */
 /* synthesis syn_force_seq_prim="s_axi_aclk" */;
@@ -64,4 +65,5 @@ module pynq_z2_top_0_0(clk, rst_n, crank_raw, cam_raw, digital_inputs,
   output m_axis_tvalid;
   input m_axis_tready;
   output m_axis_tlast;
+  output [11:0]debug_out;
 endmodule
