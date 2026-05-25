@@ -60,6 +60,7 @@ entity angle_engine is
         kp             : in  unsigned(15 downto 0);
         ki             : in  unsigned(15 downto 0);
         max_correction : in  unsigned(15 downto 0);
+        correction_dir : in  std_logic;  -- '0' subtract, '1' add correction
 
         -- Output: 0-7199, units of 0.1 degrees
         raw_angle      : out unsigned(15 downto 0);
@@ -279,7 +280,9 @@ begin
             else
                 if z_edge = '1' then
                     ab_edge_cnt <= (others => '0');
-                    phase_error <= (others => '0');
+                    -- Measure phase error at Z reference point
+                    -- nco_accum should be near 0 when locked
+                    phase_error <= signed(nco_accum);
                 elsif ab_edge = '1' and synced = '1' then
                     expected    := resize(ab_edge_cnt, 32) * STEPS_PER_TOOTH;
                     expected32  := resize(expected, 32);
@@ -364,14 +367,16 @@ begin
                 angle_temp    <= (others => '0');
                 raw_angle_int <= (others => '0');
             else
-                if z_edge = '1' then
-                    nco_accum     <= (others => '0');
-                    angle_temp    <= (others => '0');
-                    raw_angle_int <= (others => '0');
-                elsif synced = '1' then
+                if synced = '1' then
                     if ab_edge = '1' then
-                        nco_accum <= unsigned(
-                            signed(nco_accum + nco_inc) - correction);
+                        -- Apply PI correction - direction configurable
+                        if correction_dir = '0' then
+                            nco_accum <= unsigned(
+                                signed(nco_accum + nco_inc) - correction);
+                        else
+                            nco_accum <= unsigned(
+                                signed(nco_accum + nco_inc) + correction);
+                        end if;
                     else
                         nco_accum <= nco_accum + nco_inc;
                     end if;

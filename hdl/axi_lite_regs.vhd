@@ -8,7 +8,7 @@ use ieee.numeric_std.all;
 -- AXI4-Lite register bank for combustion analyser PS/PL interface.
 --
 -- Write registers (PS → PL):
---   0x00 CONTROL:    [1] fault_clear (self-clearing), [0] edge_select
+--   0x00 CONTROL:    [2] correction_dir, [1] fault_clear (self-clearing), [0] edge_select
 --   0x04 GAP_THRESH: [7:0] gap_threshold
 --   0x08 PLL_KP:     [15:0] kp
 --   0x0C PLL_KI:     [15:0] ki
@@ -65,6 +65,7 @@ entity axi_lite_regs is
 
         -- Configuration outputs to PL
         edge_select          : out std_logic;
+        correction_dir       : out std_logic;
         gap_threshold        : out unsigned(7 downto 0);
         kp                   : out unsigned(15 downto 0);
         ki                   : out unsigned(15 downto 0);
@@ -411,6 +412,7 @@ begin
 
     -- Configuration outputs
     edge_select          <= reg_control(0);
+    correction_dir       <= reg_control(2);
     fault_clear          <= fault_clear_int;
     gap_threshold        <= unsigned(reg_gap_thresh(7 downto 0));
     kp                   <= unsigned(reg_kp(15 downto 0));

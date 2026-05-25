@@ -97,8 +97,9 @@ begin
             sync_state     => sync_state,
             kp             => kp,
             ki             => ki,
-            max_correction => max_correction,
-            raw_angle      => raw_angle,
+            max_correction  => max_correction,
+            correction_dir  => '0',
+            raw_angle       => raw_angle,
             div_valid_out   => open,
             synced_out      => open,
             nco_inc_out     => open,
@@ -231,16 +232,17 @@ begin
                integer'image(to_integer(raw_angle));
 
         -- --------------------------------------------------------------------
-        -- TEST 4: Z pulse resets angle to 0
+        -- TEST 4: Z pulse no longer resets NCO - angle continues freely
+        -- Verify raw_angle is valid (0-7199) at Z pulse
         -- --------------------------------------------------------------------
-        report "TEST 4: Z pulse resets angle to 0";
+        report "TEST 4: Z pulse - angle continues freely (no reset)";
         test_num <= 4;
 
         wait until z = '1';
         wait for 3 * CLK_PERIOD;
 
-        assert to_integer(raw_angle) < ANGLE_TOL
-            report "FAIL T4: raw_angle should be near 0 after Z, got " &
+        assert to_integer(raw_angle) < 7200
+            report "FAIL T4: raw_angle out of range after Z, got " &
                    integer'image(to_integer(raw_angle))
             severity failure;
 
@@ -261,7 +263,12 @@ begin
         wait for TOOTH_PERIOD_1000;
         angle_end := to_integer(raw_angle);
 
-        angle_diff  := angle_end - angle_start;
+        -- Handle wrap-around at 7200
+        if angle_end >= angle_start then
+            angle_diff := angle_end - angle_start;
+        else
+            angle_diff := angle_end + 7200 - angle_start;
+        end if;
         angle_error := abs(angle_diff - ANGLE_PER_TOOTH);
 
         assert angle_error <= ANGLE_TOL
@@ -277,7 +284,7 @@ begin
 
         -- --------------------------------------------------------------------
         -- TEST 6: Full cycle angle range
-        -- Angle should approach 7200 before Z then reset to 0
+        -- Angle should approach 7200 before Z and wrap naturally
         -- --------------------------------------------------------------------
         report "TEST 6: Full cycle angle range";
         test_num <= 6;
@@ -295,14 +302,13 @@ begin
                    " expected near 7200"
             severity failure;
 
-        -- Wait for Z and check reset
+        -- NCO no longer resets on Z - just verify angle is in range
         wait until z = '1';
         wait for 3 * CLK_PERIOD;
 
-        assert to_integer(raw_angle) < ANGLE_TOL
-            report "FAIL T6: angle after Z = " &
-                   integer'image(to_integer(raw_angle)) &
-                   " expected near 0"
+        assert to_integer(raw_angle) < 7200
+            report "FAIL T6: raw_angle out of range after Z = " &
+                   integer'image(to_integer(raw_angle))
             severity failure;
 
         report "TEST 6: PASS - max angle = " & integer'image(angle_end);
@@ -325,7 +331,12 @@ begin
         wait for TOOTH_PERIOD_2000;
         angle_end := to_integer(raw_angle);
 
-        angle_diff  := angle_end - angle_start;
+        -- Handle wrap-around at 7200
+        if angle_end >= angle_start then
+            angle_diff := angle_end - angle_start;
+        else
+            angle_diff := angle_end + 7200 - angle_start;
+        end if;
         angle_error := abs(angle_diff - ANGLE_PER_TOOTH);
 
         assert angle_error <= ANGLE_TOL
@@ -351,21 +362,25 @@ begin
         wait until z = '1';
         wait for 3 * CLK_PERIOD;
 
-        -- Sample angle at each tooth and verify it increases
+        -- Sample angle at each tooth and verify it increases (with wrap handling)
         angle_start := to_integer(raw_angle);
         for i in 1 to N_TEETH loop
             wait for TOOTH_PERIOD_1000;
             angle_end := to_integer(raw_angle);
 
-            -- Allow for Z reset at end of cycle
-            if angle_end < angle_start and i < N_TEETH then
-                assert false
-                    report "FAIL T8: angle decreased at tooth " &
-                        integer'image(i) &
-                        " from " & integer'image(angle_start) &
-                        " to " & integer'image(angle_end)
-                    severity failure;
+            -- Handle natural wrap at 7200 - both forward progress and wrap are valid
+            if angle_end >= angle_start then
+                angle_diff := angle_end - angle_start;
+            else
+                angle_diff := angle_end + 7200 - angle_start;
             end if;
+
+            assert angle_diff <= ANGLE_PER_TOOTH + ANGLE_TOL
+                report "FAIL T8: angle jumped too much at tooth " &
+                    integer'image(i) &
+                    " diff = " & integer'image(angle_diff)
+                severity failure;
+
             angle_start := angle_end;
         end loop;
 
