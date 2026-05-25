@@ -270,6 +270,7 @@ begin
     -- -------------------------------------------------------------------------
     p_phase : process(clk)
         variable expected : unsigned(63 downto 0);
+        variable expected32 : unsigned(31 downto 0);
     begin
         if rising_edge(clk) then
             if rst = '1' then
@@ -281,8 +282,10 @@ begin
                     phase_error <= (others => '0');
                 elsif ab_edge = '1' and synced = '1' then
                     expected    := resize(ab_edge_cnt, 32) * STEPS_PER_TOOTH;
-                    phase_error <= signed(nco_accum) -
-                                   signed(resize(expected, 32));
+                    expected32  := resize(expected, 32);
+                    -- Subtraction in unsigned space then cast to signed
+                    -- This handles nco_accum wrapping through 2^31 correctly
+                    phase_error <= signed(nco_accum - expected32);
                     ab_edge_cnt <= ab_edge_cnt + 1;
                 end if;
             end if;
