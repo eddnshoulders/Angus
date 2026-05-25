@@ -1,6 +1,9 @@
 # =============================================================================
 # angus.xdc
 # Constraints for Angus combustion analyser on PYNQ-Z2
+#
+# Note: avoid MRCC pins (V16/W16, Pi pins 31/26) when XADC is in the design
+# as they conflict with XADC internal clock routing.
 # =============================================================================
 
 # =============================================================================
@@ -35,33 +38,32 @@ set_property IOSTANDARD LVCMOS33 [get_ports CAN0_PHY_RX_0]
 
 # =============================================================================
 # Debug outputs - Pi header
-# debug_out[0]  crank_clean     Pi pin 3   W18
-# debug_out[1]  cam_clean       Pi pin 5   W19
-# debug_out[2]  edge_pulse_out  Pi pin 7   Y18
-# debug_out[3]  cam_edge_pulse  Pi pin 29  Y19
-# debug_out[4]  ab              Pi pin 31  U18
-# debug_out[5]  z               Pi pin 26  U19
-# debug_out[6]  gap_detected    Pi pin 32  B20
-# debug_out[7]  ref_detected    Pi pin 33  B19
-# debug_out[8]  sample_pulse    Pi pin 22  W10
-# debug_out[9]  div_valid       Pi pin 36  V6
-# debug_out[10] signal_present  Pi pin 11  Y6
-# debug_out[11] synced          Pi pin 12  C20
+# Avoid Pi pins 26 (W16) and 31 (V16) - MRCC, conflicts with XADC
+#
+# debug_out[0]  crank_clean     Pi pin 3   W18  RPIO_02_R
+# debug_out[1]  cam_clean       Pi pin 5   W19  RPIO_03_R
+# debug_out[2]  edge_pulse_out  Pi pin 7   Y18  RPIO_04_R
+# debug_out[3]  cam_edge_pulse  Pi pin 29  Y19  RPIO_05_R
+# debug_out[4]  ab              Pi pin 15  U8   RPIO_22_R
+# debug_out[5]  z               Pi pin 16  W6   RPIO_23_R
+# debug_out[6]  gap_detected    Pi pin 32  B20  RPIO_12_R
+# debug_out[7]  ref_detected    Pi pin 33  W8   RPIO_13_R
+# debug_out[8]  sample_pulse    Pi pin 22  W10  RPIO_25_R
+# debug_out[9]  div_valid       Pi pin 36  B19  RPIO_16_R
+# debug_out[10] signal_present  Pi pin 11  U7   RPIO_17_R
+# debug_out[11] synced          Pi pin 12  C20  RPIO_18_R
 # =============================================================================
 set_property PACKAGE_PIN W18 [get_ports {debug_out_0[0]}]
 set_property PACKAGE_PIN W19 [get_ports {debug_out_0[1]}]
 set_property PACKAGE_PIN Y18 [get_ports {debug_out_0[2]}]
 set_property PACKAGE_PIN Y19 [get_ports {debug_out_0[3]}]
-set_property PACKAGE_PIN U8 [get_ports {debug_out_0[4]}]
-set_property PACKAGE_PIN W6 [get_ports {debug_out_0[5]}]
+set_property PACKAGE_PIN U8  [get_ports {debug_out_0[4]}]
+set_property PACKAGE_PIN W6  [get_ports {debug_out_0[5]}]
 set_property PACKAGE_PIN B20 [get_ports {debug_out_0[6]}]
-set_property PACKAGE_PIN W8 [get_ports {debug_out_0[7]}]
+set_property PACKAGE_PIN W8  [get_ports {debug_out_0[7]}]
 set_property PACKAGE_PIN W10 [get_ports {debug_out_0[8]}]
 set_property PACKAGE_PIN B19 [get_ports {debug_out_0[9]}]
-set_property PACKAGE_PIN U7 [get_ports {debug_out_0[10]}]
+set_property PACKAGE_PIN U7  [get_ports {debug_out_0[10]}]
 set_property PACKAGE_PIN C20 [get_ports {debug_out_0[11]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {debug_out_0[*]}]
 set_false_path -to [get_ports {debug_out_0[*]}]
-
-
-set_property DRIVE 12 [get_ports {debug_out_0[4]}]
