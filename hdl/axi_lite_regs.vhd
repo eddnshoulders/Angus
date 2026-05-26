@@ -8,7 +8,8 @@ use ieee.numeric_std.all;
 -- AXI4-Lite register bank for combustion analyser PS/PL interface.
 --
 -- Write registers (PS → PL):
---   0x00 CONTROL:    [3] phase_fault_drop, [2] correction_dir, [1] fault_clear (self-clearing), [0] edge_select
+--   0x00 CONTROL:    [5] ref_sel, [4] ang_sel, [3] phase_fault_drop,
+--                    [2] correction_dir, [1] fault_clear (self-clearing), [0] edge_select
 --   0x04 GAP_THRESH: [7:0] gap_threshold
 --   0x08 PLL_KP:     [15:0] kp
 --   0x0C PLL_KI:     [15:0] ki
@@ -18,6 +19,8 @@ use ieee.numeric_std.all;
 --   0x1C TDC_OFF:    [15:0] tdc_offset
 --   0x20 DECIMATION: [7:0]  decimation
 --   0x60 PULSE_WIDTH:[15:0] sample_pulse debug stretch (cycles, default 1000)
+--   0x64 N_TEETH:    [7:0]  number of teeth on wheel (default 60)
+--   0x68 N_MISSING:  [7:0]  number of missing teeth (default 2)
 --
 -- Read registers (PL → PS):
 --   0x24 STATUS:     [5] synced, [4] signal_present, [3] phase_fault, [2:0] sync_state
@@ -68,6 +71,8 @@ entity axi_lite_regs is
         edge_select          : out std_logic;
         correction_dir       : out std_logic;
         phase_fault_drop     : out std_logic;
+        ang_sel              : out std_logic;
+        ref_sel              : out std_logic;
         gap_threshold        : out unsigned(7 downto 0);
         kp                   : out unsigned(15 downto 0);
         ki                   : out unsigned(15 downto 0);
@@ -78,6 +83,8 @@ entity axi_lite_regs is
         decimation           : out unsigned(7 downto 0);
         fault_clear          : out std_logic;
         pulse_width          : out unsigned(15 downto 0);
+        n_teeth              : out unsigned(7 downto 0);
+        n_missing            : out unsigned(7 downto 0);
 
         -- Status inputs from PL
         sync_state           : in  std_logic_vector(2 downto 0);
@@ -116,6 +123,8 @@ architecture rtl of axi_lite_regs is
     constant ADDR_TDC_OFF   : integer := 16#1C# / 4;
     constant ADDR_DECIMATION : integer := 16#20# / 4;
     constant ADDR_PULSE_WIDTH: integer := 16#60# / 4;
+    constant ADDR_N_TEETH    : integer := 16#64# / 4;
+    constant ADDR_N_MISSING  : integer := 16#68# / 4;
     constant ADDR_STATUS    : integer := 16#24# / 4;
     constant ADDR_SYNC_LOSS : integer := 16#28# / 4;
     constant ADDR_PHASE_FLT : integer := 16#2C# / 4;
@@ -143,6 +152,8 @@ architecture rtl of axi_lite_regs is
     signal reg_tdc_off      : std_logic_vector(31 downto 0) := (others => '0');
     signal reg_decimation   : std_logic_vector(31 downto 0) := x"00000001";
     signal reg_pulse_width  : std_logic_vector(31 downto 0) := x"000003E8"; -- 1000 cycles
+    signal reg_n_teeth      : std_logic_vector(31 downto 0) := x"0000003C"; -- 60
+    signal reg_n_missing    : std_logic_vector(31 downto 0) := x"00000002"; -- 2
 
     -- AXI write state
     signal aw_en            : std_logic := '0';
@@ -226,6 +237,8 @@ begin
                 reg_tdc_off    <= (others => '0');
                 reg_decimation <= x"00000001";
                 reg_pulse_width <= x"000003E8";
+                reg_n_teeth     <= x"0000003C";
+                reg_n_missing   <= x"00000002";
                 fault_clear_int <= '0';
             else
                 -- Self-clear fault_clear
@@ -258,6 +271,10 @@ begin
                             reg_decimation <= s_axi_wdata;
                         when ADDR_PULSE_WIDTH =>
                             reg_pulse_width <= s_axi_wdata;
+                        when ADDR_N_TEETH =>
+                            reg_n_teeth <= s_axi_wdata;
+                        when ADDR_N_MISSING =>
+                            reg_n_missing <= s_axi_wdata;
                         when others => null;
                     end case;
                 end if;
@@ -337,6 +354,8 @@ begin
                         when ADDR_TDC_OFF    => axi_rdata <= reg_tdc_off;
                         when ADDR_DECIMATION => axi_rdata <= reg_decimation;
                         when ADDR_PULSE_WIDTH=> axi_rdata <= reg_pulse_width;
+                        when ADDR_N_TEETH    => axi_rdata <= reg_n_teeth;
+                        when ADDR_N_MISSING  => axi_rdata <= reg_n_missing;
 
                         -- Status registers
                         when ADDR_STATUS =>
@@ -423,6 +442,8 @@ begin
     edge_select          <= reg_control(0);
     correction_dir       <= reg_control(2);
     phase_fault_drop     <= reg_control(3);
+    ang_sel              <= reg_control(4);
+    ref_sel              <= reg_control(5);
     fault_clear          <= fault_clear_int;
     gap_threshold        <= unsigned(reg_gap_thresh(7 downto 0));
     kp                   <= unsigned(reg_kp(15 downto 0));
@@ -433,5 +454,7 @@ begin
     tdc_offset           <= unsigned(reg_tdc_off(15 downto 0));
     decimation           <= unsigned(reg_decimation(7 downto 0));
     pulse_width          <= unsigned(reg_pulse_width(15 downto 0));
+    n_teeth              <= unsigned(reg_n_teeth(7 downto 0));
+    n_missing            <= unsigned(reg_n_missing(7 downto 0));
 
 end architecture rtl;
