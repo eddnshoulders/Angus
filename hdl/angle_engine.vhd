@@ -113,6 +113,8 @@ architecture rtl of angle_engine is
     -- -------------------------------------------------------------------------
     signal nco_accum       : unsigned(31 downto 0) := (others => '0');
     signal nco_inc         : unsigned(31 downto 0) := (others => '0');
+    signal nco_remainder   : unsigned(31 downto 0) := (others => '0');
+    signal frac_accum      : unsigned(31 downto 0) := (others => '0');
 
     -- -------------------------------------------------------------------------
     -- Phase detector
@@ -254,10 +256,12 @@ begin
     begin
         if rising_edge(clk) then
             if rst = '1' then
-                nco_inc <= (others => '0');
+                nco_inc       <= (others => '0');
+                nco_remainder <= (others => '0');
             else
                 if div_valid = '1' and div_zero_err = '0' then
-                    nco_inc <= div_quotient;
+                    nco_inc       <= div_quotient;
+                    nco_remainder <= div_remainder;
                 end if;
             end if;
         end if;
@@ -364,12 +368,14 @@ begin
         if rising_edge(clk) then
             if rst = '1' then
                 nco_accum     <= (others => '0');
+                frac_accum    <= (others => '0');
                 angle_temp    <= (others => '0');
                 raw_angle_int <= (others => '0');
             else
                 if synced = '1' then
                     if ab_edge = '1' then
-                        -- Apply PI correction - direction configurable
+                        -- On tooth edge: apply PI correction, reset frac accumulator
+                        frac_accum <= (others => '0');
                         if correction_dir = '0' then
                             nco_accum <= unsigned(
                                 signed(nco_accum + nco_inc) - correction);
@@ -378,7 +384,15 @@ begin
                                 signed(nco_accum + nco_inc) + correction);
                         end if;
                     else
-                        nco_accum <= nco_accum + nco_inc;
+                        -- Between teeth: fractional accumulator (Bresenham)
+                        -- Distributes remainder evenly across tooth_period clocks
+                        if frac_accum + nco_remainder >= tooth_period then
+                            nco_accum  <= nco_accum + nco_inc + 1;
+                            frac_accum <= frac_accum + nco_remainder - tooth_period;
+                        else
+                            nco_accum  <= nco_accum + nco_inc;
+                            frac_accum <= frac_accum + nco_remainder;
+                        end if;
                     end if;
 
                     -- Stage 1: 32x32 → 64-bit, maps to DSP48 cascade
