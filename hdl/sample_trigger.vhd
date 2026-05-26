@@ -48,6 +48,7 @@ architecture rtl of sample_trigger is
     constant ST_SYNC_FULL  : std_logic_vector(2 downto 0) := "011";
 
     -- Pulse stretcher uses runtime-configurable pulse_width
+    signal engine_angle_reg  : unsigned(15 downto 0) := (others => '0');  -- input register
     signal engine_angle_prev : unsigned(15 downto 0) := (others => '0');
     signal angle_changed     : std_logic := '0';
     signal decim_cnt         : unsigned(7 downto 0) := (others => '0');
@@ -65,24 +66,27 @@ begin
     begin
         if rising_edge(clk) then
             if rst = '1' then
+                engine_angle_reg  <= (others => '0');
                 engine_angle_prev <= (others => '0');
                 decim_cnt         <= (others => '0');
                 sample_pulse_int  <= '0';
                 sample_angle_int  <= (others => '0');
             else
-                engine_angle_prev <= engine_angle;
+                -- Input register: breaks long net from angle_engine
+                engine_angle_reg  <= engine_angle;
+                engine_angle_prev <= engine_angle_reg;
                 sample_pulse_int  <= '0';
 
                 -- Only sample in SYNC_FULL
                 if sync_state = ST_SYNC_FULL then
 
                     -- Detect angle change
-                    if engine_angle /= engine_angle_prev then
+                    if engine_angle_reg /= engine_angle_prev then
 
                         if decim_cnt = decimation - 1 then
                             -- Fire sample pulse
                             sample_pulse_int <= '1';
-                            sample_angle_int <= engine_angle;
+                            sample_angle_int <= engine_angle_reg;
                             decim_cnt        <= (others => '0');
                         else
                             decim_cnt <= decim_cnt + 1;

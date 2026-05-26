@@ -50,14 +50,18 @@ architecture rtl of phase_detector is
     constant CYCLE_STEPS  : unsigned(15 downto 0) := to_unsigned(7200, 16);
     constant HALF_CYCLE   : unsigned(15 downto 0) := to_unsigned(3600, 16);
 
-    signal ref_prev       : std_logic := '0';
-    signal sync_offset_r  : std_logic := '0';
-    signal ref_det        : std_logic := '0';
-    signal cam_edge_int   : std_logic := '0';
-    signal cam_angle_int  : unsigned(15 downto 0) := (others => '0');
+    signal ref_prev            : std_logic := '0';
+    signal sync_offset_r       : std_logic := '0';
+    signal ref_det             : std_logic := '0';
+    signal cam_edge_int        : std_logic := '0';
+    signal cam_angle_int       : unsigned(15 downto 0) := (others => '0');
+
+    -- Input registers to break long nets from axi_lite_regs
+    signal phase_ang_reg       : unsigned(15 downto 0) := (others => '0');
+    signal phase_tol_reg       : unsigned(15 downto 0) := (others => '0');
 
     -- Band centre for band B = (expected + 3600) mod 7200
-    signal band_b_centre  : unsigned(15 downto 0) := (others => '0');
+    signal band_b_centre       : unsigned(15 downto 0) := (others => '0');
 
     -- -------------------------------------------------------------------------
     -- Helper: returns true if angle is within tolerance of centre
@@ -88,9 +92,23 @@ architecture rtl of phase_detector is
 begin
 
     -- Band B centre: (expected + 3600) mod 7200
-    band_b_centre <= expected_phase_angle - HALF_CYCLE
-                     when expected_phase_angle >= HALF_CYCLE
-                     else expected_phase_angle + HALF_CYCLE;
+    band_b_centre <= phase_ang_reg - HALF_CYCLE
+                     when phase_ang_reg >= HALF_CYCLE
+                     else phase_ang_reg + HALF_CYCLE;
+
+    -- Input registers: break long nets from axi_lite_regs
+    p_input_reg : process(clk)
+    begin
+        if rising_edge(clk) then
+            if rst = '1' then
+                phase_ang_reg <= (others => '0');
+                phase_tol_reg <= (others => '0');
+            else
+                phase_ang_reg <= expected_phase_angle;
+                phase_tol_reg <= phase_tolerance;
+            end if;
+        end if;
+    end process p_input_reg;
 
     -- -------------------------------------------------------------------------
     -- Phase reference detection
@@ -116,14 +134,14 @@ begin
                     cam_edge_int  <= '1';
                     cam_angle_int <= raw_angle;
 
-                    if in_band(raw_angle, expected_phase_angle,
-                               phase_tolerance) then
+                    if in_band(raw_angle, phase_ang_reg,
+                               phase_tol_reg) then
                         -- In Band A: correct revolution
                         ref_det       <= '1';
                         sync_offset_r <= '0';
 
                     elsif in_band(raw_angle, band_b_centre,
-                                  phase_tolerance) then
+                                  phase_tol_reg) then
                         -- In Band B: other revolution
                         ref_det       <= '1';
                         sync_offset_r <= '1';

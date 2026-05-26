@@ -147,6 +147,8 @@ begin
         test_num <= 5;
         report "TEST 5: No pulse when angle unchanged";
 
+        -- Wait for pipeline to settle after T4's angle change
+        wait for 2 * CLK_PERIOD;
         count_start := pulse_count;
         wait for 10 * CLK_PERIOD;
 
@@ -162,6 +164,8 @@ begin
         report "TEST 6: Decimation = 2";
 
         decimation  <= to_unsigned(2, 8);
+        -- Wait for pipeline to settle before counting
+        wait for 2 * CLK_PERIOD;
         count_start := pulse_count;
 
         -- Step angle 10 times, expect 5 pulses
@@ -169,6 +173,8 @@ begin
             engine_angle <= engine_angle + 1;
             wait for CLK_PERIOD * 2;
         end loop;
+        -- Wait for last pulse to propagate through pipeline
+        wait for 2 * CLK_PERIOD;
 
         assert pulse_count - count_start = 5
             report "FAIL T6: expected 5 pulses with decimation=2, got " &
@@ -183,6 +189,7 @@ begin
         report "TEST 7: Decimation = 5";
 
         decimation  <= to_unsigned(5, 8);
+        wait for 2 * CLK_PERIOD;
         count_start := pulse_count;
 
         -- Step angle 20 times, expect 4 pulses
@@ -190,6 +197,7 @@ begin
             engine_angle <= engine_angle + 1;
             wait for CLK_PERIOD * 2;
         end loop;
+        wait for 2 * CLK_PERIOD;
 
         assert pulse_count - count_start = 4
             report "FAIL T7: expected 4 pulses with decimation=5, got " &
@@ -205,6 +213,7 @@ begin
         report "TEST 8: Sync loss resets decimation counter";
 
         decimation  <= to_unsigned(4, 8);
+        wait for 2 * CLK_PERIOD;
         count_start := pulse_count;
 
         -- Step 2 times (mid-decimation)
@@ -217,13 +226,14 @@ begin
 
         -- Restore sync
         sync_state <= ST_SYNC_FULL;
-        wait for CLK_PERIOD * 2;
+        wait for CLK_PERIOD * 4;   -- settle pipeline after sync restore
 
         -- Step 4 times - should get 1 pulse (fresh decimation counter)
         for i in 1 to 4 loop
             engine_angle <= engine_angle + 1;
             wait for CLK_PERIOD * 2;
         end loop;
+        wait for 2 * CLK_PERIOD;   -- wait for last pulse to propagate
 
         assert pulse_count - count_start = 1
             report "FAIL T8: expected 1 pulse after sync restore, got " &
@@ -239,11 +249,11 @@ begin
 
         decimation   <= to_unsigned(1, 8);
         engine_angle <= to_unsigned(7199, 16);
-        wait for CLK_PERIOD * 2;
+        wait for CLK_PERIOD * 4;   -- extra cycles for pipeline to settle
         count_start := pulse_count;
 
         engine_angle <= to_unsigned(0, 16);
-        wait for CLK_PERIOD * 2;
+        wait for CLK_PERIOD * 4;   -- extra cycles for pipeline + sample_angle
 
         assert pulse_count - count_start = 1
             report "FAIL T9: should pulse on wraparound"
