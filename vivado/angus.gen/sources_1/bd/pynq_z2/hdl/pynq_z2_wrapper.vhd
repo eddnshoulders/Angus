@@ -2,7 +2,7 @@
 --Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
 ----------------------------------------------------------------------------------
 --Tool Version: Vivado v.2024.1 (lin64) Build 5076996 Wed May 22 18:36:09 MDT 2024
---Date        : Mon May 25 14:26:56 2026
+--Date        : Tue May 26 00:35:54 2026
 --Host        : yocto running 64-bit Ubuntu 22.04.5 LTS
 --Command     : generate_target pynq_z2_wrapper.bd
 --Design      : pynq_z2_wrapper
