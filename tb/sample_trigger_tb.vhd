@@ -21,7 +21,9 @@ architecture sim of sample_trigger_tb is
     signal engine_angle    : unsigned(15 downto 0) := (others => '0');
     signal sync_state      : std_logic_vector(2 downto 0) := ST_UNSYNC;
     signal decimation      : unsigned(7 downto 0) := to_unsigned(1, 8);
-    signal sample_pulse    : std_logic;
+    signal pulse_width     : unsigned(15 downto 0) := to_unsigned(1000, 16);
+    signal sample_pulse      : std_logic;
+    signal sample_pulse_dbg  : std_logic;
     signal sample_angle    : unsigned(15 downto 0);
 
     signal sim_done        : boolean := false;
@@ -45,9 +47,11 @@ begin
             rst          => rst,
             engine_angle => engine_angle,
             sync_state   => sync_state,
-            decimation   => decimation,
-            sample_pulse => sample_pulse,
-            sample_angle => sample_angle
+            decimation       => decimation,
+            pulse_width      => pulse_width,
+            sample_pulse     => sample_pulse,
+            sample_pulse_dbg => sample_pulse_dbg,
+            sample_angle     => sample_angle
         );
 
     -- Count pulses

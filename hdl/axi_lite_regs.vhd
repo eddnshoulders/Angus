@@ -17,6 +17,7 @@ use ieee.numeric_std.all;
 --   0x18 PHASE_TOL:  [15:0] phase_tolerance
 --   0x1C TDC_OFF:    [15:0] tdc_offset
 --   0x20 DECIMATION: [7:0]  decimation
+--   0x60 PULSE_WIDTH:[15:0] sample_pulse debug stretch (cycles, default 1000)
 --
 -- Read registers (PL → PS):
 --   0x24 STATUS:     [5] synced, [4] signal_present, [3] phase_fault, [2:0] sync_state
@@ -75,6 +76,7 @@ entity axi_lite_regs is
         tdc_offset           : out unsigned(15 downto 0);
         decimation           : out unsigned(7 downto 0);
         fault_clear          : out std_logic;
+        pulse_width          : out unsigned(15 downto 0);
 
         -- Status inputs from PL
         sync_state           : in  std_logic_vector(2 downto 0);
@@ -111,7 +113,8 @@ architecture rtl of axi_lite_regs is
     constant ADDR_PHASE_ANG : integer := 16#14# / 4;
     constant ADDR_PHASE_TOL : integer := 16#18# / 4;
     constant ADDR_TDC_OFF   : integer := 16#1C# / 4;
-    constant ADDR_DECIMATION: integer := 16#20# / 4;
+    constant ADDR_DECIMATION : integer := 16#20# / 4;
+    constant ADDR_PULSE_WIDTH: integer := 16#60# / 4;
     constant ADDR_STATUS    : integer := 16#24# / 4;
     constant ADDR_SYNC_LOSS : integer := 16#28# / 4;
     constant ADDR_PHASE_FLT : integer := 16#2C# / 4;
@@ -138,6 +141,7 @@ architecture rtl of axi_lite_regs is
     signal reg_phase_tol    : std_logic_vector(31 downto 0) := x"000000B4";  -- 180
     signal reg_tdc_off      : std_logic_vector(31 downto 0) := (others => '0');
     signal reg_decimation   : std_logic_vector(31 downto 0) := x"00000001";
+    signal reg_pulse_width  : std_logic_vector(31 downto 0) := x"000003E8"; -- 1000 cycles
 
     -- AXI write state
     signal aw_en            : std_logic := '0';
@@ -220,6 +224,7 @@ begin
                 reg_phase_tol  <= x"000000B4";
                 reg_tdc_off    <= (others => '0');
                 reg_decimation <= x"00000001";
+                reg_pulse_width <= x"000003E8";
                 fault_clear_int <= '0';
             else
                 -- Self-clear fault_clear
@@ -250,6 +255,8 @@ begin
                             reg_tdc_off    <= s_axi_wdata;
                         when ADDR_DECIMATION =>
                             reg_decimation <= s_axi_wdata;
+                        when ADDR_PULSE_WIDTH =>
+                            reg_pulse_width <= s_axi_wdata;
                         when others => null;
                     end case;
                 end if;
@@ -328,6 +335,7 @@ begin
                         when ADDR_PHASE_TOL  => axi_rdata <= reg_phase_tol;
                         when ADDR_TDC_OFF    => axi_rdata <= reg_tdc_off;
                         when ADDR_DECIMATION => axi_rdata <= reg_decimation;
+                        when ADDR_PULSE_WIDTH=> axi_rdata <= reg_pulse_width;
 
                         -- Status registers
                         when ADDR_STATUS =>
@@ -422,5 +430,6 @@ begin
     phase_tolerance      <= unsigned(reg_phase_tol(15 downto 0));
     tdc_offset           <= unsigned(reg_tdc_off(15 downto 0));
     decimation           <= unsigned(reg_decimation(7 downto 0));
+    pulse_width          <= unsigned(reg_pulse_width(15 downto 0));
 
 end architecture rtl;

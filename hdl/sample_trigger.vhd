@@ -32,9 +32,12 @@ entity sample_trigger is
         -- Configuration from PS
         -- Fire every N angle steps (1 = every step)
         decimation     : in  unsigned(7 downto 0);
+        -- Debug pulse stretch width in clock cycles (0 = one cycle, 1000 = 10us)
+        pulse_width    : in  unsigned(15 downto 0);
 
         -- Outputs
-        sample_pulse   : out std_logic;
+        sample_pulse   : out std_logic;      -- one-cycle pulse (functional)
+        sample_pulse_dbg : out std_logic;    -- stretched pulse for scope debug
         sample_angle   : out unsigned(15 downto 0)
     );
 end entity sample_trigger;
@@ -44,11 +47,14 @@ architecture rtl of sample_trigger is
     -- Sync state constant (must match sync.vhd)
     constant ST_SYNC_FULL  : std_logic_vector(2 downto 0) := "011";
 
+    -- Pulse stretcher uses runtime-configurable pulse_width
     signal engine_angle_prev : unsigned(15 downto 0) := (others => '0');
     signal angle_changed     : std_logic := '0';
     signal decim_cnt         : unsigned(7 downto 0) := (others => '0');
     signal sample_pulse_int  : std_logic := '0';
     signal sample_angle_int  : unsigned(15 downto 0) := (others => '0');
+    signal stretch_cnt       : unsigned(15 downto 0) := (others => '0');
+    signal sample_pulse_out  : std_logic := '0';
 
 begin
 
@@ -92,7 +98,33 @@ begin
         end if;
     end process p_trigger;
 
-    sample_pulse <= sample_pulse_int;
-    sample_angle <= sample_angle_int;
+    -- -------------------------------------------------------------------------
+    -- Pulse stretcher for scope visibility
+    -- sample_pulse_int is the functional one-cycle trigger
+    -- sample_pulse output is stretched to STRETCH_CYCLES for debug
+    -- sample_packer and xadc_buffer use sample_pulse_int internally
+    -- -------------------------------------------------------------------------
+    p_stretch : process(clk)
+    begin
+        if rising_edge(clk) then
+            if rst = '1' then
+                stretch_cnt      <= (others => '0');
+                sample_pulse_out <= '0';
+            else
+                if sample_pulse_int = '1' then
+                    sample_pulse_out <= '1';
+                    stretch_cnt      <= pulse_width;
+                elsif stretch_cnt > 0 then
+                    stretch_cnt <= stretch_cnt - 1;
+                else
+                    sample_pulse_out <= '0';
+                end if;
+            end if;
+        end if;
+    end process p_stretch;
+
+    sample_pulse     <= sample_pulse_int;  -- one-cycle pulse for functional use
+    sample_pulse_dbg <= sample_pulse_out;  -- stretched pulse for scope debug
+    sample_angle     <= sample_angle_int;
 
 end architecture rtl;

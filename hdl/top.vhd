@@ -134,6 +134,7 @@ architecture rtl of top is
 
     -- sample_trigger outputs
     signal sample_pulse         : std_logic;
+    signal sample_pulse_dbg     : std_logic;
     signal sample_angle         : unsigned(15 downto 0);
 
     -- xadc_buffer output
@@ -154,6 +155,7 @@ architecture rtl of top is
     signal phase_tolerance      : unsigned(15 downto 0);
     signal tdc_offset           : unsigned(15 downto 0);
     signal decimation           : unsigned(7 downto 0);
+    signal pulse_width          : unsigned(15 downto 0);
     signal fault_clear          : std_logic;
 
 begin
@@ -299,13 +301,15 @@ begin
     -- =========================================================================
     u_sample_trigger : entity work.sample_trigger
         port map (
-            clk            => clk,
-            rst            => rst,
-            engine_angle   => engine_angle,
-            sync_state     => sync_state,
-            decimation     => decimation,
-            sample_pulse   => sample_pulse,
-            sample_angle   => sample_angle
+            clk              => clk,
+            rst              => rst,
+            engine_angle     => engine_angle,
+            sync_state       => sync_state,
+            decimation       => decimation,
+            pulse_width      => pulse_width,
+            sample_pulse     => sample_pulse,
+            sample_pulse_dbg => sample_pulse_dbg,
+            sample_angle     => sample_angle
         );
 
     -- =========================================================================
@@ -392,6 +396,7 @@ begin
             phase_tolerance      => phase_tolerance,
             tdc_offset           => tdc_offset,
             decimation           => decimation,
+            pulse_width          => pulse_width,
             fault_clear          => fault_clear,
             sync_state           => sync_state,
             signal_present       => signal_present,
@@ -436,7 +441,7 @@ begin
     debug_out(5)  <= z;
     debug_out(6)  <= gap_detected;
     debug_out(7)  <= ref_detected;
-    debug_out(8)  <= sample_pulse;
+    debug_out(8)  <= sample_pulse_dbg;
     debug_out(9)  <= div_valid;
     debug_out(10) <= signal_present;
     debug_out(11) <= synced;
