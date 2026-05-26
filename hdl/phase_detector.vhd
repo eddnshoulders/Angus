@@ -91,11 +91,6 @@ architecture rtl of phase_detector is
 
 begin
 
-    -- Band B centre: (expected + 3600) mod 7200
-    band_b_centre <= phase_ang_reg - HALF_CYCLE
-                     when phase_ang_reg >= HALF_CYCLE
-                     else phase_ang_reg + HALF_CYCLE;
-
     -- Input registers: break long nets from axi_lite_regs
     p_input_reg : process(clk)
     begin
@@ -103,9 +98,16 @@ begin
             if rst = '1' then
                 phase_ang_reg <= (others => '0');
                 phase_tol_reg <= (others => '0');
+                band_b_centre <= (others => '0');
             else
                 phase_ang_reg <= expected_phase_angle;
                 phase_tol_reg <= phase_tolerance;
+                -- Register band_b_centre to break path from phase_ang_reg
+                if expected_phase_angle >= HALF_CYCLE then
+                    band_b_centre <= expected_phase_angle - HALF_CYCLE;
+                else
+                    band_b_centre <= expected_phase_angle + HALF_CYCLE;
+                end if;
             end if;
         end if;
     end process p_input_reg;
