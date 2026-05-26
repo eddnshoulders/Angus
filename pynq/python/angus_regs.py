@@ -32,6 +32,7 @@ WRITE_REGS = {
     'EDGE_SELECT':   (0x00,  0,  0, '0=falling edge, 1=rising edge'),
     'FAULT_CLEAR':   (0x00,  1,  1, 'Self-clearing fault clear pulse'),
     'CORRECTION_DIR':(0x00,  2,  2, '0=subtract correction, 1=add correction'),
+    'PHASE_FAULT_DROP':(0x00, 3, 3, '0=count only, 1=drop to SYNC_CRANK on phase fault'),
     'GAP_THRESH':    (0x04,  7,  0, 'Gap threshold (192=1.5x tooth period)'),
     'KP':            (0x08, 15,  0, 'PI proportional gain'),
     'KI':            (0x0C, 15,  0, 'PI integral gain'),
@@ -174,7 +175,8 @@ class AngusRegs:
     # -------------------------------------------------------------------------
     def configure(self, gap_thresh=192, kp=256, ki=16, max_corr=1024,
                   phase_ang=0, phase_tol=300, tdc_offset=0, decimation=1,
-                  edge_select=1, correction_dir=0, pulse_width=1000):
+                  edge_select=1, correction_dir=0, pulse_width=1000,
+                  phase_fault_drop=0):
         """Write all configuration registers in one call."""
         self.write('GAP_THRESH',    gap_thresh)
         self.write('KP',            kp)
@@ -186,7 +188,9 @@ class AngusRegs:
         self.write('DECIMATION',    decimation)
         self.write('PULSE_WIDTH',   pulse_width)
         # Build CONTROL word
-        ctrl = (edge_select & 0x1) | ((correction_dir & 0x1) << 2) | 0x01
+        ctrl = ((edge_select      & 0x1)      |
+                ((correction_dir  & 0x1) << 2) |
+                ((phase_fault_drop & 0x1) << 3) | 0x01)
         self._raw_write(0x00, ctrl)
 
     def fault_clear(self):
@@ -204,6 +208,8 @@ class AngusRegs:
               f"  ({'rising' if self.read('EDGE_SELECT') else 'falling'})")
         print(f"  CORRECTION_DIR = {self.read('CORRECTION_DIR')}"
               f"  ({'add' if self.read('CORRECTION_DIR') else 'subtract'})")
+        print(f"  PHASE_FAULT_DROP = {self.read('PHASE_FAULT_DROP')}"
+              f"  ({'drop to SYNC_CRANK' if self.read('PHASE_FAULT_DROP') else 'count only'})")
         print(f"  GAP_THRESH     = {self.read('GAP_THRESH')}")
         print(f"  KP             = {self.read('KP')}")
         print(f"  KI             = {self.read('KI')}")
