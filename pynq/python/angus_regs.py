@@ -40,6 +40,7 @@ WRITE_REGS = {
     'PHASE_TOL':     (0x18, 15,  0, 'Cam phase window tolerance (0-7199)'),
     'TDC_OFFSET':    (0x1C, 15,  0, 'TDC offset applied to engine angle'),
     'DECIMATION':    (0x20,  7,  0, 'Sample trigger decimation (1=every step)'),
+    'PULSE_WIDTH':   (0x60, 15,  0, 'Debug pulse stretch width (clock cycles, 1000=10us)'),
 }
 
 # Read registers (PL → PS)
@@ -173,7 +174,7 @@ class AngusRegs:
     # -------------------------------------------------------------------------
     def configure(self, gap_thresh=192, kp=256, ki=16, max_corr=1024,
                   phase_ang=0, phase_tol=300, tdc_offset=0, decimation=1,
-                  edge_select=1, correction_dir=0):
+                  edge_select=1, correction_dir=0, pulse_width=1000):
         """Write all configuration registers in one call."""
         self.write('GAP_THRESH',    gap_thresh)
         self.write('KP',            kp)
@@ -183,6 +184,7 @@ class AngusRegs:
         self.write('PHASE_TOL',     phase_tol)
         self.write('TDC_OFFSET',    tdc_offset)
         self.write('DECIMATION',    decimation)
+        self.write('PULSE_WIDTH',   pulse_width)
         # Build CONTROL word
         ctrl = (edge_select & 0x1) | ((correction_dir & 0x1) << 2) | 0x01
         self._raw_write(0x00, ctrl)
@@ -212,6 +214,8 @@ class AngusRegs:
               f"  ({self.read('PHASE_TOL')/10:.1f} deg)")
         print(f"  TDC_OFFSET     = {self.read('TDC_OFFSET')}")
         print(f"  DECIMATION     = {self.read('DECIMATION')}")
+        pw = self.read('PULSE_WIDTH')
+        print(f"  PULSE_WIDTH    = {pw}  ({pw/100:.1f}us at 100MHz)")
 
     def print_status(self):
         """Print all status registers."""
