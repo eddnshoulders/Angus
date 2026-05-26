@@ -43,6 +43,7 @@ entity sync is
 
         -- Configuration from PS
         fault_clear       : in  std_logic;
+        phase_fault_drop  : in  std_logic;  -- '1' = drop to SYNC_CRANK on phase fault
 
         -- Outputs
         sync_state        : out std_logic_vector(2 downto 0);
@@ -98,6 +99,7 @@ architecture rtl of sync is
     signal sync_loss_cnt  : unsigned(15 downto 0) := (others => '0');
     signal phase_flt_cnt  : unsigned(15 downto 0) := (others => '0');
     signal phase_flt      : std_logic := '0';
+    signal fault_drop_req : std_logic := '0';
 
 begin
 
@@ -172,6 +174,12 @@ begin
                             if signal_present = '0' then
                                 state         <= UNSYNC;
                                 offset_locked <= '0';
+                            elsif fault_drop_req = '1' then
+                                if sync_loss_cnt /= (sync_loss_cnt'range => '1') then
+                                    sync_loss_cnt <= sync_loss_cnt + 1;
+                                end if;
+                                state         <= SYNC_CRANK;
+                                offset_locked <= '0';
                             elsif ab_count /= to_unsigned(N_TEETH, 8) then
                                 if sync_loss_cnt /= (sync_loss_cnt'range => '1') then
                                     sync_loss_cnt <= sync_loss_cnt + 1;
@@ -210,11 +218,13 @@ begin
     begin
         if rising_edge(clk) then
             if rst = '1' then
-                phase_flt     <= '0';
-                phase_flt_cnt <= (others => '0');
-                ref_prev_f    <= '0';
+                phase_flt      <= '0';
+                phase_flt_cnt  <= (others => '0');
+                ref_prev_f     <= '0';
+                fault_drop_req <= '0';
             else
-                ref_prev_f <= ref_detected;
+                ref_prev_f     <= ref_detected;
+                fault_drop_req <= '0';
 
                 if fault_clear = '1' then
                     phase_flt <= '0';
@@ -225,6 +235,9 @@ begin
                     phase_flt <= '1';
                     if phase_flt_cnt /= (phase_flt_cnt'range => '1') then
                         phase_flt_cnt <= phase_flt_cnt + 1;
+                    end if;
+                    if phase_fault_drop = '1' then
+                        fault_drop_req <= '1';
                     end if;
                 end if;
             end if;

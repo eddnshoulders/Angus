@@ -44,6 +44,7 @@ architecture sim of sync_tb is
     signal ref_detected     : std_logic := '0';
     signal sync_offset      : std_logic := '0';
     signal fault_clear      : std_logic := '0';
+    signal phase_fault_drop : std_logic := '0';
     signal sync_state       : std_logic_vector(2 downto 0);
     signal sync_loss_count  : unsigned(15 downto 0);
     signal phase_fault_count: unsigned(15 downto 0);
@@ -124,6 +125,7 @@ begin
             ref_detected      => ref_detected,
             sync_offset       => sync_offset,
             fault_clear       => fault_clear,
+            phase_fault_drop  => phase_fault_drop,
             sync_state        => sync_state,
             sync_loss_count   => sync_loss_count,
             phase_fault_count => phase_fault_count,

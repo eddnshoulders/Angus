@@ -35,6 +35,7 @@ architecture sim of axi_lite_regs_tb is
 
     -- Config outputs
     signal edge_select          : std_logic;
+    signal phase_fault_drop     : std_logic;
     signal gap_threshold        : unsigned(7 downto 0);
     signal kp                   : unsigned(15 downto 0);
     signal ki                   : unsigned(15 downto 0);
@@ -148,6 +149,8 @@ begin
             s_axi_rvalid         => rvalid,
             s_axi_rready         => rready,
             edge_select          => edge_select,
+            correction_dir       => open,
+            phase_fault_drop     => phase_fault_drop,
             gap_threshold        => gap_threshold,
             kp                   => kp,
             ki                   => ki,

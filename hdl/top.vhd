@@ -147,6 +147,7 @@ architecture rtl of top is
     -- axi_lite_regs outputs
     signal edge_select          : std_logic;
     signal correction_dir       : std_logic;
+    signal phase_fault_drop     : std_logic;
     signal gap_threshold        : unsigned(7 downto 0);
     signal kp                   : unsigned(15 downto 0);
     signal ki                   : unsigned(15 downto 0);
@@ -258,6 +259,7 @@ begin
             ref_detected      => ref_detected,
             sync_offset       => sync_offset,
             fault_clear       => fault_clear,
+            phase_fault_drop  => phase_fault_drop,
             sync_state        => sync_state,
             sync_loss_count   => sync_loss_count,
             phase_fault_count => phase_fault_count,
@@ -388,6 +390,7 @@ begin
             s_axi_rready         => s_axi_rready,
             edge_select          => edge_select,
             correction_dir       => correction_dir,
+            phase_fault_drop     => phase_fault_drop,
             gap_threshold        => gap_threshold,
             kp                   => kp,
             ki                   => ki,
