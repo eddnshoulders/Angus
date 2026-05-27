@@ -94,6 +94,11 @@ entity axi_lite_regs is
         pulse_width          : out unsigned(15 downto 0);
         n_teeth              : out unsigned(7 downto 0);
         n_missing            : out unsigned(7 downto 0);
+        cam_debounce_cycles  : out unsigned(15 downto 0);
+        crank_debounce_cycles: out unsigned(15 downto 0);
+        enc_a_debounce_cycles: out unsigned(15 downto 0);
+        enc_b_debounce_cycles: out unsigned(15 downto 0);
+        enc_z_debounce_cycles: out unsigned(15 downto 0);
 
         -- Status inputs from PL
         sync_state           : in  std_logic_vector(2 downto 0);
@@ -135,6 +140,11 @@ architecture rtl of axi_lite_regs is
     constant ADDR_PULSE_WIDTH: integer := 16#60# / 4;
     constant ADDR_N_TEETH    : integer := 16#64# / 4;
     constant ADDR_N_MISSING  : integer := 16#68# / 4;
+    constant ADDR_CAM_DBC    : integer := 16#70# / 4;
+    constant ADDR_CRANK_DBC  : integer := 16#74# / 4;
+    constant ADDR_ENC_A_DBC  : integer := 16#78# / 4;
+    constant ADDR_ENC_B_DBC  : integer := 16#7C# / 4;
+    constant ADDR_ENC_Z_DBC  : integer := 16#80# / 4;
     constant ADDR_STATUS    : integer := 16#24# / 4;
     constant ADDR_SYNC_LOSS : integer := 16#28# / 4;
     constant ADDR_PHASE_FLT : integer := 16#2C# / 4;
@@ -165,6 +175,11 @@ architecture rtl of axi_lite_regs is
     signal reg_pulse_width  : std_logic_vector(31 downto 0) := x"000003E8"; -- 1000 cycles
     signal reg_n_teeth      : std_logic_vector(31 downto 0) := x"0000003C"; -- 60
     signal reg_n_missing    : std_logic_vector(31 downto 0) := x"00000002"; -- 2
+    signal reg_cam_dbc      : std_logic_vector(31 downto 0) := x"00000005";
+    signal reg_crank_dbc    : std_logic_vector(31 downto 0) := x"00000005";
+    signal reg_enc_a_dbc    : std_logic_vector(31 downto 0) := x"00000005";
+    signal reg_enc_b_dbc    : std_logic_vector(31 downto 0) := x"00000005";
+    signal reg_enc_z_dbc    : std_logic_vector(31 downto 0) := x"00000005";
 
     -- Working registers for startup config (latched on config_apply)
     -- These are the values actually used by the PL
@@ -264,6 +279,11 @@ begin
                 reg_pulse_width <= x"000003E8";
                 reg_n_teeth     <= x"0000003C";
                 reg_n_missing   <= x"00000002";
+                reg_cam_dbc     <= x"00000005";
+                reg_crank_dbc   <= x"00000005";
+                reg_enc_a_dbc   <= x"00000005";
+                reg_enc_b_dbc   <= x"00000005";
+                reg_enc_z_dbc   <= x"00000005";
                 fault_clear_int  <= '0';
                 config_apply_int <= '0';
             else
@@ -315,6 +335,16 @@ begin
                             reg_n_teeth <= s_axi_wdata;
                         when ADDR_N_MISSING =>
                             reg_n_missing <= s_axi_wdata;
+                        when ADDR_CAM_DBC =>
+                            reg_cam_dbc   <= s_axi_wdata;
+                        when ADDR_CRANK_DBC =>
+                            reg_crank_dbc <= s_axi_wdata;
+                        when ADDR_ENC_A_DBC =>
+                            reg_enc_a_dbc <= s_axi_wdata;
+                        when ADDR_ENC_B_DBC =>
+                            reg_enc_b_dbc <= s_axi_wdata;
+                        when ADDR_ENC_Z_DBC =>
+                            reg_enc_z_dbc <= s_axi_wdata;
                         when others => null;
                     end case;
                 end if;
@@ -396,6 +426,11 @@ begin
                         when ADDR_PULSE_WIDTH=> axi_rdata <= reg_pulse_width;
                         when ADDR_N_TEETH    => axi_rdata <= reg_n_teeth;
                         when ADDR_N_MISSING  => axi_rdata <= reg_n_missing;
+                        when ADDR_CAM_DBC    => axi_rdata <= reg_cam_dbc;
+                        when ADDR_CRANK_DBC  => axi_rdata <= reg_crank_dbc;
+                        when ADDR_ENC_A_DBC  => axi_rdata <= reg_enc_a_dbc;
+                        when ADDR_ENC_B_DBC  => axi_rdata <= reg_enc_b_dbc;
+                        when ADDR_ENC_Z_DBC  => axi_rdata <= reg_enc_z_dbc;
 
                         -- Status registers
                         when ADDR_STATUS =>
@@ -504,6 +539,11 @@ begin
     phase_tolerance      <= unsigned(reg_phase_tol(15 downto 0));
     tdc_offset           <= unsigned(reg_tdc_off(15 downto 0));
     decimation           <= unsigned(reg_decimation(7 downto 0));
-    pulse_width          <= unsigned(reg_pulse_width(15 downto 0));
+    pulse_width           <= unsigned(reg_pulse_width(15 downto 0));
+    cam_debounce_cycles   <= unsigned(reg_cam_dbc(15 downto 0));
+    crank_debounce_cycles <= unsigned(reg_crank_dbc(15 downto 0));
+    enc_a_debounce_cycles <= unsigned(reg_enc_a_dbc(15 downto 0));
+    enc_b_debounce_cycles <= unsigned(reg_enc_b_dbc(15 downto 0));
+    enc_z_debounce_cycles <= unsigned(reg_enc_z_dbc(15 downto 0));
 
 end architecture rtl;
