@@ -23,11 +23,11 @@ entity ang_sel is
         sel                  : in  std_logic;  -- '0'=crank, '1'=encoder
 
         -- From crank_input
-        crank_ab             : in  std_logic;
-        crank_z              : in  std_logic;
-        crank_ab_period      : in  unsigned(31 downto 0);  -- tooth_period from crank_input
+        ab_crank             : in  std_logic;
+        z_crank              : in  std_logic;
+        ab_crank_period      : in  unsigned(31 downto 0);  -- tooth_period from crank_input
         crank_ppr            : in  unsigned(7 downto 0);   -- ppr_crank from crank_input
-        crank_ab_count       : in  unsigned(7 downto 0);   -- tooth_count from crank_input
+        ab_crank_count       : in  unsigned(7 downto 0);   -- tooth_count from crank_input
         crank_signal_present : in  std_logic;
 
         -- From enc_input (stub)
@@ -51,11 +51,11 @@ end entity ang_sel;
 architecture rtl of ang_sel is
 begin
 
-    ab             <= crank_ab          when sel = '0' else enc_ab;
-    z              <= crank_z           when sel = '0' else enc_z;
-    ab_period      <= crank_ab_period   when sel = '0' else enc_ab_period;
+    ab             <= ab_crank          when sel = '0' else enc_ab;
+    z              <= z_crank           when sel = '0' else enc_z;
+    ab_period      <= ab_crank_period   when sel = '0' else enc_ab_period;
     ppr            <= crank_ppr         when sel = '0' else enc_ppr;
-    ab_count       <= crank_ab_count    when sel = '0' else enc_ab_count;
+    ab_count       <= ab_crank_count    when sel = '0' else enc_ab_count;
     signal_present <= crank_signal_present when sel = '0' else enc_signal_present;
 
 end architecture rtl;
