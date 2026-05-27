@@ -93,14 +93,18 @@ begin
     -- Use a lookup for synthesis efficiency - ppr is a config constant.
     -- -------------------------------------------------------------------------
     process(ppr)
-        variable denom : unsigned(8 downto 0);
     begin
-        denom := resize(ppr, 9) & '0';  -- ppr * 2
-        if denom = 0 then
-            degrees_per_edge <= to_unsigned(60, 16);  -- safe default
-        else
-            degrees_per_edge <= to_unsigned(7200, 16) / denom;
-        end if;
+        -- degrees_per_edge = 7200 / (ppr * 2)
+        -- Case statement avoids division operator in RTL
+        case to_integer(ppr) is
+            when 36  => degrees_per_edge <= to_unsigned(100, 16);  -- 7200/72
+            when 58  => degrees_per_edge <= to_unsigned(62,  16);  -- 7200/116 ~62
+            when 60  => degrees_per_edge <= to_unsigned(60,  16);  -- 7200/120
+            when 72  => degrees_per_edge <= to_unsigned(50,  16);  -- 7200/144
+            when 90  => degrees_per_edge <= to_unsigned(40,  16);  -- 7200/180
+            when 120 => degrees_per_edge <= to_unsigned(30,  16);  -- 7200/240
+            when others => degrees_per_edge <= to_unsigned(60, 16); -- default 60T
+        end case;
     end process;
 
     -- -------------------------------------------------------------------------
