@@ -57,8 +57,8 @@ architecture sim of axi_lite_regs_tb is
     signal packet_count         : unsigned(31 downto 0) := to_unsigned(12345, 32);
     signal overflow_count       : unsigned(15 downto 0) := to_unsigned(7, 16);
     signal raw_angle            : unsigned(15 downto 0) := to_unsigned(1234, 16);
-    signal crank_angle          : unsigned(15 downto 0) := to_unsigned(4834, 16);
-    signal engine_angle         : unsigned(15 downto 0) := to_unsigned(5000, 16);
+    signal angle_corr           : unsigned(15 downto 0) := to_unsigned(4834, 16);
+    signal angle_hires          : unsigned(15 downto 0) := to_unsigned(5000, 16);
 
     signal sim_done             : boolean := false;
     signal test_num             : integer := 0;
@@ -156,6 +156,7 @@ begin
             ang_sel              => open,
             ref_sel              => open,
             config_valid         => open,
+            config_apply_out     => open,
             gap_threshold        => gap_threshold,
             kp                   => kp,
             ki                   => ki,
@@ -176,8 +177,8 @@ begin
             packet_count         => packet_count,
             overflow_count       => overflow_count,
             raw_angle            => raw_angle,
-            crank_angle          => crank_angle,
-            engine_angle         => engine_angle,
+            angle_corr           => angle_corr,
+            angle_hires          => angle_hires,
             synced               => '0',
             ab_count             => (others => '0'),
             tooth_period         => (others => '0'),
@@ -340,13 +341,13 @@ begin
         axi_read(araddr, arvalid, arready, rvalid, rdata,
                  16#3C#, rd_data, CLK_PERIOD);
         assert to_integer(unsigned(rd_data(15 downto 0))) = 4834
-            report "FAIL T7: crank_angle should be 4834"
+            report "FAIL T7: angle_corr should be 4834"
             severity failure;
 
         axi_read(araddr, arvalid, arready, rvalid, rdata,
                  16#40#, rd_data, CLK_PERIOD);
         assert to_integer(unsigned(rd_data(15 downto 0))) = 5000
-            report "FAIL T7: engine_angle should be 5000"
+            report "FAIL T7: angle_hires should be 5000"
             severity failure;
 
         report "TEST 7: PASS";

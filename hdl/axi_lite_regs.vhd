@@ -32,9 +32,9 @@ use ieee.numeric_std.all;
 --   0x2C PHASE_FLT:  [15:0] phase_fault_count
 --   0x30 PKT_COUNT:  [31:0] packet_count
 --   0x34 OVF_COUNT:  [15:0] overflow_count
---   0x38 RAW_ANGLE:  [15:0] raw_angle
---   0x3C CRANK_ANG:  [15:0] crank_angle
---   0x40 ENG_ANG:    [15:0] engine_angle
+--   0x38 RAW_ANGLE:  [15:0] angle_raw (tooth-based, from angle_calc)
+--   0x3C CRANK_ANG:  [15:0] angle_corr (TDC-corrected, from phase_detector)
+--   0x40 ENG_ANG:    [15:0] angle_hires (NCO high-res, from angle_engine)
 --   0x44 AB_COUNT:   [7:0]  ab_count (teeth counted this revolution)
 --   0x48 TOOTH_PER:  [31:0] tooth_period (clock cycles)
 --   0x4C GAP_PER:    [31:0] gap_period (clock cycles)
@@ -78,6 +78,7 @@ entity axi_lite_regs is
         ang_sel              : out std_logic;
         ref_sel              : out std_logic;
         config_valid         : out std_logic;  -- high after first config_apply
+        config_apply_out     : out std_logic;  -- pulse when config_apply fires
         gap_threshold        : out unsigned(7 downto 0);
         kp                   : out unsigned(15 downto 0);
         ki                   : out unsigned(15 downto 0);
@@ -99,9 +100,9 @@ entity axi_lite_regs is
         phase_fault_count    : in  unsigned(15 downto 0);
         packet_count         : in  unsigned(31 downto 0);
         overflow_count       : in  unsigned(15 downto 0);
-        raw_angle            : in  unsigned(15 downto 0);
-        crank_angle          : in  unsigned(15 downto 0);
-        engine_angle         : in  unsigned(15 downto 0);
+        raw_angle            : in  unsigned(15 downto 0);  -- tooth-based angle from angle_calc
+        angle_corr           : in  unsigned(15 downto 0);  -- TDC-corrected from phase_detector
+        angle_hires          : in  unsigned(15 downto 0);  -- NCO angle from angle_engine
 
         -- Debug inputs from PL
         synced               : in  std_logic;
@@ -418,11 +419,11 @@ begin
 
                         when ADDR_CRANK_ANG =>
                             axi_rdata <= x"0000" &
-                                         std_logic_vector(crank_angle);
+                                         std_logic_vector(angle_corr);
 
                         when ADDR_ENG_ANG =>
                             axi_rdata <= x"0000" &
-                                         std_logic_vector(engine_angle);
+                                         std_logic_vector(angle_hires);
 
                         when ADDR_AB_COUNT =>
                             axi_rdata <= x"000000" &
@@ -478,6 +479,7 @@ begin
     n_teeth              <= work_n_teeth;
     n_missing            <= work_n_missing;
     config_valid         <= config_valid_int;
+    config_apply_out     <= config_apply_int;
 
     -- Runtime config - direct from registers (can change any time)
     correction_dir       <= reg_control(2);
