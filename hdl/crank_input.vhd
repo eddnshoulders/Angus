@@ -38,8 +38,8 @@ entity crank_input is
         n_missing         : in  unsigned(7 downto 0);   -- number of missing teeth
 
         -- Encoder-equivalent outputs
-        ab                : out std_logic;              -- toggles on real and interpolated edges
-        z                 : out std_logic;              -- pulse on first real edge after gap
+        ab_crank          : out std_logic;              -- toggles on real and interpolated edges
+        z_crank           : out std_logic;              -- pulse on first real edge after gap
         tooth_period      : out unsigned(31 downto 0);  -- last measured tooth period
         tooth_count       : out unsigned(7 downto 0);   -- 0 to N_TEETH-N_MISSING-1
         gap_detected      : out std_logic;              -- high during gap, for crank_sync
@@ -365,8 +365,8 @@ begin
     -- -------------------------------------------------------------------------
     -- Output assignments
     -- -------------------------------------------------------------------------
-    ab             <= ab_int;
-    z              <= z_int;
+    ab_crank       <= ab_int;
+    z_crank        <= z_int;
     tooth_period   <= current_period;
     tooth_count    <= tooth_cnt;
     gap_detected   <= gap_det;
