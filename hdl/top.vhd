@@ -8,20 +8,20 @@ use ieee.numeric_std.all;
 -- Top-level module for combustion analyser PL design.
 --
 -- Signal chain:
---   crank_raw  → signal_conditioner → crank_input ─┐
---                                                   ├─ ang_sel → angle_calc → phase_detector
---   enc_input (stub) ──────────────────────────────┘           → angle_engine → sample_trigger
+--   crank_raw  -> signal_conditioner -> crank_input -+
+--                                                    +- ang_sel -> angle_calc -> phase_detector
+--   enc_input (stub) -----------------------------=--+           -> angle_engine -> sample_trigger
 --
---   cam_raw    → signal_conditioner → cam_input ─┐
---                                                 ├─ ref_sel → phase_detector
---   peak_detector (stub) ───────────────────────┘
+--   cam_raw    -> signal_conditioner -> cam_input -+
+--                                                  +- ref_sel -> phase_detector
+--   peak_detector (stub) -----------------------+-+
 --
---   phase_detector → sync → angle_engine
---                  → axi_lite_regs (status)
+--   phase_detector -> sync -> angle_engine
+--                  -> axi_lite_regs (status)
 --
---   angle_engine → sample_trigger → sample_packer → AXI Stream DMA
+--   angle_engine -> sample_trigger -> sample_packer -> AXI Stream DMA
 --
---   axi_lite_regs ↔ PS (config/status)
+--   axi_lite_regs <-> PS (config/status)
 --   config_valid gates rst: design held in reset until PS writes CONFIG_APPLY
 -- =============================================================================
 
@@ -101,6 +101,7 @@ architecture rtl of top is
     signal crank_z              : std_logic;
     signal crank_tooth_period   : unsigned(31 downto 0);
     signal crank_tooth_count    : unsigned(7 downto 0);
+    signal crank_ppr            : unsigned(7 downto 0);
     signal crank_gap_detected   : std_logic;
     signal crank_signal_present : std_logic;
     signal crank_edge_pulse     : std_logic;
@@ -109,16 +110,18 @@ architecture rtl of top is
     -- enc_input outputs (stub)
     signal enc_ab               : std_logic;
     signal enc_z                : std_logic;
-    signal enc_tooth_period     : unsigned(31 downto 0);
-    signal enc_tooth_count      : unsigned(7 downto 0);
+    signal enc_ab_period        : unsigned(31 downto 0);
+    signal enc_ppr              : unsigned(7 downto 0);
+    signal enc_ab_count         : unsigned(7 downto 0);
     signal enc_signal_present   : std_logic;
     signal enc_edge_pulse       : std_logic;
 
     -- ang_sel outputs
     signal ab                   : std_logic;
     signal z                    : std_logic;
-    signal tooth_period         : unsigned(31 downto 0);
-    signal tooth_count          : unsigned(7 downto 0);
+    signal ab_period            : unsigned(31 downto 0);
+    signal ppr                  : unsigned(7 downto 0);
+    signal ab_count_mux         : unsigned(7 downto 0);
     signal signal_present       : std_logic;
 
     -- cam_input output
@@ -133,15 +136,7 @@ architecture rtl of top is
     -- angle_calc outputs
     signal angle_raw            : unsigned(15 downto 0);
     signal phase_calc           : std_logic;
-
-    -- angle_calc divider interface
-    signal ac_div_start         : std_logic;
-    signal ac_div_dividend      : unsigned(31 downto 0);
-    signal ac_div_divisor       : unsigned(31 downto 0);
-    signal ac_div_quotient      : unsigned(31 downto 0);
-    signal ac_div_remainder     : unsigned(31 downto 0);
-    signal ac_div_valid         : std_logic;
-    signal ac_div_zero_err      : std_logic;
+    signal count_fault          : unsigned(15 downto 0);
 
     -- phase_detector outputs
     signal ref_detected         : std_logic;
@@ -180,12 +175,13 @@ architecture rtl of top is
     signal packet_count         : unsigned(31 downto 0);
     signal overflow_count       : unsigned(15 downto 0);
 
-    -- axi_lite_regs outputs (config)
-    signal edge_select          : std_logic;
+    -- axi_lite_regs config outputs
+    signal crank_edge_sel       : std_logic;
+    signal cam_edge_sel         : std_logic;
     signal correction_dir       : std_logic;
     signal phase_fault_drop     : std_logic;
-    signal ang_sel              : std_logic;
-    signal ref_sel              : std_logic;
+    signal ang_sel_s            : std_logic;
+    signal ref_sel_s            : std_logic;
     signal config_apply         : std_logic;
     signal gap_threshold        : unsigned(7 downto 0);
     signal kp                   : unsigned(15 downto 0);
@@ -241,7 +237,7 @@ begin
             rst              => rst,
             clean_signal     => crank_clean,
             signal_stable    => crank_stable,
-            edge_select      => edge_select,
+            crank_edge_sel   => crank_edge_sel,
             gap_threshold    => gap_threshold,
             n_teeth          => n_teeth,
             n_missing        => n_missing,
@@ -249,6 +245,7 @@ begin
             z                => crank_z,
             tooth_period     => crank_tooth_period,
             tooth_count      => crank_tooth_count,
+            ppr_crank        => crank_ppr,
             gap_detected     => crank_gap_detected,
             signal_present   => crank_signal_present,
             edge_pulse_out   => crank_edge_pulse,
@@ -271,34 +268,36 @@ begin
             n_pulses       => (others => '0'),
             ab             => enc_ab,
             z              => enc_z,
-            tooth_period   => enc_tooth_period,
-            tooth_count    => enc_tooth_count,
+            tooth_period   => enc_ab_period,
+            tooth_count    => enc_ab_count,
             signal_present => enc_signal_present,
             enc_edge_pulse => enc_edge_pulse
         );
+    enc_ppr <= n_teeth;  -- stub: use n_teeth as ppr
 
     -- =========================================================================
     -- ang_sel: select crank or encoder source
     -- =========================================================================
     u_ang_sel : entity work.ang_sel
         port map (
-            clk                  => clk,
-            rst                  => rst,
-            sel                  => ang_sel,
+            sel                  => ang_sel_s,
             crank_ab             => crank_ab,
             crank_z              => crank_z,
-            crank_tooth_period   => crank_tooth_period,
-            crank_tooth_count    => crank_tooth_count,
+            crank_ab_period      => crank_tooth_period,
+            crank_ppr            => crank_ppr,
+            crank_ab_count       => crank_tooth_count,
             crank_signal_present => crank_signal_present,
             enc_ab               => enc_ab,
             enc_z                => enc_z,
-            enc_tooth_period     => enc_tooth_period,
-            enc_tooth_count      => enc_tooth_count,
+            enc_ab_period        => enc_ab_period,
+            enc_ppr              => enc_ppr,
+            enc_ab_count         => enc_ab_count,
             enc_signal_present   => enc_signal_present,
             ab                   => ab,
             z                    => z,
-            tooth_period         => tooth_period,
-            tooth_count          => tooth_count,
+            ab_period            => ab_period,
+            ppr                  => ppr,
+            ab_count             => ab_count_mux,
             signal_present       => signal_present
         );
 
@@ -307,11 +306,11 @@ begin
     -- =========================================================================
     u_cam_input : entity work.cam_input
         port map (
-            clk       => clk,
-            rst       => rst,
-            cam_clean => cam_clean,
-            edge_sel  => '1',  -- rising edge
-            cam_pulse => cam_pulse
+            clk          => clk,
+            rst          => rst,
+            cam_clean    => cam_clean,
+            cam_edge_sel => cam_edge_sel,
+            cam_pulse    => cam_pulse
         );
 
     -- =========================================================================
@@ -331,28 +330,10 @@ begin
     -- =========================================================================
     u_ref_sel : entity work.ref_sel
         port map (
-            sel        => ref_sel,
+            sel        => ref_sel_s,
             cam_pulse  => cam_pulse,
             peak_pulse => peak_pulse,
             ref_pulse  => ref_pulse
-        );
-
-    -- =========================================================================
-    -- angle_calc divider instance
-    -- Shared with angle_calc for degrees_per_tooth computation
-    -- =========================================================================
-    u_ac_divider : entity work.divider
-        generic map (WIDTH => 32, CACHING => 0, INIT_VLD => 0)
-        port map (
-            clk       => clk,
-            rst       => rst,
-            start     => ac_div_start,
-            dividend  => ac_div_dividend,
-            divisor   => ac_div_divisor,
-            quotient  => ac_div_quotient,
-            remainder => ac_div_remainder,
-            zero_err  => ac_div_zero_err,
-            valid     => ac_div_valid
         );
 
     -- =========================================================================
@@ -364,18 +345,13 @@ begin
             rst            => rst,
             ab             => ab,
             z              => z,
-            tooth_period   => tooth_period,
-            tooth_count    => tooth_count,
+            ab_period      => ab_period,
+            ppr            => ppr,
+            ab_count       => ab_count_mux,
             signal_present => signal_present,
-            n_teeth        => n_teeth,
-            div_start      => ac_div_start,
-            div_dividend   => ac_div_dividend,
-            div_divisor    => ac_div_divisor,
-            div_quotient   => ac_div_quotient,
-            div_valid      => ac_div_valid,
-            config_apply   => config_apply,
             angle_raw      => angle_raw,
-            phase          => phase_calc
+            phase          => phase_calc,
+            count_fault    => count_fault
         );
 
     -- =========================================================================
@@ -536,9 +512,10 @@ begin
             s_axi_rvalid         => s_axi_rvalid,
             s_axi_rready         => s_axi_rready,
             -- Startup config outputs (latched on config_apply)
-            edge_select          => edge_select,
-            ang_sel              => ang_sel,
-            ref_sel              => ref_sel,
+            crank_edge_sel       => crank_edge_sel,
+            cam_edge_sel         => cam_edge_sel,
+            ang_sel              => ang_sel_s,
+            ref_sel              => ref_sel_s,
             config_valid         => config_valid,
             config_apply_out     => config_apply,
             gap_threshold        => gap_threshold,
@@ -578,22 +555,20 @@ begin
             cam_angle            => ref_angle
         );
 
-    -- config_apply goes to angle_calc and angle_engine via config_apply_out above
-
     -- =========================================================================
-    -- Debug outputs → Pi header
-    -- debug_out[0]  crank_clean     Pi pin 3   W18
-    -- debug_out[1]  cam_clean       Pi pin 5   W19
-    -- debug_out[2]  crank_edge_pulse Pi pin 7  Y18
-    -- debug_out[3]  ref_edge_pulse  Pi pin 29  Y19
-    -- debug_out[4]  ab              Pi pin 15  U8
-    -- debug_out[5]  z               Pi pin 16  W6
-    -- debug_out[6]  crank_gap_det   Pi pin 32  B20
-    -- debug_out[7]  ref_detected    Pi pin 33  W8
-    -- debug_out[8]  sample_pulse_dbg Pi pin 22 W10
-    -- debug_out[9]  ae_div_valid    Pi pin 36  B19
-    -- debug_out[10] signal_present  Pi pin 19  V8
-    -- debug_out[11] synced          Pi pin 12  C20
+    -- Debug outputs -> Pi header
+    -- debug_out[0]  crank_clean      Pi pin 3   W18
+    -- debug_out[1]  cam_clean        Pi pin 5   W19
+    -- debug_out[2]  crank_edge_pulse Pi pin 7   Y18
+    -- debug_out[3]  ref_edge_pulse   Pi pin 29  Y19
+    -- debug_out[4]  ab               Pi pin 15  U8
+    -- debug_out[5]  z                Pi pin 16  W6
+    -- debug_out[6]  crank_gap_det    Pi pin 32  B20
+    -- debug_out[7]  ref_detected     Pi pin 33  W8
+    -- debug_out[8]  sample_pulse_dbg Pi pin 22  W10
+    -- debug_out[9]  ae_div_valid     Pi pin 36  B19
+    -- debug_out[10] signal_present   Pi pin 19  V8
+    -- debug_out[11] synced           Pi pin 12  C20
     -- =========================================================================
     debug_out(0)  <= crank_clean;
     debug_out(1)  <= cam_clean;
