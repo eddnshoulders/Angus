@@ -71,6 +71,7 @@ WRITE_REGS = {
     'ANG_SEL':          (0x00,  4,  4, 'Startup: 0=crank_input, 1=enc_input (latched on config_apply)'),
     'REF_SEL':          (0x00,  5,  5, 'Startup: 0=cam_input, 1=peak_detector (latched on config_apply)'),
     'CONFIG_APPLY':     (0x00,  6,  6, 'Self-clearing: latches startup config and releases PL reset'),
+    'CAM_EDGE_SEL':     (0x00,  7,  7, 'Startup: 0=falling, 1=rising edge for cam (latched on config_apply)'),
 
     # Startup config registers (written before config_apply)
     'GAP_THRESH':       (0x04,  7,  0, 'Gap threshold 1.7 fixed point (0xC0 = 1.5x tooth period)'),
@@ -114,6 +115,7 @@ READ_REGS = {
     'PHASE_ERR':        (0x54, 31,  0, 'Signed PI phase error (NCO accumulator units)'),
     'CORRECTION':       (0x58, 31,  0, 'Signed PI correction applied to NCO (NCO LSB)'),
     'CAM_ANGLE':        (0x5C, 15,  0, 'Cam edge angle at detection (0-7199, 0.1 deg)'),
+    'COUNT_FAULT':      (0x6C, 15,  0, 'angle_calc ab_count mismatch counter'),
 }
 
 # Write registers are also readable - same address map
@@ -192,7 +194,7 @@ class AngusRegs:
     # ref_sel, gap_threshold, n_teeth, n_missing and releases PL from reset.
     # -------------------------------------------------------------------------
     def config_apply(self, edge_select=1, ang_sel=0, ref_sel=0,
-                     correction_dir=0, phase_fault_drop=0):
+                     correction_dir=0, phase_fault_drop=0, cam_edge_sel=1):
         """
         Latch startup config and release PL reset.
 
@@ -212,7 +214,8 @@ class AngusRegs:
             ((phase_fault_drop & 0x1) << 3) |
             ((ang_sel          & 0x1) << 4) |
             ((ref_sel          & 0x1) << 5) |
-            (1 << 6)   # config_apply self-clears in PL next cycle
+            (1 << 6)                        |  # config_apply self-clears in PL next cycle
+            ((cam_edge_sel     & 0x1) << 7)
         )
         self._raw_write(0x00, ctrl)
 
@@ -229,7 +232,7 @@ class AngusRegs:
                   phase_ang=1800, phase_tol=600, tdc_offset=0,
                   decimation=1, pulse_width=1000,
                   edge_select=1, ang_sel=0, ref_sel=0,
-                  correction_dir=0, phase_fault_drop=0):
+                  correction_dir=0, phase_fault_drop=0, cam_edge_sel=1):
         """
         Write all registers and apply startup config in one call.
 
@@ -259,6 +262,7 @@ class AngusRegs:
             ref_sel=ref_sel,
             correction_dir=correction_dir,
             phase_fault_drop=phase_fault_drop,
+            cam_edge_sel=cam_edge_sel,
         )
 
     # -------------------------------------------------------------------------
@@ -312,6 +316,8 @@ class AngusRegs:
         print(f"  N_TEETH          = {n}")
         print(f"  N_MISSING        = {self.read('N_MISSING')}")
         print(f"  GAP_THRESH       = {self.read('GAP_THRESH')}")
+        print(f"  CAM_EDGE_SEL     = {self.read('CAM_EDGE_SEL')}"
+              f"  ({'rising' if self.read('CAM_EDGE_SEL') else 'falling'})")
         print(f"  EDGE_SELECT      = {self.read('EDGE_SELECT')}"
               f"  ({'rising' if self.read('EDGE_SELECT') else 'falling'})")
         print(f"  ANG_SEL          = {self.read('ANG_SEL')}"
@@ -371,6 +377,7 @@ class AngusRegs:
         print(f"  CORRECTION       = {self.read_signed('CORRECTION')}")
         print(f"  CAM_ANGLE        = {self.read('CAM_ANGLE')}"
               f"  ({self.cam_angle_deg():.1f} deg)")
+        print(f"  COUNT_FAULT      = {self.read('COUNT_FAULT')}")
 
     def print_all(self):
         """Print all registers."""
