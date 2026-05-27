@@ -115,7 +115,8 @@ entity axi_lite_regs is
         nco_inc              : in  unsigned(31 downto 0);
         phase_error          : in  signed(31 downto 0);
         correction           : in  signed(31 downto 0);
-        cam_angle            : in  unsigned(15 downto 0)
+        cam_angle            : in  unsigned(15 downto 0);
+        count_fault          : in  unsigned(15 downto 0)
     );
 end entity axi_lite_regs;
 
@@ -149,6 +150,7 @@ architecture rtl of axi_lite_regs is
     constant ADDR_PHASE_ERR : integer := 16#54# / 4;
     constant ADDR_CORR      : integer := 16#58# / 4;
     constant ADDR_CAM_ANGLE : integer := 16#5C# / 4;
+    constant ADDR_COUNT_FLT : integer := 16#6C# / 4;
 
     -- Write registers
     signal reg_control      : std_logic_vector(31 downto 0) := x"00000000";
@@ -452,6 +454,10 @@ begin
                         when ADDR_CAM_ANGLE =>
                             axi_rdata <= x"0000" &
                                          std_logic_vector(cam_angle);
+
+                        when ADDR_COUNT_FLT =>
+                            axi_rdata <= x"0000" &
+                                         std_logic_vector(count_fault);
 
                         when others =>
                             axi_rdata <= (others => '0');
