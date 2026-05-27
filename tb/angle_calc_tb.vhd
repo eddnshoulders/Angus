@@ -189,6 +189,10 @@ begin
         -- ----------------------------------------------------------------
         test_num <= 4;
         report "TEST 4: Interpolation between ab edges";
+        do_reset;
+        signal_present <= '1';
+        fire_z;
+        wait for 2 * CLK_PERIOD;
 
         -- Snap to edge 0
         ab_edge(0);
