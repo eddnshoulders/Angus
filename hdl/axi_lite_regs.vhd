@@ -8,8 +8,12 @@ use ieee.numeric_std.all;
 -- AXI4-Lite register bank for combustion analyser PS/PL interface.
 --
 -- Write registers (PS → PL):
---   0x00 CONTROL:    [5] ref_sel, [4] ang_sel, [3] phase_fault_drop,
---                    [2] correction_dir, [1] fault_clear (self-clearing), [0] edge_select
+--   0x00 CONTROL:    [6] config_apply (self-clearing), [5] ref_sel, [4] ang_sel,
+--                    [3] phase_fault_drop, [2] correction_dir,
+--                    [1] fault_clear (self-clearing), [0] edge_select
+--   NOTE: edge_select, ang_sel, ref_sel, gap_threshold, n_teeth, n_missing are
+--         startup config - write all first, then pulse config_apply to latch.
+--         All other registers can be changed at any time.
 --   0x04 GAP_THRESH: [7:0] gap_threshold
 --   0x08 PLL_KP:     [15:0] kp
 --   0x0C PLL_KI:     [15:0] ki
@@ -73,6 +77,7 @@ entity axi_lite_regs is
         phase_fault_drop     : out std_logic;
         ang_sel              : out std_logic;
         ref_sel              : out std_logic;
+        config_valid         : out std_logic;  -- high after first config_apply
         gap_threshold        : out unsigned(7 downto 0);
         kp                   : out unsigned(15 downto 0);
         ki                   : out unsigned(15 downto 0);
@@ -154,6 +159,19 @@ architecture rtl of axi_lite_regs is
     signal reg_pulse_width  : std_logic_vector(31 downto 0) := x"000003E8"; -- 1000 cycles
     signal reg_n_teeth      : std_logic_vector(31 downto 0) := x"0000003C"; -- 60
     signal reg_n_missing    : std_logic_vector(31 downto 0) := x"00000002"; -- 2
+
+    -- Working registers for startup config (latched on config_apply)
+    -- These are the values actually used by the PL
+    signal work_edge_select  : std_logic := '0';
+    signal work_ang_sel      : std_logic := '0';
+    signal work_ref_sel      : std_logic := '0';
+    signal work_gap_thresh   : unsigned(7 downto 0)  := x"C0";
+    signal work_n_teeth      : unsigned(7 downto 0)  := to_unsigned(60, 8);
+    signal work_n_missing    : unsigned(7 downto 0)  := to_unsigned(2, 8);
+
+    -- config_apply self-clearing, config_valid latches high after first apply
+    signal config_apply_int  : std_logic := '0';
+    signal config_valid_int  : std_logic := '0';
 
     -- AXI write state
     signal aw_en            : std_logic := '0';
@@ -239,10 +257,23 @@ begin
                 reg_pulse_width <= x"000003E8";
                 reg_n_teeth     <= x"0000003C";
                 reg_n_missing   <= x"00000002";
-                fault_clear_int <= '0';
+                fault_clear_int  <= '0';
+                config_apply_int <= '0';
             else
-                -- Self-clear fault_clear
-                fault_clear_int <= '0';
+                -- Self-clear fault_clear and config_apply
+                fault_clear_int  <= '0';
+                config_apply_int <= '0';
+
+                -- Latch startup config on config_apply
+                if config_apply_int = '1' then
+                    work_edge_select <= reg_control(0);
+                    work_ang_sel     <= reg_control(4);
+                    work_ref_sel     <= reg_control(5);
+                    work_gap_thresh  <= unsigned(reg_gap_thresh(7 downto 0));
+                    work_n_teeth     <= unsigned(reg_n_teeth(7 downto 0));
+                    work_n_missing   <= unsigned(reg_n_missing(7 downto 0));
+                    config_valid_int <= '1';
+                end if;
 
                 if axi_wready = '1' and s_axi_wvalid = '1' and
                    axi_awready = '1' and s_axi_awvalid = '1' then
@@ -251,8 +282,9 @@ begin
 
                     case word_addr is
                         when ADDR_CONTROL =>
-                            reg_control    <= s_axi_wdata;
-                            fault_clear_int <= s_axi_wdata(1);
+                            reg_control      <= s_axi_wdata;
+                            fault_clear_int  <= s_axi_wdata(1);
+                            config_apply_int <= s_axi_wdata(6);
                         when ADDR_GAP_THRESH =>
                             reg_gap_thresh <= s_axi_wdata;
                         when ADDR_PLL_KP =>
@@ -438,14 +470,19 @@ begin
     s_axi_rresp   <= axi_rresp;
     s_axi_rvalid  <= axi_rvalid;
 
-    -- Configuration outputs
-    edge_select          <= reg_control(0);
+    -- Configuration outputs - startup config from working registers (latched on config_apply)
+    edge_select          <= work_edge_select;
+    ang_sel              <= work_ang_sel;
+    ref_sel              <= work_ref_sel;
+    gap_threshold        <= work_gap_thresh;
+    n_teeth              <= work_n_teeth;
+    n_missing            <= work_n_missing;
+    config_valid         <= config_valid_int;
+
+    -- Runtime config - direct from registers (can change any time)
     correction_dir       <= reg_control(2);
     phase_fault_drop     <= reg_control(3);
-    ang_sel              <= reg_control(4);
-    ref_sel              <= reg_control(5);
     fault_clear          <= fault_clear_int;
-    gap_threshold        <= unsigned(reg_gap_thresh(7 downto 0));
     kp                   <= unsigned(reg_kp(15 downto 0));
     ki                   <= unsigned(reg_ki(15 downto 0));
     max_correction       <= unsigned(reg_max_corr(15 downto 0));
@@ -454,7 +491,5 @@ begin
     tdc_offset           <= unsigned(reg_tdc_off(15 downto 0));
     decimation           <= unsigned(reg_decimation(7 downto 0));
     pulse_width          <= unsigned(reg_pulse_width(15 downto 0));
-    n_teeth              <= unsigned(reg_n_teeth(7 downto 0));
-    n_missing            <= unsigned(reg_n_missing(7 downto 0));
 
 end architecture rtl;

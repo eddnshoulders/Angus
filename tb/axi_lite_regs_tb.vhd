@@ -44,6 +44,8 @@ architecture sim of axi_lite_regs_tb is
     signal phase_tolerance      : unsigned(15 downto 0);
     signal tdc_offset           : unsigned(15 downto 0);
     signal decimation           : unsigned(7 downto 0);
+    signal n_teeth              : unsigned(7 downto 0);
+    signal n_missing            : unsigned(7 downto 0);
     signal fault_clear          : std_logic;
 
     -- Status inputs
@@ -153,6 +155,7 @@ begin
             phase_fault_drop     => phase_fault_drop,
             ang_sel              => open,
             ref_sel              => open,
+            config_valid         => open,
             gap_threshold        => gap_threshold,
             kp                   => kp,
             ki                   => ki,
@@ -163,8 +166,8 @@ begin
             decimation           => decimation,
             fault_clear          => fault_clear,
             pulse_width          => open,
-            n_teeth              => open,
-            n_missing            => open,
+            n_teeth              => n_teeth,
+            n_missing            => n_missing,
             sync_state           => sync_state,
             signal_present       => signal_present,
             phase_fault          => phase_fault,
@@ -212,18 +215,30 @@ begin
         report "TEST 1: PASS";
 
         -- --------------------------------------------------------------------
-        -- TEST 2: Write and read back CONTROL register
-        -- edge_select = 1, fault_clear = 0
+        -- TEST 2: Write CONTROL register and config_apply
+        -- edge_select = 1, then pulse config_apply to latch
         -- --------------------------------------------------------------------
         report "TEST 2: Write CONTROL register";
         test_num <= 2;
 
+        -- Write edge_select=1
         axi_write(awaddr, awvalid, wdata, wvalid, awready, wready, bvalid,
                   16#00#, x"00000001", CLK_PERIOD);
         wait for CLK_PERIOD;
 
+        -- edge_select should NOT have changed yet (needs config_apply)
+        assert edge_select = '0'
+            report "FAIL T2: edge_select should still be 0 before config_apply"
+            severity failure;
+
+        -- Pulse config_apply (bit 6)
+        axi_write(awaddr, awvalid, wdata, wvalid, awready, wready, bvalid,
+                  16#00#, x"00000041", CLK_PERIOD);
+        wait for 2 * CLK_PERIOD;
+
+        -- Now edge_select should have latched
         assert edge_select = '1'
-            report "FAIL T2: edge_select should be 1"
+            report "FAIL T2: edge_select should be 1 after config_apply"
             severity failure;
 
         axi_read(araddr, arvalid, arready, rvalid, rdata,
@@ -366,6 +381,38 @@ begin
             report "FAIL T9: decimation should be 4"
             severity failure;
         report "TEST 9: PASS";
+
+        -- --------------------------------------------------------------------
+        -- TEST 10: config_apply latches n_teeth and n_missing
+        -- --------------------------------------------------------------------
+        report "TEST 10: config_apply latches startup config";
+        test_num <= 10;
+
+        -- Write N_TEETH=36, N_MISSING=1
+        axi_write(awaddr, awvalid, wdata, wvalid, awready, wready, bvalid,
+                  16#64#, x"00000024", CLK_PERIOD);
+        axi_write(awaddr, awvalid, wdata, wvalid, awready, wready, bvalid,
+                  16#68#, x"00000001", CLK_PERIOD);
+        wait for CLK_PERIOD;
+
+        -- Values should NOT be latched yet
+        assert to_integer(n_teeth) = 60
+            report "FAIL T10: n_teeth should still be 60 before config_apply"
+            severity failure;
+
+        -- Pulse config_apply
+        axi_write(awaddr, awvalid, wdata, wvalid, awready, wready, bvalid,
+                  16#00#, x"00000041", CLK_PERIOD);
+        wait for 2 * CLK_PERIOD;
+
+        -- Now values should be latched
+        assert to_integer(n_teeth) = 36
+            report "FAIL T10: n_teeth should be 36 after config_apply"
+            severity failure;
+        assert to_integer(n_missing) = 1
+            report "FAIL T10: n_missing should be 1 after config_apply"
+            severity failure;
+        report "TEST 10: PASS";
 
         -- --------------------------------------------------------------------
         -- Done
