@@ -47,7 +47,8 @@ entity crank_input is
 
         -- Debug outputs
         edge_pulse_out    : out std_logic;              -- one pulse per detected tooth edge
-        gap_period        : out unsigned(31 downto 0)   -- gap width latched at gap detection
+        gap_period        : out unsigned(31 downto 0);  -- gap width latched at gap detection
+        ppr_crank         : out unsigned(7 downto 0)    -- = n_teeth, for ang_sel routing
     );
 end entity crank_input;
 
