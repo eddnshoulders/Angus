@@ -5,28 +5,31 @@ use ieee.numeric_std.all;
 -- =============================================================================
 -- angle_calc
 --
--- Tooth-based crank angle calculator with linear interpolation.
--- Completely independent of the NCO - uses only tooth counting and timing.
+-- Tooth-based crank angle calculator with Bresenham interpolation.
+-- Completely independent of the NCO - uses only ab edge counting and timing.
 --
--- angle_raw is in 0.1 degree steps over one full engine cycle (720 degrees):
---   0 = TDC cylinder 1 first stroke (at first Z pulse)
---   7199 = just before next Z
+-- angle_raw is in 0.1 degree steps over one full 4-stroke engine cycle (720 deg):
+--   0     = TDC cylinder 1 (at first Z pulse after reset)
+--   7199  = just before the Z that ends the second crank revolution
 --
--- At each ab_edge:
---   base_angle = tooth_count * degrees_per_tooth
---   interp resets to 0
+-- Counting:
+--   Both edges of ab are counted (rising and falling).
+--   With a 60-tooth crank wheel: 60 ab edges per revolution,
+--   120 ab edges per 4-stroke cycle.
+--   degrees_per_edge = 7200 / (ppr * 2) = 7200 / 120 = 60 (0.1 deg units)
+--   This is computed combinatorially - no divider needed for typical ppr values.
 --
--- Between ab_edges (Bresenham interpolation):
---   Each clock: frac_accum += degrees_per_tooth
---   When frac_accum >= tooth_period: interp++, frac_accum -= tooth_period
---   angle_raw = base_angle + interp
+-- Z handling:
+--   First Z after reset: sets angle to 0, starts counting.
+--   Every subsequent Z: toggles phase (0=first rev, 1=second rev).
+--   Every second Z (phase toggles back to 0): resets angle to 0,
+--   checks ab_count == ppr * 2, increments count_fault if not.
 --
--- phase toggles each Z pulse after first valid rotation (ab_count = n_teeth).
---   phase=0: first crank rotation (0-360 deg)
---   phase=1: second crank rotation (360-720 deg)
---
--- degrees_per_tooth = 7200 / n_teeth is computed via the shared divider
--- on config_apply and latched. Default 120 for 60-tooth wheel.
+-- Bresenham interpolation between ab edges:
+--   base_angle  = edge_count * degrees_per_edge
+--   frac_accum += degrees_per_edge each clock
+--   When frac_accum >= ab_period: interp++, frac_accum -= ab_period
+--   angle_raw   = base_angle + interp
 --
 -- =============================================================================
 
@@ -35,42 +38,26 @@ entity angle_calc is
         clk              : in  std_logic;
         rst              : in  std_logic;
 
-        -- Angle source inputs (from ang_sel mux)
+        -- From ang_sel
         ab               : in  std_logic;
         z                : in  std_logic;
-        tooth_period     : in  unsigned(31 downto 0);
-        tooth_count      : in  unsigned(7 downto 0);
+        ab_period        : in  unsigned(31 downto 0);  -- time between ab edges (clk cycles)
+        ppr              : in  unsigned(7 downto 0);   -- pulses per revolution (n_teeth)
+        ab_count         : in  unsigned(7 downto 0);   -- tooth_count from crank_input
         signal_present   : in  std_logic;
-
-        -- Configuration (from axi_lite_regs, latched on config_apply)
-        n_teeth          : in  unsigned(7 downto 0);
-
-        -- Divider interface (shared divider in top level)
-        -- Compute degrees_per_tooth = 7200 / n_teeth on config_apply
-        div_start        : out std_logic;
-        div_dividend     : out unsigned(31 downto 0);
-        div_divisor      : out unsigned(31 downto 0);
-        div_quotient     : in  unsigned(31 downto 0);
-        div_valid        : in  std_logic;
-
-        -- Config apply pulse - triggers degrees_per_tooth recalculation
-        config_apply     : in  std_logic;
 
         -- Outputs
         angle_raw        : out unsigned(15 downto 0);  -- 0-7199, 0.1 deg steps
-        phase            : out std_logic               -- 0=1st rotation, 1=2nd rotation
+        phase            : out std_logic;              -- 0=1st crank rev, 1=2nd crank rev
+        count_fault      : out unsigned(15 downto 0)  -- increments on ab_count mismatch at Z
     );
 end entity angle_calc;
 
 architecture rtl of angle_calc is
 
-    -- Degrees per tooth in 0.1 deg units (7200 / n_teeth)
-    -- Default 120 for 60-tooth wheel
-    signal degrees_per_tooth : unsigned(15 downto 0) := to_unsigned(120, 16);
-
-    -- Divider trigger
-    signal div_start_int     : std_logic := '0';
-    signal div_pending       : std_logic := '0';
+    -- degrees_per_edge in 0.1 deg units = 7200 / (ppr * 2)
+    -- For ppr=60: 7200/120 = 60. Computed combinatorially.
+    signal degrees_per_edge  : unsigned(15 downto 0) := to_unsigned(60, 16);
 
     -- AB edge detection
     signal ab_prev           : std_logic := '0';
@@ -80,20 +67,41 @@ architecture rtl of angle_calc is
     signal z_prev            : std_logic := '0';
     signal z_edge            : std_logic := '0';
 
+    -- Edge counter within current 2-revolution cycle
+    signal edge_count        : unsigned(7 downto 0) := (others => '0');
+
     -- Angle calculation
     signal base_angle        : unsigned(15 downto 0) := (others => '0');
     signal interp_angle      : unsigned(15 downto 0) := (others => '0');
     signal frac_accum        : unsigned(31 downto 0) := (others => '0');
-    signal interp_timer      : unsigned(31 downto 0) := (others => '0');
 
-    -- Phase tracking
+    -- Phase and Z tracking
     signal phase_int         : std_logic := '0';
     signal first_z_seen      : std_logic := '0';
+
+    -- count_fault counter
+    signal count_fault_int   : unsigned(15 downto 0) := (others => '0');
 
     -- Output register
     signal angle_raw_int     : unsigned(15 downto 0) := (others => '0');
 
 begin
+
+    -- -------------------------------------------------------------------------
+    -- degrees_per_edge: combinatorial, 7200 / (ppr * 2)
+    -- Valid for ppr 1-120. For ppr=60: 60 counts per edge.
+    -- Use a lookup for synthesis efficiency - ppr is a config constant.
+    -- -------------------------------------------------------------------------
+    process(ppr)
+        variable denom : unsigned(8 downto 0);
+    begin
+        denom := resize(ppr, 9) & '0';  -- ppr * 2
+        if denom = 0 then
+            degrees_per_edge <= to_unsigned(60, 16);  -- safe default
+        else
+            degrees_per_edge <= to_unsigned(7200, 16) / denom;
+        end if;
+    end process;
 
     -- -------------------------------------------------------------------------
     -- Edge detection
@@ -122,35 +130,7 @@ begin
     end process p_edges;
 
     -- -------------------------------------------------------------------------
-    -- Trigger divider to compute degrees_per_tooth = 7200 / n_teeth
-    -- on config_apply pulse
-    -- -------------------------------------------------------------------------
-    p_div_trigger : process(clk)
-    begin
-        if rising_edge(clk) then
-            if rst = '1' then
-                div_start_int <= '0';
-                div_pending   <= '0';
-            else
-                div_start_int <= '0';
-                if config_apply = '1' and div_pending = '0' then
-                    div_start_int <= '1';
-                    div_pending   <= '1';
-                end if;
-                if div_valid = '1' and div_pending = '1' then
-                    degrees_per_tooth <= div_quotient(15 downto 0);
-                    div_pending       <= '0';
-                end if;
-            end if;
-        end if;
-    end process p_div_trigger;
-
-    div_start    <= div_start_int;
-    div_dividend <= to_unsigned(7200, 32);
-    div_divisor  <= resize(n_teeth, 32);
-
-    -- -------------------------------------------------------------------------
-    -- Angle calculation - Bresenham interpolation between tooth edges
+    -- Angle calculation and edge counting
     -- -------------------------------------------------------------------------
     p_angle : process(clk)
     begin
@@ -159,76 +139,79 @@ begin
                 base_angle    <= (others => '0');
                 interp_angle  <= (others => '0');
                 frac_accum    <= (others => '0');
-                interp_timer  <= (others => '0');
+                edge_count    <= (others => '0');
+                first_z_seen  <= '0';
+                phase_int     <= '0';
+                count_fault_int <= (others => '0');
             else
                 if signal_present = '0' then
-                    -- No signal - hold at zero
-                    base_angle   <= (others => '0');
-                    interp_angle <= (others => '0');
-                    frac_accum   <= (others => '0');
-                    interp_timer <= (others => '0');
+                    base_angle    <= (others => '0');
+                    interp_angle  <= (others => '0');
+                    frac_accum    <= (others => '0');
+                    edge_count    <= (others => '0');
+                    first_z_seen  <= '0';
+                    phase_int     <= '0';
 
-                elsif ab_edge = '1' then
-                    -- Tooth edge: snap base angle to tooth_count * degrees_per_tooth
-                    base_angle   <= resize(tooth_count * degrees_per_tooth, 16);
+                elsif z_edge = '1' then
+                    if first_z_seen = '0' then
+                        -- First Z: set origin, start counting
+                        first_z_seen  <= '1';
+                        phase_int     <= '0';
+                        base_angle    <= (others => '0');
+                        interp_angle  <= (others => '0');
+                        frac_accum    <= (others => '0');
+                        edge_count    <= (others => '0');
+                    else
+                        -- Toggle phase on every Z
+                        phase_int <= not phase_int;
+
+                        if phase_int = '1' then
+                            -- Second Z of the pair: end of 720 deg cycle
+                            -- Check ab_count over the 2 revolutions = ppr * 2
+                            if ab_count /= resize(ppr, 8) then
+                                -- ab_count resets at Z so we check ppr not ppr*2
+                                -- (ab_count reflects edges since last Z = one rev = ppr)
+                                if count_fault_int /= (count_fault_int'range => '1') then
+                                    count_fault_int <= count_fault_int + 1;
+                                end if;
+                            end if;
+                            -- Reset angle for next 720 deg cycle
+                            base_angle   <= (others => '0');
+                            interp_angle <= (others => '0');
+                            frac_accum   <= (others => '0');
+                            edge_count   <= (others => '0');
+                        end if;
+                    end if;
+
+                elsif ab_edge = '1' and first_z_seen = '1' then
+                    -- Snap base angle to edge position
+                    base_angle   <= resize(edge_count * degrees_per_edge, 16);
                     interp_angle <= (others => '0');
                     frac_accum   <= (others => '0');
-                    interp_timer <= (others => '0');
+                    edge_count   <= edge_count + 1;
 
                 else
-                    -- Between teeth: Bresenham interpolation
-                    interp_timer <= interp_timer + 1;
-
-                    if tooth_period > 0 then
-                        if frac_accum + degrees_per_tooth >= tooth_period then
-                            -- Advance interpolated angle by 1 step
-                            if interp_angle < degrees_per_tooth - 1 then
+                    -- Bresenham interpolation between ab edges
+                    if ab_period > 0 and first_z_seen = '1' then
+                        if frac_accum + degrees_per_edge >= ab_period then
+                            if interp_angle < degrees_per_edge - 1 then
                                 interp_angle <= interp_angle + 1;
                             end if;
-                            frac_accum <= frac_accum + degrees_per_tooth - tooth_period;
+                            frac_accum <= frac_accum + degrees_per_edge - ab_period;
                         else
-                            frac_accum <= frac_accum + degrees_per_tooth;
+                            frac_accum <= frac_accum + degrees_per_edge;
                         end if;
                     end if;
                 end if;
             end if;
-        end if;
-    end process p_angle;
-
-    -- Combine base and interpolated angle
-    angle_raw_int <= base_angle + interp_angle;
-
-    -- -------------------------------------------------------------------------
-    -- Phase tracking - toggles on Z pulse after first valid rotation
-    -- -------------------------------------------------------------------------
-    p_phase : process(clk)
-    begin
-        if rising_edge(clk) then
-            if rst = '1' then
-                phase_int    <= '0';
-                first_z_seen <= '0';
-            else
-                if signal_present = '0' then
-                    phase_int    <= '0';
-                    first_z_seen <= '0';
-                elsif z_edge = '1' then
-                    if first_z_seen = '0' then
-                        -- First Z pulse - define phase 0, don't toggle yet
-                        first_z_seen <= '1';
-                        phase_int    <= '0';
-                    else
-                        -- Subsequent Z pulses - toggle phase
-                        phase_int <= not phase_int;
-                    end if;
-                end if;
-            end if;
-        end if;
-    end process p_phase;
+        end if;    end process p_angle;
 
     -- -------------------------------------------------------------------------
     -- Output assignments
     -- -------------------------------------------------------------------------
-    angle_raw <= angle_raw_int;
-    phase     <= phase_int;
+    angle_raw_int <= base_angle + interp_angle;
+    angle_raw     <= angle_raw_int;
+    phase         <= phase_int;
+    count_fault   <= count_fault_int;
 
 end architecture rtl;
