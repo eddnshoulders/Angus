@@ -32,7 +32,7 @@ entity crank_input is
         signal_stable     : in  std_logic;
 
         -- Runtime configuration
-        edge_select       : in  std_logic;              -- '0' falling, '1' rising
+        crank_edge_sel       : in  std_logic;              -- '0' falling, '1' rising
         gap_threshold     : in  unsigned(7 downto 0);   -- 1.7 fixed point, default 0xC0 = 1.5x
         n_teeth           : in  unsigned(7 downto 0);   -- total teeth including missing
         n_missing         : in  unsigned(7 downto 0);   -- number of missing teeth
@@ -111,7 +111,7 @@ begin
             else
                 clean_prev <= clean_signal;
                 edge_pulse <= '0';
-                if edge_select = '1' then
+                if crank_edge_sel = '1' then
                     if clean_signal = '1' and clean_prev = '0' then
                         edge_pulse <= '1';
                     end if;
@@ -373,5 +373,6 @@ begin
     signal_present <= sig_present;
     edge_pulse_out <= edge_pulse;
     gap_period     <= gap_period_int;
+    ppr_crank      <= n_teeth;
 
 end architecture rtl;
