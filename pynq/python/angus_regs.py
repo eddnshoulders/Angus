@@ -87,6 +87,11 @@ WRITE_REGS = {
     'TDC_OFFSET':       (0x1C, 15,  0, 'TDC offset applied to engine angle (0-7199, 0.1 deg)'),
     'DECIMATION':       (0x20,  7,  0, 'Sample trigger decimation (1=every step)'),
     'PULSE_WIDTH':      (0x60, 15,  0, 'Debug pulse stretch width (clock cycles, 1000=10us @ 100MHz)'),
+    'CAM_DBC':          (0x70, 15,  0, 'cam signal_conditioner debounce cycles (default 5 = 50ns)'),
+    'CRANK_DBC':        (0x74, 15,  0, 'crank signal_conditioner debounce cycles (default 5 = 50ns)'),
+    'ENC_A_DBC':        (0x78, 15,  0, 'encoder A debounce cycles (default 5 = 50ns)'),
+    'ENC_B_DBC':        (0x7C, 15,  0, 'encoder B debounce cycles (default 5 = 50ns)'),
+    'ENC_Z_DBC':        (0x80, 15,  0, 'encoder Z debounce cycles (default 5 = 50ns)'),
 }
 
 # Read registers (PL → PS)
@@ -340,6 +345,11 @@ class AngusRegs:
         print(f"  DECIMATION       = {self.read('DECIMATION')}")
         pw = self.read('PULSE_WIDTH')
         print(f"  PULSE_WIDTH      = {pw}  ({pw/100:.1f}us @ 100MHz)")
+        print(f"  CAM_DBC          = {self.read('CAM_DBC')}  ({self.read('CAM_DBC')*10:.0f}ns)")
+        print(f"  CRANK_DBC        = {self.read('CRANK_DBC')}  ({self.read('CRANK_DBC')*10:.0f}ns)")
+        print(f"  ENC_A_DBC        = {self.read('ENC_A_DBC')}  ({self.read('ENC_A_DBC')*10:.0f}ns)")
+        print(f"  ENC_B_DBC        = {self.read('ENC_B_DBC')}  ({self.read('ENC_B_DBC')*10:.0f}ns)")
+        print(f"  ENC_Z_DBC        = {self.read('ENC_Z_DBC')}  ({self.read('ENC_Z_DBC')*10:.0f}ns)")
 
     def print_status(self):
         """Print all status registers."""
