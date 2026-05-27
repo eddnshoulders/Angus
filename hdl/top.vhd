@@ -195,6 +195,11 @@ architecture rtl of top is
     signal fault_clear          : std_logic;
     signal n_teeth              : unsigned(7 downto 0);
     signal n_missing            : unsigned(7 downto 0);
+    signal cam_debounce_cycles  : unsigned(15 downto 0);
+    signal crank_debounce_cycles: unsigned(15 downto 0);
+    signal enc_a_debounce_cycles: unsigned(15 downto 0);
+    signal enc_b_debounce_cycles: unsigned(15 downto 0);
+    signal enc_z_debounce_cycles: unsigned(15 downto 0);
 
 begin
 
@@ -205,26 +210,65 @@ begin
     -- signal_conditioner: crank
     -- =========================================================================
     u_sig_cond_crank : entity work.signal_conditioner
-        generic map (DEBOUNCE_CYCLES => 5)
         port map (
-            clk            => clk,
-            rst            => rst,
-            raw_signal     => crank_raw,
-            clean_signal   => crank_clean,
-            signal_stable  => crank_stable
+            clk             => clk,
+            rst             => rst,
+            raw_signal      => crank_raw,
+            debounce_cycles => crank_debounce_cycles,
+            clean_signal    => crank_clean,
+            signal_stable   => crank_stable
         );
 
     -- =========================================================================
     -- signal_conditioner: cam
     -- =========================================================================
     u_sig_cond_cam : entity work.signal_conditioner
-        generic map (DEBOUNCE_CYCLES => 5)
         port map (
-            clk            => clk,
-            rst            => rst,
-            raw_signal     => cam_raw,
-            clean_signal   => cam_clean,
-            signal_stable  => cam_stable
+            clk             => clk,
+            rst             => rst,
+            raw_signal      => cam_raw,
+            debounce_cycles => cam_debounce_cycles,
+            clean_signal    => cam_clean,
+            signal_stable   => cam_stable
+        );
+
+    -- =========================================================================
+    -- signal_conditioner: encoder A
+    -- =========================================================================
+    u_sig_cond_enc_a : entity work.signal_conditioner
+        port map (
+            clk             => clk,
+            rst             => rst,
+            raw_signal      => a_raw,
+            debounce_cycles => enc_a_debounce_cycles,
+            clean_signal    => a_clean,
+            signal_stable   => open
+        );
+
+    -- =========================================================================
+    -- signal_conditioner: encoder B
+    -- =========================================================================
+    u_sig_cond_enc_b : entity work.signal_conditioner
+        port map (
+            clk             => clk,
+            rst             => rst,
+            raw_signal      => b_raw,
+            debounce_cycles => enc_b_debounce_cycles,
+            clean_signal    => b_clean,
+            signal_stable   => open
+        );
+
+    -- =========================================================================
+    -- signal_conditioner: encoder Z
+    -- =========================================================================
+    u_sig_cond_enc_z : entity work.signal_conditioner
+        port map (
+            clk             => clk,
+            rst             => rst,
+            raw_signal      => z_raw,
+            debounce_cycles => enc_z_debounce_cycles,
+            clean_signal    => z_clean,
+            signal_stable   => open
         );
 
     -- =========================================================================
@@ -521,6 +565,11 @@ begin
             gap_threshold        => gap_threshold,
             n_teeth              => n_teeth,
             n_missing            => n_missing,
+            cam_debounce_cycles  => cam_debounce_cycles,
+            crank_debounce_cycles=> crank_debounce_cycles,
+            enc_a_debounce_cycles=> enc_a_debounce_cycles,
+            enc_b_debounce_cycles=> enc_b_debounce_cycles,
+            enc_z_debounce_cycles=> enc_z_debounce_cycles,
             -- Runtime config outputs
             correction_dir       => correction_dir,
             phase_fault_drop     => phase_fault_drop,
