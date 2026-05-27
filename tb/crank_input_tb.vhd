@@ -106,9 +106,7 @@ begin
     -- -------------------------------------------------------------------------
     dut : entity work.crank_input
         generic map (
-            CLK_FREQ_HZ => 1_000_000,
-            N_TEETH     => N_TEETH,
-            N_MISSING   => N_MISSING
+            CLK_FREQ_HZ => 1_000_000
         )
         port map (
             clk            => clk,
@@ -117,6 +115,8 @@ begin
             signal_stable  => signal_stable,
             edge_select    => edge_select,
             gap_threshold  => gap_threshold,
+            n_teeth        => to_unsigned(N_TEETH, 8),
+            n_missing      => to_unsigned(N_MISSING, 8),
             ab             => ab,
             z              => z,
             tooth_period   => tooth_period,

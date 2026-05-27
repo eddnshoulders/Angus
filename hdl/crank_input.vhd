@@ -21,9 +21,7 @@ use ieee.numeric_std.all;
 
 entity crank_input is
     generic (
-        CLK_FREQ_HZ : integer := 100_000_000;
-        N_TEETH     : integer := 60;
-        N_MISSING   : integer := 2
+        CLK_FREQ_HZ : integer := 100_000_000
     );
     port (
         clk               : in  std_logic;
@@ -36,7 +34,8 @@ entity crank_input is
         -- Runtime configuration
         edge_select       : in  std_logic;              -- '0' falling, '1' rising
         gap_threshold     : in  unsigned(7 downto 0);   -- 1.7 fixed point, default 0xC0 = 1.5x
-        --gap_threshold     : in  ufixed(1 downto -7);   
+        n_teeth           : in  unsigned(7 downto 0);   -- total teeth including missing
+        n_missing         : in  unsigned(7 downto 0);   -- number of missing teeth
 
         -- Encoder-equivalent outputs
         ab                : out std_logic;              -- toggles on real and interpolated edges
@@ -55,9 +54,9 @@ end entity crank_input;
 architecture rtl of crank_input is
 
     constant MAX_32    : unsigned(31 downto 0) := (others => '1');
-    -- tooth_cnt value seen by p_interp on the last real tooth edge_pulse
-    -- (one cycle behind due to signal scheduling)
-    constant LAST_REAL : integer := N_TEETH - N_MISSING - 2;  -- 56 for 60-2
+    -- last_real: tooth_cnt value at which interpolator starts filling the gap
+    -- = n_teeth - n_missing - 2 (accounts for one cycle signal scheduling lag)
+    signal last_real   : unsigned(7 downto 0) := to_unsigned(56, 8);
 
     -- Edge detection
     signal clean_prev     : std_logic := '0';
@@ -218,7 +217,7 @@ begin
                     if z_armed = '1' then
                         tooth_cnt <= (others => '0');
                     else
-                        if tooth_cnt = to_unsigned(N_TEETH - 1, 8) then
+                        if tooth_cnt = n_teeth - 1 then
                             tooth_cnt <= (others => '0');
                         else
                             tooth_cnt <= tooth_cnt + 1;
@@ -249,7 +248,7 @@ begin
                 interp_pulse <= '0';
 
                 if edge_pulse = '1' and
-                   to_integer(tooth_cnt) = LAST_REAL and
+                   to_integer(tooth_cnt) = to_integer(last_real) and
                    period_valid = '1' and
                    interp_active = '0' then
                     -- Start interpolation on last real tooth
@@ -263,7 +262,7 @@ begin
                     if interp_timer >= interp_period - 1 then
                         interp_pulse <= '1';
                         interp_timer <= (others => '0');
-                        if interp_cnt = N_MISSING - 1 then
+                        if interp_cnt = to_integer(n_missing) - 1 then
                             interp_active <= '0';
                         else
                             interp_cnt <= interp_cnt + 1;
@@ -336,7 +335,7 @@ begin
                     sig_present   <= '1';
                     if period_valid = '1' then
                         timeout_limit <= resize(
-                            last_period * to_unsigned(N_MISSING + 3, 8), 32);
+                            last_period * resize(n_missing + 3, 8), 32);
                     end if;
                 elsif timeout_cnt < timeout_limit then
                     timeout_cnt <= timeout_cnt + 1;
@@ -348,6 +347,20 @@ begin
             end if;
         end if;
     end process p_signal_present;
+
+    -- -------------------------------------------------------------------------
+    -- Compute last_real from runtime n_teeth / n_missing
+    -- -------------------------------------------------------------------------
+    p_last_real : process(clk)
+    begin
+        if rising_edge(clk) then
+            if n_teeth > n_missing + 1 then
+                last_real <= n_teeth - n_missing - 2;
+            else
+                last_real <= (others => '0');
+            end if;
+        end if;
+    end process p_last_real;
 
     -- -------------------------------------------------------------------------
     -- Output assignments
