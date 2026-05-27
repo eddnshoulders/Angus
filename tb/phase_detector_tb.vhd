@@ -10,69 +10,28 @@ end entity phase_detector_tb;
 
 architecture sim of phase_detector_tb is
 
-    constant CLK_PERIOD   : time    := 1000 ns;
+    constant CLK_PERIOD : time := 10 ns;
 
-    -- Test angles in 0.1 degree units
-    -- Expected phase at 90.0 degrees = 900
-    constant EXP_ANGLE    : unsigned(15 downto 0) := to_unsigned(900, 16);
-    -- Tolerance: +/- 18.0 degrees = 180
-    constant TOLERANCE    : unsigned(15 downto 0) := to_unsigned(180, 16);
+    signal clk              : std_logic := '0';
+    signal rst              : std_logic := '1';
+    signal sim_done         : boolean   := false;
+    signal test_num         : integer   := 0;
 
-    -- Band A centre: 900 (90.0 deg)
-    -- Band B centre: 900 + 3600 = 4500 (450.0 deg)
-    constant BAND_A_CENTRE : integer := 900;
-    constant BAND_B_CENTRE : integer := 4500;
+    signal angle_raw        : unsigned(15 downto 0) := (others => '0');
+    signal phase            : std_logic := '0';
+    signal ref_pulse        : std_logic := '0';
+    signal expected_cam_ang : unsigned(15 downto 0) := to_unsigned(900, 16);
+    signal window_tolerance : unsigned(15 downto 0) := to_unsigned(300, 16);
+    signal tdc_offset       : unsigned(15 downto 0) := (others => '0');
 
-    -- Test angles
-    -- In Band A:         900 (exact centre)
-    -- In Band A edge:    900 + 180 = 1080
-    -- Just outside A:    900 + 181 = 1081
-    -- In Band B:         4500 (exact centre)
-    -- In Band B edge:    4500 - 180 = 4320
-    -- Just outside B:    4500 - 181 = 4319
-    -- Outside both:      2700 (270.0 deg)
-
-    -- -------------------------------------------------------------------------
-    -- DUT signals
-    -- -------------------------------------------------------------------------
-    signal clk                  : std_logic := '0';
-    signal rst                  : std_logic := '1';
-    signal raw_angle            : unsigned(15 downto 0) := (others => '0');
-    signal phase_ref            : std_logic := '0';
-    signal expected_phase_angle : unsigned(15 downto 0) := EXP_ANGLE;
-    signal phase_tolerance      : unsigned(15 downto 0) := TOLERANCE;
-    signal ref_detected         : std_logic;
-    signal sync_offset          : std_logic;
-
-    -- -------------------------------------------------------------------------
-    -- Testbench control
-    -- -------------------------------------------------------------------------
-    signal sim_done       : boolean := false;
-    signal test_num       : integer := 0;
-
-    -- -------------------------------------------------------------------------
-    -- Fire a phase_ref pulse at a given raw_angle value
-    -- -------------------------------------------------------------------------
-    procedure fire_ref(
-        signal angle_sig : out unsigned(15 downto 0);
-        signal ref_sig   : out std_logic;
-        constant angle   : in  integer;
-        constant clk_p   : in  time
-    ) is
-    begin
-        angle_sig <= to_unsigned(angle, 16);
-        wait for clk_p;
-        ref_sig <= '1';
-        wait for clk_p * 2;
-        ref_sig <= '0';
-        wait for clk_p * 5;
-    end procedure fire_ref;
+    signal ref_detected     : std_logic;
+    signal phase_offset     : std_logic;
+    signal angle_corr       : unsigned(15 downto 0);
+    signal ref_edge_pulse   : std_logic;
+    signal ref_angle        : unsigned(15 downto 0);
 
 begin
 
-    -- -------------------------------------------------------------------------
-    -- Clock
-    -- -------------------------------------------------------------------------
     p_clk : process
     begin
         while not sim_done loop
@@ -82,216 +41,162 @@ begin
         wait;
     end process p_clk;
 
-    -- -------------------------------------------------------------------------
-    -- DUT
-    -- -------------------------------------------------------------------------
     dut : entity work.phase_detector
         port map (
-            clk                  => clk,
-            rst                  => rst,
-            raw_angle            => raw_angle,
-            phase_ref            => phase_ref,
-            expected_phase_angle => expected_phase_angle,
-            phase_tolerance      => phase_tolerance,
-            ref_detected         => ref_detected,
-            sync_offset          => sync_offset,
-            cam_edge_pulse       => open,
-            cam_angle            => open
+            clk              => clk,
+            rst              => rst,
+            angle_raw        => angle_raw,
+            phase            => phase,
+            ref_pulse        => ref_pulse,
+            expected_cam_ang => expected_cam_ang,
+            window_tolerance => window_tolerance,
+            tdc_offset       => tdc_offset,
+            ref_detected     => ref_detected,
+            phase_offset     => phase_offset,
+            angle_corr       => angle_corr,
+            ref_edge_pulse   => ref_edge_pulse,
+            ref_angle        => ref_angle
         );
 
-    -- -------------------------------------------------------------------------
-    -- Stimulus
-    -- -------------------------------------------------------------------------
     p_stim : process
+
+        -- Fire ref_pulse and wait for ref_detected or ref_edge_pulse to pulse
+        -- Returns true if ref_detected pulsed, false if only ref_edge_pulse
+        procedure fire_ref(angle : integer; expect_detect : boolean) is
+        begin
+            angle_raw <= to_unsigned(angle, 16);
+            wait for 3 * CLK_PERIOD;  -- input pipeline settle
+            ref_pulse <= '1';
+            -- Wait for ref_edge_pulse (fires the cycle after ref_pulse rises)
+            wait until rising_edge(clk) and ref_edge_pulse = '1';
+            -- ref_detected pulses on same clock edge as ref_edge_pulse
+            if expect_detect then
+                assert ref_detected = '1'
+                    report "fire_ref(" & integer'image(angle) &
+                           "): ref_detected should be 1"
+                    severity failure;
+            else
+                assert ref_detected = '0'
+                    report "fire_ref(" & integer'image(angle) &
+                           "): ref_detected should be 0"
+                    severity failure;
+            end if;
+            wait for CLK_PERIOD;
+            ref_pulse <= '0';
+            wait for 3 * CLK_PERIOD;
+        end procedure;
+
     begin
 
-        -- --------------------------------------------------------------------
-        -- TEST 1: Reset behaviour
-        -- --------------------------------------------------------------------
+        -- T1: Reset
         test_num <= 1;
         report "TEST 1: Reset behaviour";
-        rst <= '1'; wait for 10 * CLK_PERIOD;
-        rst <= '0'; wait for 10 * CLK_PERIOD;
-
-        assert ref_detected = '0'
-            report "FAIL T1: ref_detected should be low after reset"
-            severity failure;
-        assert sync_offset = '0'
-            report "FAIL T1: sync_offset should be 0 after reset"
-            severity failure;
+        rst <= '1'; wait for 20 * CLK_PERIOD; rst <= '0';
+        wait for 10 * CLK_PERIOD;
+        assert ref_detected = '0' report "FAIL T1: ref_detected" severity failure;
+        assert phase_offset = '0'  report "FAIL T1: phase_offset" severity failure;
         report "TEST 1: PASS";
 
-        -- --------------------------------------------------------------------
-        -- TEST 2: Band A centre - ref detected, sync_offset = 0
-        -- --------------------------------------------------------------------
+        -- T2: Band A centre
         test_num <= 2;
-        report "TEST 2: Band A centre (90.0 deg)";
-
-        fire_ref(raw_angle, phase_ref, BAND_A_CENTRE, CLK_PERIOD);
-
-        assert ref_detected = '1' or sync_offset = '0'
-            report "FAIL T2: ref_detected should fire in Band A"
-            severity failure;
-
-        wait for 2 * CLK_PERIOD;
-        assert sync_offset = '0'
-            report "FAIL T2: sync_offset should be 0 for Band A"
-            severity failure;
+        report "TEST 2: Band A detection at centre (900)";
+        fire_ref(900, true);
+        assert phase_offset = '0'
+            report "FAIL T2: phase_offset should be 0 (Band A)" severity failure;
+        assert to_integer(ref_angle) = 900
+            report "FAIL T2: ref_angle should be 900, got " &
+                   integer'image(to_integer(ref_angle)) severity failure;
         report "TEST 2: PASS";
 
-        -- --------------------------------------------------------------------
-        -- TEST 3: Band A edge (just inside tolerance)
-        -- --------------------------------------------------------------------
+        -- T3: Band A tolerance edge
         test_num <= 3;
-        report "TEST 3: Band A edge (90.0 + 18.0 deg)";
-
-        fire_ref(raw_angle, phase_ref, BAND_A_CENTRE + 180, CLK_PERIOD);
-
-        wait for 2 * CLK_PERIOD;
-        assert sync_offset = '0'
-            report "FAIL T3: sync_offset should be 0 at Band A edge"
-            severity failure;
+        report "TEST 3: Band A at tolerance boundary (+300)";
+        fire_ref(900 + 300, true);
+        assert phase_offset = '0' report "FAIL T3: phase_offset" severity failure;
         report "TEST 3: PASS";
 
-        -- --------------------------------------------------------------------
-        -- TEST 4: Just outside Band A
-        -- --------------------------------------------------------------------
+        -- T4: Just outside tolerance
         test_num <= 4;
-        report "TEST 4: Just outside Band A (90.0 + 18.1 deg)";
-
-        -- Save current sync_offset to detect if it changes
-        fire_ref(raw_angle, phase_ref, BAND_A_CENTRE + 181, CLK_PERIOD);
-
-        wait for 2 * CLK_PERIOD;
-        assert ref_detected = '0'
-            report "FAIL T4: ref_detected should not fire outside Band A"
-            severity failure;
+        report "TEST 4: Outside both bands (900+301)";
+        fire_ref(900 + 301, false);
         report "TEST 4: PASS";
 
-        -- --------------------------------------------------------------------
-        -- TEST 5: Band B centre - ref detected, sync_offset = 1
-        -- --------------------------------------------------------------------
+        -- T5: Band B detection
         test_num <= 5;
-        report "TEST 5: Band B centre (450.0 deg)";
-
-        fire_ref(raw_angle, phase_ref, BAND_B_CENTRE, CLK_PERIOD);
-
-        wait for 2 * CLK_PERIOD;
-        assert sync_offset = '1'
-            report "FAIL T5: sync_offset should be 1 for Band B"
-            severity failure;
+        report "TEST 5: Band B detection (4500)";
+        fire_ref(4500, true);
+        assert phase_offset = '1'
+            report "FAIL T5: phase_offset should be 1 (Band B)" severity failure;
         report "TEST 5: PASS";
 
-        -- --------------------------------------------------------------------
-        -- TEST 6: Band B edge (just inside tolerance)
-        -- --------------------------------------------------------------------
+        -- T6: angle_corr phase_offset=0, tdc=0
         test_num <= 6;
-        report "TEST 6: Band B edge (450.0 - 18.0 deg)";
-
-        fire_ref(raw_angle, phase_ref, BAND_B_CENTRE - 180, CLK_PERIOD);
-
-        wait for 2 * CLK_PERIOD;
-        assert sync_offset = '1'
-            report "FAIL T6: sync_offset should be 1 at Band B edge"
-            severity failure;
+        report "TEST 6: angle_corr phase_offset=0 tdc=0";
+        tdc_offset <= to_unsigned(0, 16);
+        fire_ref(900, true);  -- sets phase_offset=0
+        angle_raw <= to_unsigned(1200, 16);
+        wait for 3 * CLK_PERIOD;
+        assert to_integer(angle_corr) = 1200
+            report "FAIL T6: angle_corr should be 1200, got " &
+                   integer'image(to_integer(angle_corr)) severity failure;
         report "TEST 6: PASS";
 
-        -- --------------------------------------------------------------------
-        -- TEST 7: Just outside Band B
-        -- --------------------------------------------------------------------
+        -- T7: angle_corr with tdc_offset
         test_num <= 7;
-        report "TEST 7: Just outside Band B (450.0 - 18.1 deg)";
-
-        fire_ref(raw_angle, phase_ref, BAND_B_CENTRE - 181, CLK_PERIOD);
-
-        wait for 2 * CLK_PERIOD;
-        assert ref_detected = '0'
-            report "FAIL T7: ref_detected should not fire outside Band B"
-            severity failure;
+        report "TEST 7: angle_corr with tdc_offset=600";
+        tdc_offset <= to_unsigned(600, 16);
+        wait for 3 * CLK_PERIOD;
+        angle_raw <= to_unsigned(1000, 16);
+        wait for 3 * CLK_PERIOD;
+        assert to_integer(angle_corr) = 1600
+            report "FAIL T7: angle_corr should be 1600, got " &
+                   integer'image(to_integer(angle_corr)) severity failure;
         report "TEST 7: PASS";
 
-        -- --------------------------------------------------------------------
-        -- TEST 8: Outside both bands
-        -- --------------------------------------------------------------------
+        -- T8: angle_corr phase_offset=1
         test_num <= 8;
-        report "TEST 8: Outside both bands (270.0 deg)";
-
-        fire_ref(raw_angle, phase_ref, 2700, CLK_PERIOD);
-
-        wait for 2 * CLK_PERIOD;
-        assert ref_detected = '0'
-            report "FAIL T8: ref_detected should not fire outside both bands"
-            severity failure;
+        report "TEST 8: angle_corr phase_offset=1";
+        tdc_offset <= to_unsigned(0, 16);
+        fire_ref(4500, true);
+        angle_raw <= to_unsigned(1000, 16);
+        wait for 3 * CLK_PERIOD;
+        assert to_integer(angle_corr) = 4600
+            report "FAIL T8: angle_corr should be 4600, got " &
+                   integer'image(to_integer(angle_corr)) severity failure;
         report "TEST 8: PASS";
 
-        -- --------------------------------------------------------------------
-        -- TEST 9: Band A wraparound - expected near 0 deg
-        -- Band A: 0 +/- 180 wraps through 7200/0
-        -- --------------------------------------------------------------------
+        -- T9: angle_corr wraparound mod 7200
         test_num <= 9;
-        report "TEST 9: Band A wraparound (expected near 0.0 deg)";
-
-        expected_phase_angle <= to_unsigned(100, 16);  -- 10.0 deg
-        phase_tolerance      <= to_unsigned(200, 16);  -- 20.0 deg
-        -- Band A: 10.0 +/- 20.0 = 350.0 to 30.0 (wraps through 0)
-        -- Test at 7150 = 715.0 deg (wraps to -5.0 deg, inside band)
-
-        wait for CLK_PERIOD;
-        fire_ref(raw_angle, phase_ref, 7150, CLK_PERIOD);
-
-        wait for 2 * CLK_PERIOD;
-        assert sync_offset = '0'
-            report "FAIL T9: should detect Band A through wraparound"
-            severity failure;
+        report "TEST 9: angle_corr wraparound";
+        fire_ref(4500, true);
+        angle_raw <= to_unsigned(5000, 16);
+        wait for 3 * CLK_PERIOD;
+        assert to_integer(angle_corr) = 1400
+            report "FAIL T9: angle_corr should be 1400, got " &
+                   integer'image(to_integer(angle_corr)) severity failure;
         report "TEST 9: PASS";
 
-        -- --------------------------------------------------------------------
-        -- TEST 10: sync_offset holds between ref pulses
-        -- --------------------------------------------------------------------
+        -- T10: Band A wraparound near 0 deg
         test_num <= 10;
-        report "TEST 10: sync_offset holds between ref pulses";
-
-        expected_phase_angle <= EXP_ANGLE;
-        phase_tolerance      <= TOLERANCE;
-        wait for CLK_PERIOD;
-
-        -- Fire Band B ref
-        fire_ref(raw_angle, phase_ref, BAND_B_CENTRE, CLK_PERIOD);
-        wait for 2 * CLK_PERIOD;
-        assert sync_offset = '1'
-            report "FAIL T10 setup: sync_offset should be 1"
-            severity failure;
-
-        -- Wait without firing ref and check sync_offset holds
-        wait for 20 * CLK_PERIOD;
-        assert sync_offset = '1'
-            report "FAIL T10: sync_offset should hold between ref pulses"
-            severity failure;
+        report "TEST 10: Band A wraparound near 0 deg";
+        expected_cam_ang <= to_unsigned(100, 16);
+        window_tolerance <= to_unsigned(200, 16);
+        wait for 5 * CLK_PERIOD;
+        fire_ref(7150, true);  -- dist = 150 < 200
+        assert phase_offset = '0' report "FAIL T10: phase_offset" severity failure;
         report "TEST 10: PASS";
 
-        -- --------------------------------------------------------------------
-        -- TEST 11: sync_offset updates on subsequent ref pulse
-        -- --------------------------------------------------------------------
+        -- T11: Band B wraparound
         test_num <= 11;
-        report "TEST 11: sync_offset updates on next ref pulse";
-
-        -- Fire Band A ref
-        fire_ref(raw_angle, phase_ref, BAND_A_CENTRE, CLK_PERIOD);
-
-        wait for 2 * CLK_PERIOD;
-        assert sync_offset = '0'
-            report "FAIL T11: sync_offset should update to 0 on Band A ref"
-            severity failure;
+        report "TEST 11: Band B detection (100+3600=3700)";
+        fire_ref(3700, true);
+        assert phase_offset = '1' report "FAIL T11: phase_offset should be 1" severity failure;
         report "TEST 11: PASS";
 
-        -- --------------------------------------------------------------------
-        -- Done
-        -- --------------------------------------------------------------------
-        wait for 10 * CLK_PERIOD;
+        wait for 20 * CLK_PERIOD;
         report "========================================";
         report "All phase_detector tests complete";
         report "========================================";
-
         sim_done <= true;
         std.env.stop;
         wait;
