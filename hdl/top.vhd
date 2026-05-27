@@ -266,14 +266,14 @@ begin
             z_edge_sel     => '0',
             n_teeth        => n_teeth,
             n_pulses       => (others => '0'),
-            ab             => enc_ab,
-            z              => enc_z,
-            tooth_period   => enc_ab_period,
-            tooth_count    => enc_ab_count,
+            ab_enc         => enc_ab,
+            z_enc          => enc_z,
+            ab_period_enc  => enc_ab_period,
+            ppr_enc        => enc_ppr,
+            ab_count_enc   => enc_ab_count,
             signal_present => enc_signal_present,
             enc_edge_pulse => enc_edge_pulse
         );
-    enc_ppr <= n_teeth;  -- stub: use n_teeth as ppr
 
     -- =========================================================================
     -- ang_sel: select crank or encoder source
