@@ -97,8 +97,8 @@ architecture rtl of top is
     signal cam_stable           : std_logic;
 
     -- crank_input outputs
-    signal crank_ab             : std_logic;
-    signal crank_z              : std_logic;
+    signal ab_crank             : std_logic;
+    signal z_crank              : std_logic;
     signal crank_tooth_period   : unsigned(31 downto 0);
     signal crank_tooth_count    : unsigned(7 downto 0);
     signal crank_ppr            : unsigned(7 downto 0);
@@ -241,8 +241,8 @@ begin
             gap_threshold    => gap_threshold,
             n_teeth          => n_teeth,
             n_missing        => n_missing,
-            ab               => crank_ab,
-            z                => crank_z,
+            ab               => ab_crank,
+            z                => z_crank,
             tooth_period     => crank_tooth_period,
             tooth_count      => crank_tooth_count,
             ppr_crank        => crank_ppr,
@@ -281,11 +281,11 @@ begin
     u_ang_sel : entity work.ang_sel
         port map (
             sel                  => ang_sel_s,
-            crank_ab             => crank_ab,
-            crank_z              => crank_z,
-            crank_ab_period      => crank_tooth_period,
+            ab_crank             => ab_crank,
+            z_crank              => z_crank,
+            ab_crank_period      => crank_tooth_period,
             crank_ppr            => crank_ppr,
-            crank_ab_count       => crank_tooth_count,
+            ab_crank_count       => crank_tooth_count,
             crank_signal_present => crank_signal_present,
             enc_ab               => enc_ab,
             enc_z                => enc_z,
