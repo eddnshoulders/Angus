@@ -79,6 +79,11 @@ entity top is
         m_axis_tready      : in  std_logic;
         m_axis_tlast       : out std_logic;
 
+        -- Encoder inputs (stub: tied to 0 until encoder hardware available)
+        a_raw              : in  std_logic;
+        b_raw              : in  std_logic;
+        z_raw              : in  std_logic;
+
         -- Debug outputs to Pi header
         debug_out          : out std_logic_vector(11 downto 0)
     );
@@ -239,7 +244,7 @@ begin
         port map (
             clk             => clk,
             rst             => rst,
-            raw_signal      => a_raw,
+            raw_signal      => '0',  -- stub
             debounce_cycles => enc_a_debounce_cycles,
             clean_signal    => a_clean,
             signal_stable   => open
@@ -252,7 +257,7 @@ begin
         port map (
             clk             => clk,
             rst             => rst,
-            raw_signal      => b_raw,
+            raw_signal      => '0',  -- stub
             debounce_cycles => enc_b_debounce_cycles,
             clean_signal    => b_clean,
             signal_stable   => open
@@ -265,7 +270,7 @@ begin
         port map (
             clk             => clk,
             rst             => rst,
-            raw_signal      => z_raw,
+            raw_signal      => '0',  -- stub
             debounce_cycles => enc_z_debounce_cycles,
             clean_signal    => z_clean,
             signal_stable   => open
