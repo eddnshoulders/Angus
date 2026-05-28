@@ -1,0 +1,10 @@
+I've added DMA_BUFFER_SIZE to the doc.23:42Claude responded: Good.Good. One thing worth noting -- DMA_BUFFER_SIZE in the AXI register needs to match exactly what the PS has allocated in memory before config_apply is pulsed. If they're mismatched the DMA will either underrun (PS buffer too large, DMA never fills it) or overrun (PS buffer too small, DMA writes past the end).
+So the PS startup sequence should be:
+
+Write DMA_BUFFER_SIZE to AXI register
+Allocate PS DMA buffers of exactly DMA_BUFFER_SIZE × 20 bytes each
+Write all other startup config registers
+Pulse config_apply
+Submit DMA receive descriptors
+
+In angus_regs.py, the configure() function should enforce this by taking dma_buffer_size as a parameter and handling both the register write and the buffer allocation in one call, so they can't get out of sync.
