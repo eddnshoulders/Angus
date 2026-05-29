@@ -171,7 +171,6 @@ entity axi_lite_regs is
         pll_p_term      : in  signed(31 downto 0);
         pll_i_term      : in  signed(31 downto 0);
         pll_pi_corr     : in  signed(31 downto 0);
-        pll_nco_ab_inc_rb: in unsigned(31 downto 0);  -- readback of startup calc
         pll_cycle_ab_count: in unsigned(7 downto 0);
 
         -- Status inputs -- trig
@@ -363,7 +362,6 @@ architecture rtl of axi_lite_regs is
     signal div_done         : std_logic := '0';
     signal div_dividend     : unsigned(31 downto 0) := (others => '1'); -- 2^32-1
     signal div_divisor      : unsigned(7 downto 0)  := to_unsigned(60, 8);
-    signal div_quotient     : unsigned(31 downto 0) := (others => '0');
     signal div_shift        : integer range 0 to 31 := 0;
     signal div_remainder    : unsigned(31 downto 0) := (others => '0');
     signal div_q            : unsigned(31 downto 0) := (others => '0');
@@ -522,7 +520,7 @@ begin
                         when A_PLL_P_TERM       => axi_rdata <= std_logic_vector(pll_p_term);
                         when A_PLL_I_TERM       => axi_rdata <= std_logic_vector(pll_i_term);
                         when A_PLL_PI_CORR      => axi_rdata <= std_logic_vector(pll_pi_corr);
-                        when A_PLL_NCO_AB_INC   => axi_rdata <= std_logic_vector(pll_nco_ab_inc_rb);
+                        when A_PLL_NCO_AB_INC   => axi_rdata <= std_logic_vector(nco_ab_inc_int);
                         when A_PLL_CYCLE_AB_CNT => axi_rdata <= x"000000" & std_logic_vector(pll_cycle_ab_count);
                         when A_TRIG_PULSE_COUNT => axi_rdata <= std_logic_vector(trig_pulse_count);
                         when A_CRANK_TOOTH_PER  => axi_rdata <= std_logic_vector(crank_tooth_period);
@@ -666,16 +664,11 @@ begin
                         end if;
                         if div_shift = 0 then
                             div_busy       <= '0';
-                            div_done       <= '1';
                             nco_ab_inc_int <= div_q;
                         else
                             div_shift <= div_shift - 1;
                         end if;
                     end;
-                end if;
-
-                if div_done = '1' then
-                    nco_ab_inc_int <= div_quotient;
                 end if;
             end if;
         end if;
