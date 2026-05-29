@@ -29,6 +29,7 @@ architecture sim of crank_tb is
     signal tooth_cnt  : unsigned(7 downto 0);
     signal ab_cnt     : unsigned(7 downto 0);
     signal gap_det    : std_logic;
+    signal gap_period : unsigned(31 downto 0);
     signal signal_ok  : std_logic;
     signal crank_ab   : std_logic;
     signal crank_z    : std_logic;
@@ -47,7 +48,8 @@ begin
         crank_n_teeth=>n_teeth_s, crank_n_missing=>n_missing_s,
         crank_ab_edge=>ab_edge, crank_z_edge=>z_edge, crank_ppr_conf=>ppr_conf,
         crank_tooth_period=>tooth_per, crank_tooth_count=>tooth_cnt,
-        crank_ab_count=>ab_cnt, crank_gap_det=>gap_det, crank_signal_ok=>signal_ok,
+        crank_ab_count=>ab_cnt, crank_gap_det=>gap_det, crank_gap_period=>gap_period,
+        crank_signal_ok=>signal_ok,
         crank_ab=>crank_ab, crank_z=>crank_z);
 
     p_stim : process
@@ -92,6 +94,15 @@ begin
         wait for 1 ns;
         assert z_edge = '0' report "FAIL T4: z_edge not 1-clock pulse" severity failure;
         report "T4: PASS";
+
+        -- T5: gap_period latched at detection (approx TOOTH_PERIOD * gap_thresh / 128)
+        -- At TOOTH_PERIOD=100, gap_thresh=0xC0=192: fires at ~150 clocks
+        -- gap_period should be approximately 150 (within a few clocks)
+        wait for 5 * CLK_PERIOD;  -- let gap_period stabilise after T3
+        assert gap_period >= to_unsigned(140, 32) and gap_period <= to_unsigned(165, 32)
+            report "FAIL T5: gap_period out of expected range: " &
+                   integer'image(to_integer(gap_period)) severity failure;
+        report "T5: PASS";
 
         report "All crank tests PASS";
         done <= true; std.env.stop; wait;
