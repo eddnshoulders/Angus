@@ -655,11 +655,13 @@ begin
 
     -- =========================================================================
     -- Fault
-    -- TODO: add fault gating (src_sel/ref_sel), enc faults, MAX_RPM
+    -- Fault: centralised detection with src/ref gating and MAX_RPM
     -- =========================================================================
     u_fault : entity work.fault
         port map (clk=>clk, rst=>rst,
                   fault_clear=>fault_clear,
+                  src_sel=>src_sel_cfg,
+                  ref_sel=>ref_sel_cfg,
                   cam_tooth_count=>cam_tooth_count,
                   cam_n_teeth=>cam_n_teeth,
                   z_edge=>z_edge,
@@ -668,7 +670,10 @@ begin
                   crank_n_teeth=>crank_n_teeth,
                   crank_n_missing=>crank_n_missing,
                   crank_z_edge=>crank_z_edge,
+                  ab_count=>ab_count,
+                  ppr_conf=>ppr_conf,
                   speed_rpm_slow=>speed_rpm_slow,
+                  max_rpm=>max_rpm,
                   pll_phase_err=>pll_phase_err,
                   pll_phase_err_thresh=>pll_phase_err_thresh,
                   sync_full=>sync_full,
