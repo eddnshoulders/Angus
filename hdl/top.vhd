@@ -733,6 +733,5 @@ begin
     debug_out(11) <= sync_full;
     debug_out(12) <= phase_inv_latch;
     debug_out(13) <= phase_ref_found;
-    --debug_out(21 downto 14) <= (others => '0');
 
 end architecture rtl;
