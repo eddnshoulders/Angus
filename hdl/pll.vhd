@@ -26,7 +26,8 @@ entity pll is
         ab_edge          : in  std_logic;
         ab_period        : in  unsigned(31 downto 0);
         z_edge           : in  std_logic;
-        pll_nco_ab_inc   : in  unsigned(31 downto 0);
+        pll_nco_ab_inc   : in  unsigned(31 downto 0);  -- per-tooth increment from angle.vhd
+        angle_nco_clk_inc: in  unsigned(31 downto 0);  -- per-clock increment from angle.vhd
         pll_kp           : in  unsigned(15 downto 0);
         pll_ki           : in  unsigned(15 downto 0);
         pll_corr_dir     : in  std_logic;
@@ -159,7 +160,7 @@ begin
 
             else
                 nco_accum_int <= (others => '0');
-                nco_inc_int   <= pll_nco_ab_inc;  -- pre-load for fast lock on sync
+                nco_inc_int   <= angle_nco_clk_inc;  -- pre-load with current speed estimate
                 ang_hires_int <= (others => '0');
             end if;
         end if;
