@@ -138,11 +138,11 @@ architecture rtl of top is
     signal trig_decimation : unsigned(15 downto 0);
     signal trig_pulse_width: unsigned(15 downto 0);
 
-    -- TODO: these ports not yet in axi_lite_regs -- stubbed to defaults
-    signal peak_hyst       : unsigned(15 downto 0) := to_unsigned(128, 16);
-    signal peak_pulse_cycles: unsigned(15 downto 0) := to_unsigned(100, 16);
-    signal max_rpm         : unsigned(15 downto 0) := to_unsigned(6000, 16);
-    signal angle_interp_en : std_logic := '0';
+    -- From axi_lite_regs (new ports)
+    signal peak_hyst        : unsigned(15 downto 0);
+    signal peak_pulse_cycles: unsigned(15 downto 0);
+    signal max_rpm          : unsigned(15 downto 0);
+    signal angle_interp_en  : std_logic;
 
     -- =========================================================================
     -- Filter outputs
@@ -293,8 +293,8 @@ begin
 
     -- =========================================================================
     -- axi_lite_regs
-    -- TODO: register map update required -- addresses shifted, PEAK_HYST,
-    --       PEAK_PULSE_CYCLES, MAX_RPM, angle_interp_en not yet present
+    -- Register map v2: updated addresses, PEAK_HYST, PEAK_PULSE_CYCLES,
+    --                  MAX_RPM, angle_interp_en now present
     -- =========================================================================
     u_axi_regs : entity work.axi_lite_regs
         port map (
@@ -324,6 +324,7 @@ begin
             ref_sel             => ref_sel_cfg,
             cam_edge_sel        => cam_edge_sel,
             ang_sel             => ang_sel_cfg,
+            angle_interp_en     => angle_interp_en,
             crank_gap_thresh    => crank_gap_thresh,
             crank_n_teeth       => crank_n_teeth,
             crank_n_missing     => crank_n_missing,
@@ -351,6 +352,9 @@ begin
             pll_corr_max        => pll_corr_max,
             trig_decimation     => trig_decimation,
             trig_pulse_width    => trig_pulse_width,
+            max_rpm             => max_rpm,
+            peak_hyst           => peak_hyst,
+            peak_pulse_cycles   => peak_pulse_cycles,
             -- Status inputs
             sync_state          => sync_state,
             sync_fault_count    => sync_fault_count,
@@ -378,12 +382,12 @@ begin
             pll_cycle_ab_count  => pll_cycle_ab_count,
             trig_pulse_count    => trig_pulse_count,
             crank_tooth_period  => crank_tooth_period,
-            crank_gap_period    => (others => '0'),  -- TODO: wire crank_gap_period
+            crank_gap_period    => (others => '0'),  -- TODO: add crank_gap_period to crank.vhd
             crank_tooth_count   => crank_tooth_count,
             crank_ab_count      => crank_ab_count,
             crank_gap_det       => crank_gap_det,
             cam_tooth_count     => cam_tooth_count,
-            ref_angle           => (others => '0'),  -- TODO: wire ref_angle from phase
+            ref_angle           => phase_ang_corr,  -- ref_angle = angle at last ref detection
             enc_ab_count        => enc_ab_count,
             enc_a_count         => enc_a_count,
             enc_b_count         => enc_b_count,
