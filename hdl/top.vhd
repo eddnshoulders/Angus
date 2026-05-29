@@ -223,7 +223,7 @@ architecture rtl of top is
     signal phase_inv_latch : std_logic;
     signal phase_ang_corr  : unsigned(15 downto 0);
     signal phase_eng       : std_logic;
-    signal phase_eng_ang   : unsigned(15 downto 0);  -- was phase_ang_eng
+    signal phase_eng_ang   : unsigned(15 downto 0);
     signal phase_ref_det_cnt: unsigned(15 downto 0);
 
     -- =========================================================================
@@ -369,7 +369,7 @@ begin
             phase_inv_latch     => phase_inv_latch,
             phase_ang_corr      => phase_ang_corr,
             phase_eng           => phase_eng,
-            phase_ang_eng       => phase_eng_ang,
+            phase_eng_ang       => phase_eng_ang,
             phase_ref_det_cnt   => phase_ref_det_cnt,
             pll_ang_hires       => pll_ang_hires,
             pll_div_valid       => pll_div_valid,
@@ -535,7 +535,6 @@ begin
 
     -- =========================================================================
     -- Phase
-    -- TODO: rename phase_ang_eng port to phase_eng_ang in phase.vhd
     -- =========================================================================
     u_phase : entity work.phase
         port map (clk=>clk, rst=>rst,
@@ -553,7 +552,7 @@ begin
                   phase_inv_latch=>phase_inv_latch,
                   phase_ang_corr=>phase_ang_corr,
                   phase_eng=>phase_eng,
-                  phase_ang_eng=>phase_eng_ang,
+                  phase_eng_ang=>phase_eng_ang,
                   phase_ref_det_cnt=>phase_ref_det_cnt);
 
     -- =========================================================================
@@ -584,7 +583,6 @@ begin
 
     -- =========================================================================
     -- PLL
-    -- TODO: take angle_nco_ab_inc from angle.vhd when angle is refactored
     -- =========================================================================
     u_pll : entity work.pll
         port map (clk=>clk, rst=>rst,
@@ -594,6 +592,7 @@ begin
                   ab_period=>ab_period,
                   z_edge=>z_edge,
                   pll_nco_ab_inc=>angle_nco_ab_inc,
+                  angle_nco_clk_inc=>angle_nco_clk_inc,
                   pll_kp=>pll_kp,
                   pll_ki=>pll_ki,
                   pll_corr_dir=>pll_corr_dir,
