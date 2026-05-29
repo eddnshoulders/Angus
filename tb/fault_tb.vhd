@@ -10,6 +10,11 @@ architecture sim of fault_tb is
     signal done          : boolean := false;
     signal rst           : std_logic := '1';
     signal fault_clear   : std_logic := '0';
+    signal src_sel_s     : std_logic := '0';
+    signal ref_sel_s     : std_logic := '0';
+    signal ab_count_s    : unsigned(7 downto 0) := to_unsigned(60, 8);
+    signal ppr_conf_s    : unsigned(7 downto 0) := to_unsigned(60, 8);
+    signal max_rpm_s     : unsigned(15 downto 0) := to_unsigned(6000, 16);
     signal cam_tooth_cnt : unsigned(7 downto 0) := to_unsigned(1, 8);
     signal cam_n_teeth_s : unsigned(7 downto 0) := to_unsigned(1, 8);
     signal z_edge        : std_logic := '0';
@@ -34,10 +39,13 @@ architecture sim of fault_tb is
 begin
     clk <= not clk after CLK_PERIOD/2 when not done else '0';
     dut : entity work.fault port map(clk=>clk, rst=>rst, fault_clear=>fault_clear,
+        src_sel=>src_sel_s, ref_sel=>ref_sel_s,
         cam_tooth_count=>cam_tooth_cnt, cam_n_teeth=>cam_n_teeth_s, z_edge=>z_edge,
         crank_tooth_count=>crank_tooth, crank_ab_count=>crank_ab,
         crank_n_teeth=>crank_n_teeth, crank_n_missing=>crank_n_miss,
-        crank_z_edge=>crank_z, speed_rpm_slow=>speed_rpm,
+        crank_z_edge=>crank_z,
+        ab_count=>ab_count_s, ppr_conf=>ppr_conf_s,
+        speed_rpm_slow=>speed_rpm, max_rpm=>max_rpm_s,
         pll_phase_err=>pll_err, pll_phase_err_thresh=>pll_thresh,
         sync_full=>sync_full, phase_fault_drop=>ph_fault_drop,
         phase_ref_ok=>ph_ref_ok, fault_flags=>fault_flags,
@@ -83,6 +91,26 @@ begin
         assert to_integer(phase_cnt) = 0  report "FAIL T5: phase_cnt not cleared" severity failure;
         assert to_integer(pll_cnt) = 0    report "FAIL T5: pll_cnt not cleared" severity failure;
         report "T5: PASS";
+
+        -- T6: cam fault gated when ref_sel=1 (peak selected)
+        ref_sel_s <= '1';
+        cam_window_z_fire : for i in 1 to 2 loop
+            z_edge <= '1'; wait for CLK_PERIOD; z_edge <= '0'; wait for 3 * CLK_PERIOD;
+        end loop;
+        -- cam_tooth_count=1 = cam_n_teeth=1, so no fault even if ref_sel=0
+        -- but with wrong count and ref_sel=1, still no fault
+        cam_tooth_cnt <= to_unsigned(2, 8);  -- wrong
+        z_edge <= '1'; wait for CLK_PERIOD; z_edge <= '0'; wait for CLK_PERIOD;
+        z_edge <= '1'; wait for CLK_PERIOD; z_edge <= '0'; wait for CLK_PERIOD;
+        assert to_integer(cam_cnt) = 0 report "FAIL T6: cam fault despite ref_sel=1" severity failure;
+        report "T6: PASS";
+
+        -- T7: ab_fault_count increments when ab_count != ppr_conf at z_edge
+        ab_count_s <= to_unsigned(45, 8);  -- wrong (expected 60)
+        z_edge <= '1'; wait for CLK_PERIOD; z_edge <= '0'; wait for 2 * CLK_PERIOD;
+        assert to_integer(ab_cnt) = 1 report "FAIL T7: ab_fault_count wrong" severity failure;
+        ab_count_s <= to_unsigned(60, 8);
+        report "T7: PASS";
 
         report "All fault tests PASS";
         done <= true; std.env.stop; wait;
