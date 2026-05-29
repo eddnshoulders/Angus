@@ -174,6 +174,7 @@ architecture rtl of top is
     signal crank_tooth_count : unsigned(7 downto 0);
     signal crank_ab_count   : unsigned(7 downto 0);
     signal crank_gap_det    : std_logic;
+    signal crank_gap_period : unsigned(31 downto 0);
     signal crank_signal_ok  : std_logic;
     signal crank_ab         : std_logic;
     signal crank_z          : std_logic;
@@ -382,7 +383,7 @@ begin
             pll_cycle_ab_count  => pll_cycle_ab_count,
             trig_pulse_count    => trig_pulse_count,
             crank_tooth_period  => crank_tooth_period,
-            crank_gap_period    => (others => '0'),  -- TODO: add crank_gap_period to crank.vhd
+            crank_gap_period    => crank_gap_period,
             crank_tooth_count   => crank_tooth_count,
             crank_ab_count      => crank_ab_count,
             crank_gap_det       => crank_gap_det,
@@ -428,11 +429,15 @@ begin
 
     -- =========================================================================
     -- Peak detector
-    -- TODO: rewrite with telltale/hysteresis method
+    -- Telltale/hysteresis peak detector
     -- =========================================================================
     u_peak : entity work.peak_detector
-        port map (clk=>clk, rst=>rst, adc_data=>adc_ch0,
-                  adc_valid=>'1', peak_edge=>peak_edge);
+        port map (clk=>clk, rst=>rst,
+                  adc_val=>adc_ch0,
+                  z_edge=>z_edge,
+                  peak_hyst=>peak_hyst,
+                  peak_pulse_cycles=>peak_pulse_cycles,
+                  peak_edge=>peak_edge);
 
     -- =========================================================================
     -- Cam
@@ -458,6 +463,7 @@ begin
                   crank_tooth_count=>crank_tooth_count,
                   crank_ab_count=>crank_ab_count,
                   crank_gap_det=>crank_gap_det,
+                  crank_gap_period=>crank_gap_period,
                   crank_signal_ok=>crank_signal_ok,
                   crank_ab=>crank_ab,
                   crank_z=>crank_z);
