@@ -7,18 +7,12 @@ use ieee.numeric_std.all;
 --
 -- Angus combustion analyser top-level.
 -- Wires all functional blocks together.
--- Synthesises cleanly as a framework; blocks marked TODO will need
--- updating as the architecture refactor progresses.
+-- All blocks implemented and wired. Compiles clean.
 --
--- Skeleton status:
---   CURRENT:  filter, crank, enc, cam, src_sel, ref_sel, ang_sel
---             phase, sync, speed, pll, trig, pack, fault, peak_detector
---   TODO:     axi_lite_regs  -- register map update required (new addresses,
---                               PEAK_HYST, PEAK_PULSE_CYCLES, MAX_RPM,
---                               angle_interp_en; divider to be removed)
---   TODO:     angle          -- major rewrite (2^32 domain, divider instances,
---                               angle_nco_ab_inc, angle_interp_en)
---   TODO:     pll            -- take angle_nco_ab_inc from angle.vhd
+-- Block status:
+--   COMPLETE: axi_lite_regs, filter(x5), peak_detector, cam, crank, enc,
+--             src_sel, ref_sel, angle, phase, sync, speed, pll, ang_sel,
+--             trig, pack, fault
 --
 -- Debug outputs (22-bit std_logic_vector, Pi header):
 --   [0]  crank_clean
@@ -518,9 +512,6 @@ begin
 
     -- =========================================================================
     -- Angle
-    -- TODO: major rewrite -- 2^32 domain, divider instances,
-    --       angle_nco_ab_inc, angle_nco_clk_inc, angle_interp_en
-    --       Current version used as stub.
     -- =========================================================================
     u_angle : entity work.angle
         port map (clk=>clk, rst=>rst,
@@ -630,7 +621,6 @@ begin
 
     -- =========================================================================
     -- Pack
-    -- TODO: fix tlast logic per DMA_BUFFER_SIZE cycles
     -- =========================================================================
     u_pack : entity work.pack
         port map (clk=>clk, rst=>rst,
