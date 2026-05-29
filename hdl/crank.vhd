@@ -37,6 +37,7 @@ entity crank is
         crank_tooth_count : out unsigned(7 downto 0);
         crank_ab_count    : out unsigned(7 downto 0);
         crank_gap_det     : out std_logic;
+        crank_gap_period  : out unsigned(31 downto 0);
         crank_signal_ok   : out std_logic;
         crank_ab          : out std_logic;
         crank_z           : out std_logic
@@ -59,6 +60,7 @@ architecture rtl of crank is
     -- Post-gap state
     signal z_armed          : std_logic := '0';
     signal z_int            : std_logic := '0';
+    signal gap_period_int   : unsigned(31 downto 0) := (others => '0');
     signal z_edge_int       : std_logic := '0';
 
     -- Tooth counting
@@ -93,6 +95,7 @@ begin
                 last_period      <= (others => '1');
                 tooth_period_int <= (others => '0');
                 gap_det_int      <= '0';
+                gap_period_int   <= (others => '0');
                 z_armed          <= '0';
                 z_int            <= '0';
                 z_edge_int       <= '0';
@@ -128,6 +131,9 @@ begin
 
                 -- Gap detection: period_cnt * 128 > last_period * gap_thresh
                 if resize(period_cnt, 40) * to_unsigned(128, 40) >= gap_thresh_ext then
+                    if gap_det_int = '0' then
+                        gap_period_int <= period_cnt;  -- latch at first detection
+                    end if;
                     gap_det_int <= '1';
                 end if;
 
@@ -213,6 +219,7 @@ begin
     crank_tooth_count  <= tooth_cnt;
     crank_ab_count     <= ab_cnt;
     crank_gap_det      <= gap_det_int;
+    crank_gap_period   <= gap_period_int;
     crank_signal_ok    <= signal_ok_int;
     crank_ab           <= ab_int;
     crank_z            <= z_int;
