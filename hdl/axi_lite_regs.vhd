@@ -3,84 +3,18 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 -- =============================================================================
--- axi_lite_regs.vhd
+-- axi_lite_regs.vhd  (v2)
+-- AXI-Lite slave register file for Angus combustion analyser.
+-- 9-bit byte address bus, 4-byte aligned, 128 word-addressed registers.
 --
--- AXI-Lite slave register file for the Angus combustion analyser.
---
--- Address bus: 9 bits (byte addressed, 4-byte aligned = 128 registers).
--- All registers are 32-bit words. Unused bits read as zero.
---
--- Reset behaviour:
---   On power-up, config_valid=0 so rst_out=1 (PL held in reset).
---   PS writes startup config registers, then sets CONTROL[3] (config_apply).
---   config_apply latches startup config, starts pll_nco_ab_inc divider, and
---   asserts rst_out for RST_CYCLES clocks before releasing.
---   Setting config_apply again during operation repeats the same sequence.
---
--- Startup config (latched on config_apply):
---   CONTROL: crank_edge_sel, src_sel, ref_sel, cam_edge_sel, ang_sel
---   CRANK_GAP_THRESH, CRANK_N_TEETH, CRANK_N_MISSING
---   CAM_N_TEETH
---   ENC_N_PPR, ENC_AB_EDGE_SEL, ENC_Z_EDGE_SEL
---   DMA_BUFFER_SIZE
---
--- Startup calc (completes within RST_CYCLES after config_apply):
---   pll_nco_ab_inc = 2^32 / crank_n_teeth (src_sel=0)
---                  = 2^32 / enc_n_ppr     (src_sel=1)
---
--- Runtime config (direct register outputs, update any time):
---   CONTROL_RT: fault_clear, pll_corr_dir, phase_fault_drop
---   CAM_DBC, CRANK_DBC, ENC_A/B/Z_DBC
---   PHASE_REF_ANG, PHASE_REF_TOL, TDC_OFFSET, PLL_PHASE_ERR_THRESH
---   PLL_KP, PLL_KI, PLL_CORR_MAX
---   TRIG_DECIMATION, TRIG_PULSE_WIDTH
---
--- Write register map:
---   0x000 CONTROL          [5:0]  startup config bits (see below)
---   0x004 CONTROL_RT       [2:0]  runtime control bits
---   0x008 RST_CYCLES       [8:0]  reset duration in clocks (default 256)
---   0x00C CAM_DBC          [15:0] cam debounce cycles (default 5)
---   0x010 CRANK_DBC        [15:0] crank debounce cycles (default 5)
---   0x014 ENC_A_DBC        [15:0] enc A debounce cycles (default 5)
---   0x018 ENC_B_DBC        [15:0] enc B debounce cycles (default 5)
---   0x01C ENC_Z_DBC        [15:0] enc Z debounce cycles (default 5)
---   0x020 CRANK_GAP_THRESH [7:0]  gap threshold 1.7fp (default 0xC0)
---   0x024 CRANK_N_TEETH    [7:0]  total crank teeth inc missing (default 60)
---   0x028 CRANK_N_MISSING  [7:0]  missing teeth (default 2)
---   0x02C CAM_N_TEETH      [7:0]  cam teeth per 2 crank revs (default 1)
---   0x030 ENC_N_PPR        [15:0] encoder pulses per rev
---   0x034 ENC_AB_EDGE_SEL  [1:0]  0=rising,1=falling,2=both (default 0)
---   0x038 ENC_Z_EDGE_SEL   [0]    0=rising,1=falling (default 0)
---   0x03C PHASE_REF_ANG    [15:0] expected ref angle 0-7199 0.1deg
---   0x040 PHASE_REF_TOL    [15:0] window tolerance 0-7199 0.1deg
---   0x044 TDC_OFFSET       [15:0] TDC offset 0-7199 0.1deg
---   0x048 PLL_PHASE_ERR_THRESH [31:0] max abs phase error NCO units
---   0x04C PLL_KP           [15:0] PLL proportional gain (default 0)
---   0x050 PLL_KI           [15:0] PLL integral gain (default 0)
---   0x054 PLL_CORR_MAX     [15:0] PLL max correction NCO LSB
---   0x058 TRIG_DECIMATION  [15:0] trig decimation count (default 1)
---   0x05C TRIG_PULSE_WIDTH [15:0] trig pulse width clocks (default 1)
---   0x060 DMA_BUFFER_SIZE  [3:0]  DMA cycles per buffer (default 2)
---
--- CONTROL word bits:
---   [0] crank_edge_sel  0=falling, 1=rising
---   [1] src_sel         0=crank, 1=encoder
---   [2] ref_sel         0=cam, 1=peak_detector
---   [3] config_apply    self-clearing
---   [4] cam_edge_sel    0=falling, 1=rising
---   [5] ang_sel         0=angle_deg, 1=pll_ang_hires
---
--- CONTROL_RT word bits:
---   [0] fault_clear     self-clearing pulse
---   [1] pll_corr_dir    0=subtract, 1=add
---   [2] phase_fault_drop 0=count only, 1=drop to CRANK_SYNC
---
--- Read register map (0x070-0x11C): see port list below.
+-- config_apply (CONTROL[3]) self-clears in p_write on the same cycle it is
+-- written, and pulses config_apply_int for one clock to p_config.
+-- p_config latches startup registers and starts the rst counter + divider.
+-- rst_out is high until rst_counter reaches zero.
 -- =============================================================================
 
 entity axi_lite_regs is
     port (
-        -- AXI-Lite slave interface (runs on s_axi_aclk = fabric clk)
         s_axi_aclk      : in  std_logic;
         s_axi_aresetn   : in  std_logic;
         s_axi_awaddr    : in  std_logic_vector(8 downto 0);
@@ -100,10 +34,8 @@ entity axi_lite_regs is
         s_axi_rresp     : out std_logic_vector(1 downto 0);
         s_axi_rvalid    : out std_logic;
         s_axi_rready    : in  std_logic;
-
-        -- Reset output to PL fabric
+        -- Reset output
         rst_out         : out std_logic;
-
         -- Startup config outputs (latched on config_apply)
         crank_edge_sel  : out std_logic;
         src_sel         : out std_logic;
@@ -118,9 +50,8 @@ entity axi_lite_regs is
         enc_ab_edge_sel : out unsigned(1 downto 0);
         enc_z_edge_sel  : out std_logic;
         dma_buffer_size : out unsigned(3 downto 0);
-        pll_nco_ab_inc  : out unsigned(31 downto 0);  -- startup calc output
-
-        -- Runtime config outputs (direct, update any time)
+        pll_nco_ab_inc  : out unsigned(31 downto 0);
+        -- Runtime config outputs
         fault_clear     : out std_logic;
         pll_corr_dir    : out std_logic;
         phase_fault_drop: out std_logic;
@@ -138,19 +69,12 @@ entity axi_lite_regs is
         pll_corr_max    : out unsigned(15 downto 0);
         trig_decimation : out unsigned(15 downto 0);
         trig_pulse_width: out unsigned(15 downto 0);
-
-        -- Status inputs (from PL blocks) -- sync
+        -- Status inputs
         sync_state      : in  unsigned(1 downto 0);
         sync_fault_count: in  unsigned(15 downto 0);
-
-        -- Status inputs -- speed
         speed_rpm_slow  : in  unsigned(15 downto 0);
         speed_rpm_fast  : in  unsigned(15 downto 0);
-
-        -- Status inputs -- angle
         angle_deg       : in  unsigned(15 downto 0);
-
-        -- Status inputs -- phase
         phase_raw       : in  std_logic;
         phase_ref_det   : in  std_logic;
         phase_ref_ok    : in  std_logic;
@@ -161,8 +85,6 @@ entity axi_lite_regs is
         phase_eng       : in  std_logic;
         phase_ang_eng   : in  unsigned(15 downto 0);
         phase_ref_det_cnt: in unsigned(15 downto 0);
-
-        -- Status inputs -- pll
         pll_ang_hires   : in  unsigned(15 downto 0);
         pll_div_valid   : in  std_logic;
         pll_nco_inc     : in  unsigned(31 downto 0);
@@ -172,28 +94,18 @@ entity axi_lite_regs is
         pll_i_term      : in  signed(31 downto 0);
         pll_pi_corr     : in  signed(31 downto 0);
         pll_cycle_ab_count: in unsigned(7 downto 0);
-
-        -- Status inputs -- trig
         trig_pulse_count: in  unsigned(31 downto 0);
-
-        -- Status inputs -- crank
         crank_tooth_period: in unsigned(31 downto 0);
         crank_gap_period  : in unsigned(31 downto 0);
         crank_tooth_count : in unsigned(7 downto 0);
         crank_ab_count    : in unsigned(7 downto 0);
         crank_gap_det     : in std_logic;
-
-        -- Status inputs -- cam
         cam_tooth_count : in  unsigned(7 downto 0);
         ref_angle       : in  unsigned(15 downto 0);
-
-        -- Status inputs -- enc
         enc_ab_count    : in  unsigned(7 downto 0);
         enc_a_count     : in  unsigned(7 downto 0);
         enc_b_count     : in  unsigned(7 downto 0);
         enc_ab_period   : in  unsigned(31 downto 0);
-
-        -- Status inputs -- fault
         fault_flags     : in  std_logic_vector(31 downto 0);
         cam_fault_count : in  unsigned(15 downto 0);
         crank_fault_count: in unsigned(15 downto 0);
@@ -201,8 +113,6 @@ entity axi_lite_regs is
         ab_fault_count  : in  unsigned(15 downto 0);
         speed_fault_count: in unsigned(15 downto 0);
         pll_phase_err_count: in unsigned(15 downto 0);
-
-        -- Status inputs -- pack
         pkt_count       : in  unsigned(31 downto 0);
         ovf_count       : in  unsigned(15 downto 0)
     );
@@ -210,10 +120,7 @@ end entity axi_lite_regs;
 
 architecture rtl of axi_lite_regs is
 
-    -- =========================================================================
-    -- Address constants (word index = byte_addr / 4)
-    -- =========================================================================
-    -- Write registers
+    -- Address constants (byte addr / 4)
     constant A_CONTROL          : integer := 16#000# / 4;
     constant A_CONTROL_RT       : integer := 16#004# / 4;
     constant A_RST_CYCLES       : integer := 16#008# / 4;
@@ -232,15 +139,13 @@ architecture rtl of axi_lite_regs is
     constant A_PHASE_REF_ANG    : integer := 16#03C# / 4;
     constant A_PHASE_REF_TOL    : integer := 16#040# / 4;
     constant A_TDC_OFFSET       : integer := 16#044# / 4;
-    constant A_PLL_PHASE_ERR_THRESH : integer := 16#048# / 4;
+    constant A_PLL_PHASE_THRESH : integer := 16#048# / 4;
     constant A_PLL_KP           : integer := 16#04C# / 4;
     constant A_PLL_KI           : integer := 16#050# / 4;
     constant A_PLL_CORR_MAX     : integer := 16#054# / 4;
     constant A_TRIG_DECIMATION  : integer := 16#058# / 4;
     constant A_TRIG_PULSE_WIDTH : integer := 16#05C# / 4;
     constant A_DMA_BUFFER_SIZE  : integer := 16#060# / 4;
-
-    -- Read registers
     constant A_SYNC_STATE       : integer := 16#070# / 4;
     constant A_SYNC_FAULT_COUNT : integer := 16#074# / 4;
     constant A_SPEED_RPM_SLOW   : integer := 16#078# / 4;
@@ -288,9 +193,7 @@ architecture rtl of axi_lite_regs is
     constant A_PKT_COUNT        : integer := 16#120# / 4;
     constant A_OVF_COUNT        : integer := 16#124# / 4;
 
-    -- =========================================================================
-    -- AXI-Lite internal signals
-    -- =========================================================================
+    -- AXI internal
     signal axi_awready  : std_logic := '0';
     signal axi_wready   : std_logic := '0';
     signal axi_bvalid   : std_logic := '0';
@@ -300,26 +203,24 @@ architecture rtl of axi_lite_regs is
     signal aw_addr      : std_logic_vector(8 downto 0)  := (others => '0');
     signal ar_addr      : std_logic_vector(8 downto 0)  := (others => '0');
 
-    -- =========================================================================
-    -- Write registers
-    -- =========================================================================
+    -- Write registers (single process manages each)
     signal reg_control          : std_logic_vector(31 downto 0) := x"00000000";
     signal reg_control_rt       : std_logic_vector(31 downto 0) := x"00000000";
-    signal reg_rst_cycles       : std_logic_vector(31 downto 0) := x"00000100"; -- 256
+    signal reg_rst_cycles       : std_logic_vector(31 downto 0) := x"00000100";
     signal reg_cam_dbc          : std_logic_vector(31 downto 0) := x"00000005";
     signal reg_crank_dbc        : std_logic_vector(31 downto 0) := x"00000005";
     signal reg_enc_a_dbc        : std_logic_vector(31 downto 0) := x"00000005";
     signal reg_enc_b_dbc        : std_logic_vector(31 downto 0) := x"00000005";
     signal reg_enc_z_dbc        : std_logic_vector(31 downto 0) := x"00000005";
     signal reg_crank_gap_thresh : std_logic_vector(31 downto 0) := x"000000C0";
-    signal reg_crank_n_teeth    : std_logic_vector(31 downto 0) := x"0000003C"; -- 60
+    signal reg_crank_n_teeth    : std_logic_vector(31 downto 0) := x"0000003C";
     signal reg_crank_n_missing  : std_logic_vector(31 downto 0) := x"00000002";
     signal reg_cam_n_teeth      : std_logic_vector(31 downto 0) := x"00000001";
-    signal reg_enc_n_ppr        : std_logic_vector(31 downto 0) := x"00000060"; -- 96
+    signal reg_enc_n_ppr        : std_logic_vector(31 downto 0) := x"00000060";
     signal reg_enc_ab_edge_sel  : std_logic_vector(31 downto 0) := x"00000000";
     signal reg_enc_z_edge_sel   : std_logic_vector(31 downto 0) := x"00000000";
-    signal reg_phase_ref_ang    : std_logic_vector(31 downto 0) := x"00000708"; -- 1800
-    signal reg_phase_ref_tol    : std_logic_vector(31 downto 0) := x"00000258"; -- 600
+    signal reg_phase_ref_ang    : std_logic_vector(31 downto 0) := x"00000708";
+    signal reg_phase_ref_tol    : std_logic_vector(31 downto 0) := x"00000258";
     signal reg_tdc_offset       : std_logic_vector(31 downto 0) := x"00000000";
     signal reg_pll_phase_thresh : std_logic_vector(31 downto 0) := x"00000000";
     signal reg_pll_kp           : std_logic_vector(31 downto 0) := x"00000000";
@@ -329,9 +230,11 @@ architecture rtl of axi_lite_regs is
     signal reg_trig_pulse_width : std_logic_vector(31 downto 0) := x"00000001";
     signal reg_dma_buffer_size  : std_logic_vector(31 downto 0) := x"00000002";
 
-    -- =========================================================================
-    -- Startup config latches (written on config_apply)
-    -- =========================================================================
+    -- config_apply pulse (set in p_write, cleared next cycle)
+    signal config_apply_int     : std_logic := '0';
+    signal fault_clear_int      : std_logic := '0';
+
+    -- Startup config latches
     signal latch_crank_edge_sel : std_logic := '1';
     signal latch_src_sel        : std_logic := '0';
     signal latch_ref_sel        : std_logic := '0';
@@ -346,32 +249,21 @@ architecture rtl of axi_lite_regs is
     signal latch_enc_z_edge_sel : std_logic := '0';
     signal latch_dma_buffer_size: unsigned(3 downto 0)  := to_unsigned(2, 4);
 
-    -- =========================================================================
-    -- Reset generation
-    -- =========================================================================
+    -- Reset
     signal config_valid         : std_logic := '0';
     signal rst_counter          : unsigned(8 downto 0) := (others => '0');
-    signal rst_int              : std_logic := '1';
 
-    -- =========================================================================
-    -- Startup calc: pll_nco_ab_inc = 2^32 / ppr
-    -- Sequential restoring divider, 32-bit dividend / 8-bit divisor
-    -- =========================================================================
+    -- Divider for pll_nco_ab_inc
     signal div_start        : std_logic := '0';
     signal div_busy         : std_logic := '0';
-    signal div_dividend     : unsigned(31 downto 0) := (others => '1'); -- 2^32-1
     signal div_divisor      : unsigned(7 downto 0)  := to_unsigned(60, 8);
-    signal div_shift        : integer range 0 to 31 := 0;
     signal div_remainder    : unsigned(31 downto 0) := (others => '0');
     signal div_q            : unsigned(31 downto 0) := (others => '0');
-
+    signal div_shift        : integer range 0 to 31 := 0;
     signal nco_ab_inc_int   : unsigned(31 downto 0) := (others => '0');
 
 begin
 
-    -- =========================================================================
-    -- AXI-Lite write channel
-    -- =========================================================================
     s_axi_awready <= axi_awready;
     s_axi_wready  <= axi_wready;
     s_axi_bresp   <= "00";
@@ -381,16 +273,23 @@ begin
     s_axi_rresp   <= "00";
     s_axi_rvalid  <= axi_rvalid;
 
+    -- =========================================================================
+    -- AXI write channel -- single process owns all reg_ signals
+    -- =========================================================================
     p_write : process(s_axi_aclk)
     begin
         if rising_edge(s_axi_aclk) then
             if s_axi_aresetn = '0' then
-                axi_awready <= '0';
-                axi_wready  <= '0';
-                axi_bvalid  <= '0';
-                aw_addr     <= (others => '0');
+                axi_awready      <= '0';
+                axi_wready       <= '0';
+                axi_bvalid       <= '0';
+                aw_addr          <= (others => '0');
+                config_apply_int <= '0';
+                fault_clear_int  <= '0';
             else
-                -- Accept write address
+                config_apply_int <= '0';
+                fault_clear_int  <= '0';
+
                 if axi_awready = '0' and s_axi_awvalid = '1' then
                     axi_awready <= '1';
                     aw_addr     <= s_axi_awaddr;
@@ -398,18 +297,25 @@ begin
                     axi_awready <= '0';
                 end if;
 
-                -- Accept write data
                 if axi_wready = '0' and s_axi_wvalid = '1' then
                     axi_wready <= '1';
                 else
                     axi_wready <= '0';
                 end if;
 
-                -- Write to register
                 if axi_awready = '1' and axi_wready = '1' then
                     case to_integer(unsigned(aw_addr)) / 4 is
-                        when A_CONTROL          => reg_control          <= s_axi_wdata;
-                        when A_CONTROL_RT       => reg_control_rt       <= s_axi_wdata;
+                        when A_CONTROL =>
+                            -- Store without bit 3; detect config_apply from wdata
+                            reg_control <= s_axi_wdata and x"FFFFFFF7";
+                            if s_axi_wdata(3) = '1' then
+                                config_apply_int <= '1';
+                            end if;
+                        when A_CONTROL_RT =>
+                            reg_control_rt <= s_axi_wdata and x"FFFFFFFE";
+                            if s_axi_wdata(0) = '1' then
+                                fault_clear_int <= '1';
+                            end if;
                         when A_RST_CYCLES       => reg_rst_cycles       <= s_axi_wdata;
                         when A_CAM_DBC          => reg_cam_dbc          <= s_axi_wdata;
                         when A_CRANK_DBC        => reg_crank_dbc        <= s_axi_wdata;
@@ -426,7 +332,7 @@ begin
                         when A_PHASE_REF_ANG    => reg_phase_ref_ang    <= s_axi_wdata;
                         when A_PHASE_REF_TOL    => reg_phase_ref_tol    <= s_axi_wdata;
                         when A_TDC_OFFSET       => reg_tdc_offset       <= s_axi_wdata;
-                        when A_PLL_PHASE_ERR_THRESH => reg_pll_phase_thresh <= s_axi_wdata;
+                        when A_PLL_PHASE_THRESH => reg_pll_phase_thresh <= s_axi_wdata;
                         when A_PLL_KP           => reg_pll_kp           <= s_axi_wdata;
                         when A_PLL_KI           => reg_pll_ki           <= s_axi_wdata;
                         when A_PLL_CORR_MAX     => reg_pll_corr_max     <= s_axi_wdata;
@@ -437,7 +343,6 @@ begin
                     end case;
                 end if;
 
-                -- Write response
                 if axi_awready = '1' and axi_wready = '1' then
                     axi_bvalid <= '1';
                 elsif axi_bvalid = '1' and s_axi_bready = '1' then
@@ -448,7 +353,7 @@ begin
     end process p_write;
 
     -- =========================================================================
-    -- AXI-Lite read channel
+    -- AXI read channel
     -- =========================================================================
     p_read : process(s_axi_aclk)
     begin
@@ -469,7 +374,6 @@ begin
                 if axi_arready = '1' and axi_rvalid = '0' then
                     axi_rvalid <= '1';
                     case to_integer(unsigned(ar_addr)) / 4 is
-                        -- Write register readback
                         when A_CONTROL          => axi_rdata <= reg_control;
                         when A_CONTROL_RT       => axi_rdata <= reg_control_rt;
                         when A_RST_CYCLES       => axi_rdata <= reg_rst_cycles;
@@ -488,14 +392,13 @@ begin
                         when A_PHASE_REF_ANG    => axi_rdata <= reg_phase_ref_ang;
                         when A_PHASE_REF_TOL    => axi_rdata <= reg_phase_ref_tol;
                         when A_TDC_OFFSET       => axi_rdata <= reg_tdc_offset;
-                        when A_PLL_PHASE_ERR_THRESH => axi_rdata <= reg_pll_phase_thresh;
+                        when A_PLL_PHASE_THRESH => axi_rdata <= reg_pll_phase_thresh;
                         when A_PLL_KP           => axi_rdata <= reg_pll_kp;
                         when A_PLL_KI           => axi_rdata <= reg_pll_ki;
                         when A_PLL_CORR_MAX     => axi_rdata <= reg_pll_corr_max;
                         when A_TRIG_DECIMATION  => axi_rdata <= reg_trig_decimation;
                         when A_TRIG_PULSE_WIDTH => axi_rdata <= reg_trig_pulse_width;
                         when A_DMA_BUFFER_SIZE  => axi_rdata <= reg_dma_buffer_size;
-                        -- Read-only status registers
                         when A_SYNC_STATE       => axi_rdata <= x"0000000" & "00" & std_logic_vector(sync_state);
                         when A_SYNC_FAULT_COUNT => axi_rdata <= x"0000" & std_logic_vector(sync_fault_count);
                         when A_SPEED_RPM_SLOW   => axi_rdata <= x"0000" & std_logic_vector(speed_rpm_slow);
@@ -552,38 +455,32 @@ begin
     end process p_read;
 
     -- =========================================================================
-    -- config_apply: latch startup config, start divider, assert rst
+    -- Config latch and reset counter
     -- =========================================================================
     p_config : process(s_axi_aclk)
     begin
         if rising_edge(s_axi_aclk) then
             if s_axi_aresetn = '0' then
-                config_valid         <= '0';
-                rst_counter          <= (others => '0');
-                div_start            <= '0';
-                latch_crank_edge_sel <= '1';
-                latch_src_sel        <= '0';
-                latch_ref_sel        <= '0';
-                latch_cam_edge_sel   <= '1';
-                latch_ang_sel        <= '0';
-                latch_gap_thresh     <= x"C0";
-                latch_crank_n_teeth  <= to_unsigned(60, 8);
-                latch_crank_n_missing<= to_unsigned(2, 8);
-                latch_cam_n_teeth    <= to_unsigned(1, 8);
-                latch_enc_n_ppr      <= to_unsigned(96, 16);
-                latch_enc_ab_edge_sel<= (others => '0');
-                latch_enc_z_edge_sel <= '0';
-                latch_dma_buffer_size<= to_unsigned(2, 4);
-                reg_control(3)       <= '0';
+                config_valid          <= '0';
+                rst_counter           <= (others => '0');
+                div_start             <= '0';
+                latch_crank_edge_sel  <= '1';
+                latch_src_sel         <= '0';
+                latch_ref_sel         <= '0';
+                latch_cam_edge_sel    <= '1';
+                latch_ang_sel         <= '0';
+                latch_gap_thresh      <= x"C0";
+                latch_crank_n_teeth   <= to_unsigned(60, 8);
+                latch_crank_n_missing <= to_unsigned(2, 8);
+                latch_cam_n_teeth     <= to_unsigned(1, 8);
+                latch_enc_n_ppr       <= to_unsigned(96, 16);
+                latch_enc_ab_edge_sel <= (others => '0');
+                latch_enc_z_edge_sel  <= '0';
+                latch_dma_buffer_size <= to_unsigned(2, 4);
             else
                 div_start <= '0';
 
-                -- config_apply fires on CONTROL[3]
-                if reg_control(3) = '1' then
-                    -- Self-clear
-                    reg_control(3) <= '0';
-
-                    -- Latch startup config
+                if config_apply_int = '1' then
                     latch_crank_edge_sel  <= reg_control(0);
                     latch_src_sel         <= reg_control(1);
                     latch_ref_sel         <= reg_control(2);
@@ -597,39 +494,28 @@ begin
                     latch_enc_ab_edge_sel <= unsigned(reg_enc_ab_edge_sel(1 downto 0));
                     latch_enc_z_edge_sel  <= reg_enc_z_edge_sel(0);
                     latch_dma_buffer_size <= unsigned(reg_dma_buffer_size(3 downto 0));
-
-                    -- Start rst counter
-                    config_valid <= '1';
-                    rst_counter  <= unsigned(reg_rst_cycles(8 downto 0));
-
-                    -- Start pll_nco_ab_inc divider
-                    div_start <= '1';
+                    config_valid          <= '1';
+                    rst_counter           <= unsigned(reg_rst_cycles(8 downto 0));
+                    div_start             <= '1';
                 end if;
 
-                -- Count down rst
                 if rst_counter > 0 then
                     rst_counter <= rst_counter - 1;
-                end if;
-
-                -- fault_clear self-clears
-                if reg_control_rt(0) = '1' then
-                    reg_control_rt(0) <= '0';
                 end if;
             end if;
         end if;
     end process p_config;
 
-    -- rst_out: high when not yet configured OR during rst_counter window
-    rst_int <= '1' when (config_valid = '0' or rst_counter > 0) else '0';
-    rst_out <= rst_int;
+    rst_out <= '1' when (config_valid = '0' or rst_counter > 0) else '0';
 
     -- =========================================================================
-    -- Startup calc: pll_nco_ab_inc = 0xFFFFFFFF / ppr
-    -- Sequential restoring divider (32-bit / 8-bit = 32 cycles max)
-    -- Starts on div_start, result available in nco_ab_inc_int after div_done
+    -- Startup divider: pll_nco_ab_inc = 0xFFFFFFFF / ppr
+    -- Sequential restoring, 32-bit / 8-bit, max 32 cycles
     -- =========================================================================
     p_divider : process(s_axi_aclk)
-        variable step_div : unsigned(31 downto 0);
+        variable step_div : unsigned(63 downto 0);
+        variable new_q    : unsigned(31 downto 0);
+        variable new_rem  : unsigned(31 downto 0);
     begin
         if rising_edge(s_axi_aclk) then
             if s_axi_aresetn = '0' then
@@ -637,31 +523,28 @@ begin
                 nco_ab_inc_int <= (others => '0');
             else
                 if div_start = '1' and div_busy = '0' then
-                    -- Select divisor based on latched src_sel
-                    if latch_src_sel = '0' then
-                        div_divisor <= latch_crank_n_teeth;
+                    if reg_control(1) = '0' then
+                        div_divisor <= unsigned(reg_crank_n_teeth(7 downto 0));
                     else
-                        div_divisor <= unsigned(latch_enc_n_ppr(7 downto 0));
+                        div_divisor <= unsigned(reg_enc_n_ppr(7 downto 0));
                     end if;
-                    div_remainder <= (others => '1');  -- 0xFFFFFFFF
+                    div_remainder <= (others => '1');
                     div_q         <= (others => '0');
                     div_shift     <= 31;
                     div_busy      <= '1';
-
                 elsif div_busy = '1' then
-                    -- Restoring division step
-                    step_div := resize(div_divisor, 32) sll div_shift;
-                    if div_remainder >= step_div then
-                        div_remainder    <= div_remainder - step_div;
-                        div_q(div_shift) <= '1';
+                    step_div := resize(div_divisor, 64) sll div_shift;
+                    new_q    := div_q;
+                    new_rem  := div_remainder;
+                    if resize(div_remainder, 64) >= step_div then
+                        new_rem  := div_remainder - step_div(31 downto 0);
+                        new_q(div_shift) := '1';
                     end if;
+                    div_q         <= new_q;
+                    div_remainder <= new_rem;
                     if div_shift = 0 then
                         div_busy       <= '0';
-                        nco_ab_inc_int <= div_q;
-                        -- Set final bit if it was set this cycle
-                        if div_remainder >= step_div then
-                            nco_ab_inc_int(0) <= '1';
-                        end if;
+                        nco_ab_inc_int <= new_q;
                     else
                         div_shift <= div_shift - 1;
                     end if;
@@ -673,39 +556,36 @@ begin
     -- =========================================================================
     -- Output assignments
     -- =========================================================================
-    -- Startup config (latched)
-    crank_edge_sel   <= latch_crank_edge_sel;
-    src_sel          <= latch_src_sel;
-    ref_sel          <= latch_ref_sel;
-    cam_edge_sel     <= latch_cam_edge_sel;
-    ang_sel          <= latch_ang_sel;
-    crank_gap_thresh <= latch_gap_thresh;
-    crank_n_teeth    <= latch_crank_n_teeth;
-    crank_n_missing  <= latch_crank_n_missing;
-    cam_n_teeth      <= latch_cam_n_teeth;
-    enc_n_ppr        <= latch_enc_n_ppr;
-    enc_ab_edge_sel  <= latch_enc_ab_edge_sel;
-    enc_z_edge_sel   <= latch_enc_z_edge_sel;
-    dma_buffer_size  <= latch_dma_buffer_size;
-    pll_nco_ab_inc   <= nco_ab_inc_int;
-
-    -- Runtime config (direct)
-    fault_clear      <= reg_control_rt(0);
-    pll_corr_dir     <= reg_control_rt(1);
-    phase_fault_drop <= reg_control_rt(2);
-    cam_debounce     <= unsigned(reg_cam_dbc(15 downto 0));
-    crank_debounce   <= unsigned(reg_crank_dbc(15 downto 0));
-    enc_a_debounce   <= unsigned(reg_enc_a_dbc(15 downto 0));
-    enc_b_debounce   <= unsigned(reg_enc_b_dbc(15 downto 0));
-    enc_z_debounce   <= unsigned(reg_enc_z_dbc(15 downto 0));
-    phase_ref_ang    <= unsigned(reg_phase_ref_ang(15 downto 0));
-    phase_ref_tol    <= unsigned(reg_phase_ref_tol(15 downto 0));
-    tdc_offset       <= unsigned(reg_tdc_offset(15 downto 0));
+    crank_edge_sel       <= latch_crank_edge_sel;
+    src_sel              <= latch_src_sel;
+    ref_sel              <= latch_ref_sel;
+    cam_edge_sel         <= latch_cam_edge_sel;
+    ang_sel              <= latch_ang_sel;
+    crank_gap_thresh     <= latch_gap_thresh;
+    crank_n_teeth        <= latch_crank_n_teeth;
+    crank_n_missing      <= latch_crank_n_missing;
+    cam_n_teeth          <= latch_cam_n_teeth;
+    enc_n_ppr            <= latch_enc_n_ppr;
+    enc_ab_edge_sel      <= latch_enc_ab_edge_sel;
+    enc_z_edge_sel       <= latch_enc_z_edge_sel;
+    dma_buffer_size      <= latch_dma_buffer_size;
+    pll_nco_ab_inc       <= nco_ab_inc_int;
+    fault_clear          <= fault_clear_int;
+    pll_corr_dir         <= reg_control_rt(1);
+    phase_fault_drop     <= reg_control_rt(2);
+    cam_debounce         <= unsigned(reg_cam_dbc(15 downto 0));
+    crank_debounce       <= unsigned(reg_crank_dbc(15 downto 0));
+    enc_a_debounce       <= unsigned(reg_enc_a_dbc(15 downto 0));
+    enc_b_debounce       <= unsigned(reg_enc_b_dbc(15 downto 0));
+    enc_z_debounce       <= unsigned(reg_enc_z_dbc(15 downto 0));
+    phase_ref_ang        <= unsigned(reg_phase_ref_ang(15 downto 0));
+    phase_ref_tol        <= unsigned(reg_phase_ref_tol(15 downto 0));
+    tdc_offset           <= unsigned(reg_tdc_offset(15 downto 0));
     pll_phase_err_thresh <= unsigned(reg_pll_phase_thresh);
-    pll_kp           <= unsigned(reg_pll_kp(15 downto 0));
-    pll_ki           <= unsigned(reg_pll_ki(15 downto 0));
-    pll_corr_max     <= unsigned(reg_pll_corr_max(15 downto 0));
-    trig_decimation  <= unsigned(reg_trig_decimation(15 downto 0));
-    trig_pulse_width <= unsigned(reg_trig_pulse_width(15 downto 0));
+    pll_kp               <= unsigned(reg_pll_kp(15 downto 0));
+    pll_ki               <= unsigned(reg_pll_ki(15 downto 0));
+    pll_corr_max         <= unsigned(reg_pll_corr_max(15 downto 0));
+    trig_decimation      <= unsigned(reg_trig_decimation(15 downto 0));
+    trig_pulse_width     <= unsigned(reg_trig_pulse_width(15 downto 0));
 
 end architecture rtl;
