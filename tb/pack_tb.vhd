@@ -76,6 +76,24 @@ begin
         wait for 10 * CLK_PERIOD;  -- drain
         report "T3: PASS";
 
+        -- T4: tlast on last word of dma_buffer_size (2) z_edge cycles
+        tready <= '1';
+        -- Wait for any in-flight packet from T3 to drain
+        wait for 20 * CLK_PERIOD;  -- enough time to drain 5-word packet
+        -- Fire 2 z_edges to count up to dma_buffer_size=2, next_is_last goes high
+        z_edge <= '1'; wait for CLK_PERIOD; z_edge <= '0'; wait for CLK_PERIOD;
+        z_edge <= '1'; wait for CLK_PERIOD; z_edge <= '0'; wait for CLK_PERIOD;
+        -- Fire trig -- last_sample should be latched from next_is_last
+        trig_pulse <= '1'; wait for CLK_PERIOD; trig_pulse <= '0';
+        -- Wait for tlast to appear (will be on word 4 of the packet)
+        wait until tlast = '1';
+        wait for 1 ns;
+        assert tlast = '1' report "FAIL T4: tlast not set on buffer boundary" severity failure;
+        -- Verify it clears after word4 accepted
+        wait until rising_edge(clk); wait for 1 ns;
+        assert tlast = '0' report "FAIL T4: tlast did not clear after word4" severity failure;
+        report "T4: PASS";
+
         report "All pack tests PASS";
         done <= true; std.env.stop; wait;
     end process;
