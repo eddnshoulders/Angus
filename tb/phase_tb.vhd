@@ -32,7 +32,7 @@ begin
         phase_ref_tol=>ref_tol, tdc_offset=>tdc_off, phase_raw=>ph_raw,
         phase_ref_det=>ph_ref_det, phase_ref_ok=>ph_ref_ok,
         phase_ref_found=>ph_ref_found, phase_inv=>ph_inv, phase_inv_latch=>ph_inv_l,
-        phase_ang_corr=>ph_ang_corr, phase_eng=>ph_eng, phase_ang_eng=>ph_ang_eng,
+        phase_ang_corr=>ph_ang_corr, phase_eng=>ph_eng, phase_eng_ang=>ph_ang_eng,
         phase_ref_det_cnt=>det_cnt);
 
     p_stim : process
@@ -57,10 +57,10 @@ begin
         assert ph_ref_ok = '1'    report "FAIL T2: phase_ref_ok not set" severity failure;
         report "T2: PASS";
 
-        -- T3: phase_ang_eng = 0 before phase_ref_found (already found, test tdc_offset)
-        -- With tdc_offset=0: phase_ang_eng = angle_deg
+        -- T3: phase_eng_ang = 0 before phase_ref_found (already found, test tdc_offset)
+        -- With tdc_offset=0: phase_eng_ang = angle_deg
         assert to_integer(ph_ang_eng) = 1800
-            report "FAIL T3: phase_ang_eng wrong: " & integer'image(to_integer(ph_ang_eng)) severity failure;
+            report "FAIL T3: phase_eng_ang wrong: " & integer'image(to_integer(ph_ang_eng)) severity failure;
         report "T3: PASS";
 
         -- T4: ref_edge in window2 (1800+3600=5400 deg) -> phase_inv=1
