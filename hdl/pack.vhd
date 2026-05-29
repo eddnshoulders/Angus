@@ -48,8 +48,6 @@ architecture rtl of pack is
     type t_state is (IDLE, WORD0, WORD1, WORD2, WORD3, WORD4);
     signal state         : t_state := IDLE;
     signal word_count    : unsigned(2 downto 0) := (others => '0');
-    signal sample_count  : unsigned(15 downto 0) := (others => '0');
-    signal cycle_count   : unsigned(3 downto 0) := (others => '0');
     signal pkt_cnt       : unsigned(31 downto 0) := (others => '0');
     signal ovf_cnt       : unsigned(15 downto 0) := (others => '0');
     signal tvalid_int    : std_logic := '0';
@@ -66,6 +64,8 @@ architecture rtl of pack is
     signal s_adc5        : unsigned(11 downto 0) := (others => '0');
     signal s_adc6        : unsigned(11 downto 0) := (others => '0');
     signal last_sample   : std_logic := '0';
+    signal cycle_cnt_int : unsigned(3 downto 0) := (others => '0');
+    signal next_is_last  : std_logic := '0';  -- set by z_edge, cleared after tlast
 begin
 
     p_pack : process(clk)
@@ -77,15 +77,9 @@ begin
                 tlast_int    <= '0';
                 pkt_cnt      <= (others => '0');
                 ovf_cnt      <= (others => '0');
-                sample_count <= (others => '0');
-                cycle_count  <= (others => '0');
                 last_sample  <= '0';
             else
-                -- z_edge resets cycle counter
-                if z_edge = '1' then
-                    sample_count <= (others => '0');
-                    cycle_count  <= (others => '0');
-                end if;
+                -- z_edge: handled by p_cycle_count process
 
                 -- Overflow: trig_pulse arrives but not in IDLE state
                 if trig_pulse = '1' and state /= IDLE then
@@ -101,6 +95,8 @@ begin
                         if trig_pulse = '1' then
                             -- Check if DMA is ready
                             if m_axis_tready = '1' or tvalid_int = '0' then
+                                -- Latch last_sample flag from cycle counter
+                                last_sample <= next_is_last;
                                 -- Latch sample data
                                 s_ang   <= ang_deg;
                                 s_speed <= speed_rpm_fast;
@@ -111,16 +107,7 @@ begin
                                 s_adc4  <= adc_ch4;
                                 s_adc5  <= adc_ch5;
                                 s_adc6  <= adc_ch6;
-                                -- Determine if this is the last sample in buffer
-                                sample_count <= sample_count + 1;
-                                if sample_count + 1 >= resize(dma_buffer_size, 16) * to_unsigned(720, 16) then
-                                    last_sample  <= '1';
-                                    sample_count <= (others => '0');
-                                    cycle_count  <= cycle_count + 1;
-                                else
-                                    last_sample <= '0';
-                                end if;
-                                state <= WORD0;
+                                state   <= WORD0;
                             else
                                 -- Overflow
                                 if ovf_cnt /= (ovf_cnt'range => '1') then
@@ -160,13 +147,11 @@ begin
                     when WORD4 =>
                         tdata_int <= x"0" & std_logic_vector(s_adc5) &
                                      x"0" & std_logic_vector(s_adc6);
-                        tlast_int <= last_sample;
+                        tlast_int <= last_sample;  -- assert tlast on this word
                         if m_axis_tready = '1' then
-                            pkt_cnt <= pkt_cnt + 1;
-                            state   <= IDLE;
-                            if last_sample = '1' then
-                                tlast_int <= '0';
-                            end if;
+                            pkt_cnt   <= pkt_cnt + 1;
+                            state     <= IDLE;
+                            -- tlast cleared in IDLE state (next cycle)
                         end if;
 
                     when others =>
@@ -175,6 +160,33 @@ begin
             end if;
         end if;
     end process p_pack;
+
+    -- =========================================================================
+    -- Cycle counter: counts z_edges, flags last sample in DMA buffer
+    -- =========================================================================
+    p_cycle_count : process(clk)
+    begin
+        if rising_edge(clk) then
+            if rst = '1' then
+                cycle_cnt_int <= (others => '0');
+                next_is_last  <= '0';
+            else
+                if z_edge = '1' then
+                    if cycle_cnt_int + 1 >= resize(dma_buffer_size, 4) then
+                        next_is_last  <= '1';
+                        cycle_cnt_int <= (others => '0');
+                    else
+                        cycle_cnt_int <= cycle_cnt_int + 1;
+                        next_is_last  <= '0';
+                    end if;
+                end if;
+                -- Clear after tlast sent
+                if state = WORD4 and m_axis_tready = '1' and last_sample = '1' then
+                    next_is_last <= '0';
+                end if;
+            end if;
+        end if;
+    end process p_cycle_count;
 
     m_axis_tdata  <= tdata_int;
     m_axis_tvalid <= tvalid_int;
