@@ -117,7 +117,6 @@ architecture rtl of top is
     signal enc_ab_edge_sel : unsigned(1 downto 0);
     signal enc_z_edge_sel  : std_logic;
     signal dma_buffer_size : unsigned(3 downto 0);
-    signal pll_nco_ab_inc  : unsigned(31 downto 0);  -- TODO: move to angle.vhd
 
     -- AXI-lite config outputs (runtime)
     signal fault_clear     : std_logic;
@@ -209,9 +208,9 @@ architecture rtl of top is
     -- =========================================================================
     -- Angle block
     -- =========================================================================
-    signal angle_deg       : unsigned(15 downto 0);
-    -- TODO: angle_phase removed; angle.vhd rewrite will add angle_nco_ab_inc,
-    --       angle_nco_clk_inc, angle_nco_accum
+    signal angle_deg          : unsigned(15 downto 0);
+    signal angle_nco_ab_inc   : unsigned(31 downto 0);  -- from angle, to pll + axi
+    signal angle_nco_clk_inc  : unsigned(31 downto 0);  -- from angle, to pll
 
     -- =========================================================================
     -- Phase block
@@ -334,7 +333,7 @@ begin
             enc_ab_edge_sel     => enc_ab_edge_sel,
             enc_z_edge_sel      => enc_z_edge_sel,
             dma_buffer_size     => dma_buffer_size,
-            pll_nco_ab_inc      => pll_nco_ab_inc,
+            pll_nco_ab_inc      => angle_nco_ab_inc,  -- from angle.vhd
             -- Runtime config
             fault_clear         => fault_clear,
             pll_corr_dir        => pll_corr_dir,
@@ -529,8 +528,10 @@ begin
                   z_edge=>z_edge,
                   ab_period=>ab_period,
                   ppr_conf=>ppr_conf,
+                  angle_interp_en=>angle_interp_en,
                   angle_deg=>angle_deg,
-                  angle_phase=>open);
+                  angle_nco_ab_inc=>angle_nco_ab_inc,
+                  angle_nco_clk_inc=>angle_nco_clk_inc);
 
     -- =========================================================================
     -- Phase
@@ -592,7 +593,7 @@ begin
                   ab_edge=>ab_edge,
                   ab_period=>ab_period,
                   z_edge=>z_edge,
-                  pll_nco_ab_inc=>pll_nco_ab_inc,
+                  pll_nco_ab_inc=>angle_nco_ab_inc,
                   pll_kp=>pll_kp,
                   pll_ki=>pll_ki,
                   pll_corr_dir=>pll_corr_dir,
