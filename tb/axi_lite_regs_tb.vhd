@@ -153,6 +153,7 @@ begin
             ref_sel          => ref_sel,
             cam_edge_sel     => cam_edge_sel,
             ang_sel          => ang_sel,
+            angle_interp_en  => open,
             crank_gap_thresh => crank_gap_thresh,
             crank_n_teeth    => crank_n_teeth,
             crank_n_missing  => crank_n_missing,
@@ -179,6 +180,9 @@ begin
             pll_corr_max     => pll_corr_max,
             trig_decimation  => trig_decimation,
             trig_pulse_width => trig_pulse_width,
+            max_rpm          => open,
+            peak_hyst        => open,
+            peak_pulse_cycles => open,
             sync_state       => sync_state_in,
             sync_fault_count => sync_fault_cnt_in,
             speed_rpm_slow   => speed_slow_in,
@@ -266,16 +270,16 @@ begin
         test_num <= 1;
         report "T1: AXI write/read";
 
-        axi_write(16#00C#, x"0000001E");  -- CAM_DBC=30
-        axi_read (16#00C#, rd);
+        axi_write(16#014#, x"0000001E");  -- CAM_DBC=30
+        axi_read (16#014#, rd);
         assert rd = x"0000001E" report "FAIL T1: CAM_DBC" severity failure;
 
-        axi_write(16#04C#, x"00000100");  -- PLL_KP=256
-        axi_read (16#04C#, rd);
+        axi_write(16#054#, x"00000100");  -- PLL_KP=256
+        axi_read (16#054#, rd);
         assert rd = x"00000100" report "FAIL T1: PLL_KP" severity failure;
 
-        axi_write(16#048#, x"DEADBEEF");
-        axi_read (16#048#, rd);
+        axi_write(16#050#, x"DEADBEEF");
+        axi_read (16#050#, rd);
         assert rd = x"DEADBEEF" report "FAIL T1: PLL_PHASE_ERR_THRESH" severity failure;
 
         report "T1: PASS";
@@ -286,8 +290,8 @@ begin
         test_num <= 2;
         report "T2: config_apply";
 
-        axi_write(16#024#, x"00000028");  -- CRANK_N_TEETH=40
-        axi_write(16#028#, x"00000001");  -- CRANK_N_MISSING=1
+        axi_write(16#02C#, x"00000028");  -- CRANK_N_TEETH=40
+        axi_write(16#030#, x"00000001");  -- CRANK_N_MISSING=1
         axi_write(16#008#, x"00000010");  -- RST_CYCLES=16
 
         -- CONTROL: [0]=crank_edge_sel=1, [2]=ref_sel=1, [3]=config_apply, [5]=ang_sel=1
@@ -335,7 +339,7 @@ begin
         test_num <= 4;
         report "T4: pll_nco_ab_inc crank ppr=60";
 
-        axi_write(16#024#, x"0000003C");  -- CRANK_N_TEETH=60
+        axi_write(16#02C#, x"0000003C");  -- CRANK_N_TEETH=60
         axi_write(16#008#, x"00000020");  -- RST_CYCLES=32
         axi_write(16#000#, x"00000008");  -- config_apply, src_sel=0
 
@@ -358,7 +362,7 @@ begin
         test_num <= 5;
         report "T5: pll_nco_ab_inc enc ppr=36";
 
-        axi_write(16#030#, x"00000024");  -- ENC_N_PPR=36
+        axi_write(16#038#, x"00000024");  -- ENC_N_PPR=36
         -- CONTROL: src_sel=1 (bit1), config_apply (bit3) = 0x0A
         axi_write(16#000#, x"0000000A");
 
@@ -407,7 +411,7 @@ begin
         test_num <= 7;
         report "T7: runtime config direct outputs";
 
-        axi_write(16#00C#, x"000001F4");  -- CAM_DBC=500
+        axi_write(16#014#, x"000001F4");  -- CAM_DBC=500
         wait for CLK_PERIOD;
         assert to_integer(cam_debounce) = 500 report "FAIL T7: cam_debounce" severity failure;
 
