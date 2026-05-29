@@ -1,54 +1,56 @@
 {
    "ActiveEmotionalView":"Default View",
-   "Default View_ScaleFactor":"0.705363",
-   "Default View_TopLeft":"-227,-278",
+   "Default View_ScaleFactor":"1.10871",
+   "Default View_TopLeft":"757,21",
    "ExpandedHierarchyInLayout":"",
    "PinnedPorts":"",
    "guistr":"# # String gsaved with Nlview 7.7.1 2023-07-26 3bc4126617 VDI=43 GEI=38 GUI=JA:21.0 TLS
 #  -string -flagsOSRD
-preplace port DDR -pg 1 -lvl 7 -x 2870 -y 590 -defaultsOSRD
-preplace port FIXED_IO -pg 1 -lvl 7 -x 2870 -y 610 -defaultsOSRD
-preplace port port-id_crank_raw_0 -pg 1 -lvl 0 -x -30 -y 123 -defaultsOSRD
-preplace port port-id_cam_raw_0 -pg 1 -lvl 0 -x -30 -y 150 -defaultsOSRD
-preplace port port-id_CAN0_PHY_TX_0 -pg 1 -lvl 7 -x 2870 -y 720 -defaultsOSRD
-preplace port port-id_CAN0_PHY_RX_0 -pg 1 -lvl 0 -x -30 -y 740 -defaultsOSRD
-preplace portBus digital_inputs_0 -pg 1 -lvl 0 -x -30 -y 170 -defaultsOSRD
-preplace portBus debug_out_0 -pg 1 -lvl 7 -x 2870 -y 250 -defaultsOSRD
+preplace port DDR -pg 1 -lvl 6 -x 2980 -y 610 -defaultsOSRD
+preplace port FIXED_IO -pg 1 -lvl 6 -x 2980 -y 570 -defaultsOSRD
+preplace port port-id_crank_raw_0 -pg 1 -lvl 0 -x -30 -y 290 -defaultsOSRD
+preplace port port-id_cam_raw_0 -pg 1 -lvl 0 -x -30 -y 270 -defaultsOSRD
+preplace port port-id_CAN0_PHY_TX_0 -pg 1 -lvl 6 -x 2980 -y 1150 -defaultsOSRD
+preplace port port-id_CAN0_PHY_RX_0 -pg 1 -lvl 0 -x -30 -y 1130 -defaultsOSRD
+preplace port port-id_z_raw_0 -pg 1 -lvl 0 -x -30 -y 350 -defaultsOSRD
+preplace port port-id_b_raw_0 -pg 1 -lvl 0 -x -30 -y 330 -defaultsOSRD
+preplace port port-id_a_raw_0 -pg 1 -lvl 0 -x -30 -y 310 -defaultsOSRD
+preplace portBus digital_inputs_0 -pg 1 -lvl 0 -x -30 -y 510 -defaultsOSRD
+preplace portBus debug_out_0 -pg 1 -lvl 6 -x 2980 -y 360 -defaultsOSRD
 preplace inst processing_system7_0 -pg 1 -lvl 2 -x 1100 -y 940 -defaultsOSRD
-preplace inst axi_dma_0 -pg 1 -lvl 6 -x 2630 -y 710 -defaultsOSRD
-preplace inst axi_interconnect_0 -pg 1 -lvl 4 -x 1770 -y 760 -defaultsOSRD
-preplace inst top_0 -pg 1 -lvl 5 -x 2180 -y 180 -defaultsOSRD -resize 300 296
+preplace inst axi_dma_0 -pg 1 -lvl 5 -x 2740 -y 710 -defaultsOSRD
+preplace inst axi_interconnect_0 -pg 1 -lvl 3 -x 1940 -y 760 -defaultsOSRD
 preplace inst smartconnect_0 -pg 1 -lvl 1 -x 470 -y 700 -defaultsOSRD
-preplace inst proc_sys_reset_0 -pg 1 -lvl 4 -x 1770 -y 1010 -defaultsOSRD
+preplace inst proc_sys_reset_0 -pg 1 -lvl 3 -x 1940 -y 1010 -defaultsOSRD
 preplace inst xlconstant_0 -pg 1 -lvl 2 -x 1100 -y 1290 -defaultsOSRD
-preplace inst xlconstant_1 -pg 1 -lvl 4 -x 1770 -y 240 -defaultsOSRD
-preplace inst xlconstant_2 -pg 1 -lvl 3 -x 1460 -y 310 -defaultsOSRD
-preplace inst xlconstant_3 -pg 1 -lvl 4 -x 1770 -y 350 -defaultsOSRD
-preplace netloc CAN0_PHY_RX_0_1 1 0 3 -10J 790 NJ 790 1330
-preplace netloc axi_dma_0_s2mm_introut 1 1 6 870 580 N 580 N 580 N 580 N 580 2820
-preplace netloc cam_raw_0_1 1 0 5 NJ 150 NJ 150 NJ 150 1540 143 NJ
-preplace netloc crank_raw_0_1 1 0 5 NJ 123 NJ 123 NJ 123 1540 125 NJ
-preplace netloc digital_inputs_0_1 1 0 5 NJ 170 NJ 170 NJ 170 1540 161 NJ
-preplace netloc proc_sys_reset_0_interconnect_aresetn 1 0 5 330 780 NJ 780 1350 900 1590 900 1950
-preplace netloc proc_sys_reset_0_peripheral_aresetn 1 4 2 2000 750 NJ
-preplace netloc processing_system7_0_CAN0_PHY_TX 1 2 5 NJ 920 1590 910 NJ 910 NJ 910 2830J
-preplace netloc processing_system7_0_FCLK_CLK0 1 0 6 320 800 850 1080 1350 970 1580 620 1990 620 2440
-preplace netloc processing_system7_0_FCLK_RESET0_N 1 2 2 1360 990 N
-preplace netloc top_0_debug_out 1 5 2 NJ 250 NJ
-preplace netloc xlconstant_0_dout 1 2 2 NJ 1290 1540
-preplace netloc xlconstant_1_dout 1 4 1 1970 180n
-preplace netloc xlconstant_2_dout 1 3 2 1540 180 1960
-preplace netloc xlconstant_3_dout 1 4 1 1980 217n
-preplace netloc axi_dma_0_M_AXI_S2MM 1 0 7 330 570 NJ 570 NJ 570 N 570 NJ 570 NJ 570 2810
-preplace netloc axi_interconnect_0_M00_AXI 1 4 1 1950 71n
-preplace netloc axi_interconnect_0_M01_AXI 1 4 2 2010 670 NJ
-preplace netloc processing_system7_0_DDR 1 2 5 NJ 860 1540 590 NJ 590 NJ 590 NJ
-preplace netloc processing_system7_0_FIXED_IO 1 2 5 NJ 880 1550 610 NJ 610 NJ 610 NJ
-preplace netloc processing_system7_0_M_AXI_GP0 1 2 2 1340 890 1560
+preplace inst xlconstant_1 -pg 1 -lvl 3 -x 1940 -y 430 -defaultsOSRD
+preplace inst top_0 -pg 1 -lvl 4 -x 2360 -y 350 -defaultsOSRD
+preplace netloc CAN0_PHY_RX_0_1 1 0 3 NJ 1130 NJ 1130 1330
+preplace netloc a_raw_0_1 1 0 4 NJ 310 NJ 310 NJ 310 NJ
+preplace netloc axi_dma_0_s2mm_introut 1 1 5 870 600 N 600 N 600 N 600 2930
+preplace netloc b_raw_0_1 1 0 4 NJ 330 NJ 330 NJ 330 NJ
+preplace netloc cam_raw_0_1 1 0 4 NJ 270 NJ 270 NJ 270 N
+preplace netloc crank_raw_0_1 1 0 4 NJ 290 NJ 290 NJ 290 N
+preplace netloc digital_inputs_0_1 1 0 4 NJ 510 NJ 510 NJ 510 N
+preplace netloc proc_sys_reset_0_interconnect_aresetn 1 0 4 330 780 NJ 780 1720 900 2120
+preplace netloc proc_sys_reset_0_peripheral_aresetn 1 3 2 2190 750 NJ
+preplace netloc processing_system7_0_CAN0_PHY_TX 1 2 4 1760J 910 2130J 1150 NJ 1150 NJ
+preplace netloc processing_system7_0_FCLK_CLK0 1 0 5 320 790 850 1080 1750 620 2180 620 2550
+preplace netloc processing_system7_0_FCLK_RESET0_N 1 2 1 1760 990n
+preplace netloc top_0_debug_out 1 4 2 N 360 NJ
+preplace netloc xlconstant_0_dout 1 2 1 1760J 1050n
+preplace netloc xlconstant_1_dout 1 3 1 2200 370n
+preplace netloc z_raw_0_1 1 0 4 NJ 350 NJ 350 NJ 350 NJ
+preplace netloc axi_dma_0_M_AXI_S2MM 1 0 6 330 590 NJ 590 NJ 590 NJ 590 NJ 590 2920
+preplace netloc axi_interconnect_0_M00_AXI 1 3 1 2120 190n
+preplace netloc axi_interconnect_0_M01_AXI 1 3 2 2200 670 NJ
+preplace netloc processing_system7_0_DDR 1 2 4 1730J 610 NJ 610 NJ 610 NJ
+preplace netloc processing_system7_0_FIXED_IO 1 2 4 1330J 570 NJ 570 NJ 570 NJ
+preplace netloc processing_system7_0_M_AXI_GP0 1 2 1 1740 680n
 preplace netloc smartconnect_0_M00_AXI 1 1 1 860 700n
-preplace netloc top_0_m_axis 1 5 1 2450 110n
-levelinfo -pg 1 -30 470 1100 1460 1770 2180 2630 2870
-pagesize -pg 1 -db -bbox -sgen -230 -330 3060 1350
+preplace netloc top_0_m_axis 1 4 1 2560 340n
+levelinfo -pg 1 -30 470 1100 1940 2360 2740 2980
+pagesize -pg 1 -db -bbox -sgen -230 -410 3170 1350
 "
 }
 {

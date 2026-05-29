@@ -617,10 +617,10 @@
 					"interface": "xilinx.com:interface:aximm:1.0",
 					"ports": {
 						"ACLK": { "actual": "clk"},
-						"ARADDR": { "actual": "s_axi_araddr[6:0]"},
+						"ARADDR": { "actual": "s_axi_araddr[8:0]"},
 						"ARREADY": { "actual": "s_axi_arready"},
 						"ARVALID": { "actual": "s_axi_arvalid"},
-						"AWADDR": { "actual": "s_axi_awaddr[6:0]"},
+						"AWADDR": { "actual": "s_axi_awaddr[8:0]"},
 						"AWREADY": { "actual": "s_axi_awready"},
 						"AWVALID": { "actual": "s_axi_awvalid"},
 						"BREADY": { "actual": "s_axi_bready"},

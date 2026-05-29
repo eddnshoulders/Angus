@@ -62,7 +62,7 @@ typedef bit bit_as_bool;
 
 (* SC_MODULE_EXPORT *)
 module pynq_z2_xlconstant_1_0 (
-  output bit [15 : 0 ] dout
+  output bit [11 : 0 ] dout
 );
 endmodule
 `endif
@@ -72,6 +72,6 @@ endmodule
 module pynq_z2_xlconstant_1_0 (dout)
 (* integer foreign = "SystemC";
 *);
- output wire [15 : 0 ] dout;
+ output wire [11 : 0 ] dout;
 endmodule
 `endif

@@ -1,12 +1,12 @@
 
 # file: pynq_z2_proc_sys_reset_0_1.xdc
 # (c) Copyright 2009 - 2013 Advanced Micro Devices, Inc. All rights reserved.
-# 
+#
 # This file contains confidential and proprietary information
 # of Advanced Micro Devices, Inc. and is protected under U.S. and
 # international copyright and other intellectual property
 # laws.
-# 
+#
 # DISCLAIMER
 # This disclaimer is not a license and does not grant any
 # rights to the materials distributed herewith. Except as
@@ -28,7 +28,7 @@
 # by a third party) even if such damage or loss was
 # reasonably foreseeable or AMD had been advised of the
 # possibility of the same.
-# 
+#
 # CRITICAL APPLICATIONS
 # AMD products are not designed or intended to be fail-
 # safe, or for use in any application requiring fail-safe
@@ -42,12 +42,12 @@
 # liability of any use of AMD products in Critical
 # Applications, subject only to applicable laws and
 # regulations governing limitations on product liability.
-# 
+#
 # THIS COPYRIGHT NOTICE AND DISCLAIMER MUST BE RETAINED AS
 # PART OF THIS FILE AT ALL TIMES.
 
 set_false_path -to [get_pins -hier *cdc_to*/D]
-create_waiver -type CDC -id {CDC-11} -user "proc_sys_reset" -desc "Timing uncritical paths" -tags "1171415" -scope -internal \
-    -to [get_pins -quiet -filter REF_PIN_NAME=~*D -of_objects [get_cells -hierarchical -filter {NAME =~ */ACTIVE_LOW_AUX.ACT_LO_AUX/GENERATE_LEVEL_P_S_CDC.SINGLE_BIT.CROSS_PLEVEL_IN2SCNDRY_IN_cdc_to}]]
+create_waiver -type CDC -id {CDC-11} -user "proc_sys_reset" -desc "Timing uncritical paths" -tags "1171415" -scope -internal -to [get_pins -quiet -filter REF_PIN_NAME=~*D -of_objects [get_cells -hierarchical -filter {NAME =~ */ACTIVE_LOW_AUX.ACT_LO_AUX/GENERATE_LEVEL_P_S_CDC.SINGLE_BIT.CROSS_PLEVEL_IN2SCNDRY_IN_cdc_to}]] -timestamp "Fri May 29 20:51:59 GMT 2026"
+
 
 

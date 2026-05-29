@@ -54,8 +54,8 @@
 #include "systemc.h"
 class pynq_z2_xlconstant_1_0 : public sc_module {
   public:
-xlconstant_v1_1_9<16,0x0000> mod;
-  sc_out< sc_bv<16> > dout;
+xlconstant_v1_1_9<12,0> mod;
+  sc_out< sc_bv<12> > dout;
 pynq_z2_xlconstant_1_0 (sc_core::sc_module_name name);
   };
 

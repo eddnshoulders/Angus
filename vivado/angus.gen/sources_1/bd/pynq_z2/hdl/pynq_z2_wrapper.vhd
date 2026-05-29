@@ -2,7 +2,7 @@
 --Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
 ----------------------------------------------------------------------------------
 --Tool Version: Vivado v.2024.1 (lin64) Build 5076996 Wed May 22 18:36:09 MDT 2024
---Date        : Tue May 26 00:35:54 2026
+--Date        : Fri May 29 20:58:31 2026
 --Host        : yocto running 64-bit Ubuntu 22.04.5 LTS
 --Command     : generate_target pynq_z2_wrapper.bd
 --Design      : pynq_z2_wrapper
@@ -37,10 +37,13 @@ entity pynq_z2_wrapper is
     FIXED_IO_ps_clk : inout STD_LOGIC;
     FIXED_IO_ps_porb : inout STD_LOGIC;
     FIXED_IO_ps_srstb : inout STD_LOGIC;
+    a_raw_0 : in STD_LOGIC;
+    b_raw_0 : in STD_LOGIC;
     cam_raw_0 : in STD_LOGIC;
     crank_raw_0 : in STD_LOGIC;
-    debug_out_0 : out STD_LOGIC_VECTOR ( 11 downto 0 );
-    digital_inputs_0 : in STD_LOGIC_VECTOR ( 7 downto 0 )
+    debug_out_0 : out STD_LOGIC_VECTOR ( 13 downto 0 );
+    digital_inputs_0 : in STD_LOGIC_VECTOR ( 7 downto 0 );
+    z_raw_0 : in STD_LOGIC
   );
 end pynq_z2_wrapper;
 
@@ -73,7 +76,10 @@ architecture STRUCTURE of pynq_z2_wrapper is
     digital_inputs_0 : in STD_LOGIC_VECTOR ( 7 downto 0 );
     CAN0_PHY_TX_0 : out STD_LOGIC;
     CAN0_PHY_RX_0 : in STD_LOGIC;
-    debug_out_0 : out STD_LOGIC_VECTOR ( 11 downto 0 )
+    debug_out_0 : out STD_LOGIC_VECTOR ( 13 downto 0 );
+    z_raw_0 : in STD_LOGIC;
+    b_raw_0 : in STD_LOGIC;
+    a_raw_0 : in STD_LOGIC
   );
   end component pynq_z2;
 begin
@@ -102,9 +108,12 @@ pynq_z2_i: component pynq_z2
       FIXED_IO_ps_clk => FIXED_IO_ps_clk,
       FIXED_IO_ps_porb => FIXED_IO_ps_porb,
       FIXED_IO_ps_srstb => FIXED_IO_ps_srstb,
+      a_raw_0 => a_raw_0,
+      b_raw_0 => b_raw_0,
       cam_raw_0 => cam_raw_0,
       crank_raw_0 => crank_raw_0,
-      debug_out_0(11 downto 0) => debug_out_0(11 downto 0),
-      digital_inputs_0(7 downto 0) => digital_inputs_0(7 downto 0)
+      debug_out_0(13 downto 0) => debug_out_0(13 downto 0),
+      digital_inputs_0(7 downto 0) => digital_inputs_0(7 downto 0),
+      z_raw_0 => z_raw_0
     );
 end STRUCTURE;

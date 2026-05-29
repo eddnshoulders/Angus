@@ -56,24 +56,9 @@ USE ieee.numeric_std.ALL;
 ENTITY pynq_z2_top_0_0 IS
   PORT (
     clk : IN STD_LOGIC;
-    rst_n : IN STD_LOGIC;
-    crank_raw : IN STD_LOGIC;
-    cam_raw : IN STD_LOGIC;
-    digital_inputs : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
-    xadc_do : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-    xadc_channel : IN STD_LOGIC_VECTOR(4 DOWNTO 0);
-    xadc_eoc : IN STD_LOGIC;
-    xadc_eos : IN STD_LOGIC;
-    xadc_busy : IN STD_LOGIC;
-    xadc_convst : OUT STD_LOGIC;
-    xadc_dclk : OUT STD_LOGIC;
-    xadc_den : OUT STD_LOGIC;
-    xadc_dwe : OUT STD_LOGIC;
-    xadc_daddr : OUT STD_LOGIC_VECTOR(6 DOWNTO 0);
-    xadc_di : OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
     s_axi_aclk : IN STD_LOGIC;
     s_axi_aresetn : IN STD_LOGIC;
-    s_axi_awaddr : IN STD_LOGIC_VECTOR(6 DOWNTO 0);
+    s_axi_awaddr : IN STD_LOGIC_VECTOR(8 DOWNTO 0);
     s_axi_awvalid : IN STD_LOGIC;
     s_axi_awready : OUT STD_LOGIC;
     s_axi_wdata : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
@@ -83,7 +68,7 @@ ENTITY pynq_z2_top_0_0 IS
     s_axi_bresp : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
     s_axi_bvalid : OUT STD_LOGIC;
     s_axi_bready : IN STD_LOGIC;
-    s_axi_araddr : IN STD_LOGIC_VECTOR(6 DOWNTO 0);
+    s_axi_araddr : IN STD_LOGIC_VECTOR(8 DOWNTO 0);
     s_axi_arvalid : IN STD_LOGIC;
     s_axi_arready : OUT STD_LOGIC;
     s_axi_rdata : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
@@ -94,7 +79,20 @@ ENTITY pynq_z2_top_0_0 IS
     m_axis_tvalid : OUT STD_LOGIC;
     m_axis_tready : IN STD_LOGIC;
     m_axis_tlast : OUT STD_LOGIC;
-    debug_out : OUT STD_LOGIC_VECTOR(11 DOWNTO 0)
+    cam_raw : IN STD_LOGIC;
+    crank_raw : IN STD_LOGIC;
+    a_raw : IN STD_LOGIC;
+    b_raw : IN STD_LOGIC;
+    z_raw : IN STD_LOGIC;
+    adc_ch0 : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
+    adc_ch1 : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
+    adc_ch2 : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
+    adc_ch3 : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
+    adc_ch4 : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
+    adc_ch5 : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
+    adc_ch6 : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
+    di_ch : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
+    debug_out : OUT STD_LOGIC_VECTOR(13 DOWNTO 0)
   );
 END pynq_z2_top_0_0;
 
@@ -104,24 +102,9 @@ ARCHITECTURE pynq_z2_top_0_0_arch OF pynq_z2_top_0_0 IS
   COMPONENT top IS
     PORT (
       clk : IN STD_LOGIC;
-      rst_n : IN STD_LOGIC;
-      crank_raw : IN STD_LOGIC;
-      cam_raw : IN STD_LOGIC;
-      digital_inputs : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
-      xadc_do : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-      xadc_channel : IN STD_LOGIC_VECTOR(4 DOWNTO 0);
-      xadc_eoc : IN STD_LOGIC;
-      xadc_eos : IN STD_LOGIC;
-      xadc_busy : IN STD_LOGIC;
-      xadc_convst : OUT STD_LOGIC;
-      xadc_dclk : OUT STD_LOGIC;
-      xadc_den : OUT STD_LOGIC;
-      xadc_dwe : OUT STD_LOGIC;
-      xadc_daddr : OUT STD_LOGIC_VECTOR(6 DOWNTO 0);
-      xadc_di : OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
       s_axi_aclk : IN STD_LOGIC;
       s_axi_aresetn : IN STD_LOGIC;
-      s_axi_awaddr : IN STD_LOGIC_VECTOR(6 DOWNTO 0);
+      s_axi_awaddr : IN STD_LOGIC_VECTOR(8 DOWNTO 0);
       s_axi_awvalid : IN STD_LOGIC;
       s_axi_awready : OUT STD_LOGIC;
       s_axi_wdata : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
@@ -131,7 +114,7 @@ ARCHITECTURE pynq_z2_top_0_0_arch OF pynq_z2_top_0_0 IS
       s_axi_bresp : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
       s_axi_bvalid : OUT STD_LOGIC;
       s_axi_bready : IN STD_LOGIC;
-      s_axi_araddr : IN STD_LOGIC_VECTOR(6 DOWNTO 0);
+      s_axi_araddr : IN STD_LOGIC_VECTOR(8 DOWNTO 0);
       s_axi_arvalid : IN STD_LOGIC;
       s_axi_arready : OUT STD_LOGIC;
       s_axi_rdata : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
@@ -142,7 +125,20 @@ ARCHITECTURE pynq_z2_top_0_0_arch OF pynq_z2_top_0_0 IS
       m_axis_tvalid : OUT STD_LOGIC;
       m_axis_tready : IN STD_LOGIC;
       m_axis_tlast : OUT STD_LOGIC;
-      debug_out : OUT STD_LOGIC_VECTOR(11 DOWNTO 0)
+      cam_raw : IN STD_LOGIC;
+      crank_raw : IN STD_LOGIC;
+      a_raw : IN STD_LOGIC;
+      b_raw : IN STD_LOGIC;
+      z_raw : IN STD_LOGIC;
+      adc_ch0 : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
+      adc_ch1 : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
+      adc_ch2 : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
+      adc_ch3 : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
+      adc_ch4 : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
+      adc_ch5 : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
+      adc_ch6 : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
+      di_ch : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
+      debug_out : OUT STD_LOGIC_VECTOR(13 DOWNTO 0)
     );
   END COMPONENT top;
   ATTRIBUTE X_INTERFACE_INFO : STRING;
@@ -154,8 +150,6 @@ ARCHITECTURE pynq_z2_top_0_0_arch OF pynq_z2_top_0_0 IS
   ATTRIBUTE X_INTERFACE_INFO OF m_axis_tlast: SIGNAL IS "xilinx.com:interface:axis:1.0 m_axis TLAST";
   ATTRIBUTE X_INTERFACE_INFO OF m_axis_tready: SIGNAL IS "xilinx.com:interface:axis:1.0 m_axis TREADY";
   ATTRIBUTE X_INTERFACE_INFO OF m_axis_tvalid: SIGNAL IS "xilinx.com:interface:axis:1.0 m_axis TVALID";
-  ATTRIBUTE X_INTERFACE_PARAMETER OF rst_n: SIGNAL IS "XIL_INTERFACENAME rst_n, POLARITY ACTIVE_LOW, INSERT_VIP 0";
-  ATTRIBUTE X_INTERFACE_INFO OF rst_n: SIGNAL IS "xilinx.com:signal:reset:1.0 rst_n RST";
   ATTRIBUTE X_INTERFACE_PARAMETER OF s_axi_aclk: SIGNAL IS "XIL_INTERFACENAME s_axi_aclk, ASSOCIATED_RESET s_axi_aresetn, FREQ_HZ 100000000, FREQ_TOLERANCE_HZ 0, PHASE 0.0, CLK_DOMAIN pynq_z2_processing_system7_0_0_FCLK_CLK0, INSERT_VIP 0";
   ATTRIBUTE X_INTERFACE_INFO OF s_axi_aclk: SIGNAL IS "xilinx.com:signal:clock:1.0 s_axi_aclk CLK";
   ATTRIBUTE X_INTERFACE_INFO OF s_axi_araddr: SIGNAL IS "xilinx.com:interface:aximm:1.0 s_axi ARADDR";
@@ -163,7 +157,7 @@ ARCHITECTURE pynq_z2_top_0_0_arch OF pynq_z2_top_0_0 IS
   ATTRIBUTE X_INTERFACE_INFO OF s_axi_aresetn: SIGNAL IS "xilinx.com:signal:reset:1.0 s_axi_aresetn RST";
   ATTRIBUTE X_INTERFACE_INFO OF s_axi_arready: SIGNAL IS "xilinx.com:interface:aximm:1.0 s_axi ARREADY";
   ATTRIBUTE X_INTERFACE_INFO OF s_axi_arvalid: SIGNAL IS "xilinx.com:interface:aximm:1.0 s_axi ARVALID";
-  ATTRIBUTE X_INTERFACE_PARAMETER OF s_axi_awaddr: SIGNAL IS "XIL_INTERFACENAME s_axi, DATA_WIDTH 32, PROTOCOL AXI4LITE, FREQ_HZ 100000000, ID_WIDTH 0, ADDR_WIDTH 7, AWUSER_WIDTH 0, ARUSER_WIDTH 0, WUSER_WIDTH 0, RUSER_WIDTH 0, BUSER_WIDTH 0, READ_WRITE_MODE READ_WRITE, HAS_BURST 0, HAS_LOCK 0, HAS_PROT 0, HAS_CACHE 0, HAS_QOS 0, HAS_REGION 0, HAS_WSTRB 1, HAS_BRESP 1, HAS_RRESP 1, SUPPORTS_NARROW_BURST 0, NUM_READ_OUTSTANDING 1, NUM_WRITE_OUTSTANDING 1, MAX_BURST_LENGTH 1, PHASE 0.0, CLK_DOMAIN pynq_z2_processing_system7_0_0_FCLK_CLK0, NUM_READ_THREADS 1," & 
+  ATTRIBUTE X_INTERFACE_PARAMETER OF s_axi_awaddr: SIGNAL IS "XIL_INTERFACENAME s_axi, DATA_WIDTH 32, PROTOCOL AXI4LITE, FREQ_HZ 100000000, ID_WIDTH 0, ADDR_WIDTH 9, AWUSER_WIDTH 0, ARUSER_WIDTH 0, WUSER_WIDTH 0, RUSER_WIDTH 0, BUSER_WIDTH 0, READ_WRITE_MODE READ_WRITE, HAS_BURST 0, HAS_LOCK 0, HAS_PROT 0, HAS_CACHE 0, HAS_QOS 0, HAS_REGION 0, HAS_WSTRB 1, HAS_BRESP 1, HAS_RRESP 1, SUPPORTS_NARROW_BURST 0, NUM_READ_OUTSTANDING 1, NUM_WRITE_OUTSTANDING 1, MAX_BURST_LENGTH 1, PHASE 0.0, CLK_DOMAIN pynq_z2_processing_system7_0_0_FCLK_CLK0, NUM_READ_THREADS 1," & 
 " NUM_WRITE_THREADS 1, RUSER_BITS_PER_BYTE 0, WUSER_BITS_PER_BYTE 0, INSERT_VIP 0";
   ATTRIBUTE X_INTERFACE_INFO OF s_axi_awaddr: SIGNAL IS "xilinx.com:interface:aximm:1.0 s_axi AWADDR";
   ATTRIBUTE X_INTERFACE_INFO OF s_axi_awready: SIGNAL IS "xilinx.com:interface:aximm:1.0 s_axi AWREADY";
@@ -183,21 +177,6 @@ BEGIN
   U0 : top
     PORT MAP (
       clk => clk,
-      rst_n => rst_n,
-      crank_raw => crank_raw,
-      cam_raw => cam_raw,
-      digital_inputs => digital_inputs,
-      xadc_do => xadc_do,
-      xadc_channel => xadc_channel,
-      xadc_eoc => xadc_eoc,
-      xadc_eos => xadc_eos,
-      xadc_busy => xadc_busy,
-      xadc_convst => xadc_convst,
-      xadc_dclk => xadc_dclk,
-      xadc_den => xadc_den,
-      xadc_dwe => xadc_dwe,
-      xadc_daddr => xadc_daddr,
-      xadc_di => xadc_di,
       s_axi_aclk => s_axi_aclk,
       s_axi_aresetn => s_axi_aresetn,
       s_axi_awaddr => s_axi_awaddr,
@@ -221,6 +200,19 @@ BEGIN
       m_axis_tvalid => m_axis_tvalid,
       m_axis_tready => m_axis_tready,
       m_axis_tlast => m_axis_tlast,
+      cam_raw => cam_raw,
+      crank_raw => crank_raw,
+      a_raw => a_raw,
+      b_raw => b_raw,
+      z_raw => z_raw,
+      adc_ch0 => adc_ch0,
+      adc_ch1 => adc_ch1,
+      adc_ch2 => adc_ch2,
+      adc_ch3 => adc_ch3,
+      adc_ch4 => adc_ch4,
+      adc_ch5 => adc_ch5,
+      adc_ch6 => adc_ch6,
+      di_ch => di_ch,
       debug_out => debug_out
     );
 END pynq_z2_top_0_0_arch;

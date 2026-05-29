@@ -18,7 +18,7 @@
 # Clock constraints                                                        #
 ############################################################################
 create_clock -name clk_fpga_0 -period "10" [get_pins "PS7_i/FCLKCLK[0]"]
-set_input_jitter clk_fpga_0 0.3
+set_input_jitter clk_fpga_0 0.300
 #The clocks are asynchronous, user should constrain them appropriately.#
 
 
@@ -720,4 +720,5 @@ set_property slew "fast" [get_ports "PS_SRSTB"]
 set_property iostandard "LVCMOS33" [get_ports "PS_CLK"]
 set_property PACKAGE_PIN "E7" [get_ports "PS_CLK"]
 set_property slew "fast" [get_ports "PS_CLK"]
+
 

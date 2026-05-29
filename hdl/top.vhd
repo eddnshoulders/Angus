@@ -84,7 +84,7 @@ entity top is
         di_ch              : in  std_logic_vector(7 downto 0);
 
         -- Debug outputs (Pi header, 22 bits)
-        debug_out          : out std_logic_vector(21 downto 0)
+        debug_out          : out std_logic_vector(13 downto 0)
     );
 end entity top;
 
@@ -733,6 +733,6 @@ begin
     debug_out(11) <= sync_full;
     debug_out(12) <= phase_inv_latch;
     debug_out(13) <= phase_ref_found;
-    debug_out(21 downto 14) <= (others => '0');
+    --debug_out(21 downto 14) <= (others => '0');
 
 end architecture rtl;

@@ -57,11 +57,11 @@ module pynq_z2_xlconstant_1_0 (
   dout
 );
 
-output wire [15 : 0] dout;
+output wire [11 : 0] dout;
 
   xlconstant_v1_1_9_xlconstant #(
-    .CONST_WIDTH(16),
-    .CONST_VAL(16'H0000)
+    .CONST_WIDTH(12),
+    .CONST_VAL(12'H000)
   ) inst (
     .dout(dout)
   );
