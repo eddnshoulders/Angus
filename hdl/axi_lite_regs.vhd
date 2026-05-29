@@ -359,7 +359,6 @@ architecture rtl of axi_lite_regs is
     -- =========================================================================
     signal div_start        : std_logic := '0';
     signal div_busy         : std_logic := '0';
-    signal div_done         : std_logic := '0';
     signal div_dividend     : unsigned(31 downto 0) := (others => '1'); -- 2^32-1
     signal div_divisor      : unsigned(7 downto 0)  := to_unsigned(60, 8);
     signal div_shift        : integer range 0 to 31 := 0;
@@ -630,15 +629,13 @@ begin
     -- Starts on div_start, result available in nco_ab_inc_int after div_done
     -- =========================================================================
     p_divider : process(s_axi_aclk)
+        variable step_div : unsigned(31 downto 0);
     begin
         if rising_edge(s_axi_aclk) then
             if s_axi_aresetn = '0' then
-                div_busy      <= '0';
-                div_done      <= '0';
+                div_busy       <= '0';
                 nco_ab_inc_int <= (others => '0');
             else
-                div_done <= '0';
-
                 if div_start = '1' and div_busy = '0' then
                     -- Select divisor based on latched src_sel
                     if latch_src_sel = '0' then
@@ -653,22 +650,21 @@ begin
 
                 elsif div_busy = '1' then
                     -- Restoring division step
-                    declare
-                        variable step_rem  : unsigned(31 downto 0);
-                        variable step_div  : unsigned(31 downto 0);
-                    begin
-                        step_div := resize(div_divisor, 32) sll div_shift;
+                    step_div := resize(div_divisor, 32) sll div_shift;
+                    if div_remainder >= step_div then
+                        div_remainder    <= div_remainder - step_div;
+                        div_q(div_shift) <= '1';
+                    end if;
+                    if div_shift = 0 then
+                        div_busy       <= '0';
+                        nco_ab_inc_int <= div_q;
+                        -- Set final bit if it was set this cycle
                         if div_remainder >= step_div then
-                            div_remainder <= div_remainder - step_div;
-                            div_q(div_shift) <= '1';
+                            nco_ab_inc_int(0) <= '1';
                         end if;
-                        if div_shift = 0 then
-                            div_busy       <= '0';
-                            nco_ab_inc_int <= div_q;
-                        else
-                            div_shift <= div_shift - 1;
-                        end if;
-                    end;
+                    else
+                        div_shift <= div_shift - 1;
+                    end if;
                 end if;
             end if;
         end if;
