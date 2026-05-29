@@ -24,14 +24,19 @@ entity fault is
         cam_tooth_count    : in  unsigned(7 downto 0);
         cam_n_teeth        : in  unsigned(7 downto 0);
         z_edge             : in  std_logic;   -- 720 deg z_edge for cam window
+        src_sel            : in  std_logic;   -- 0=crank 1=encoder
+        ref_sel            : in  std_logic;   -- 0=cam 1=peak_detector
         -- Crank inputs
         crank_tooth_count  : in  unsigned(7 downto 0);
         crank_ab_count     : in  unsigned(7 downto 0);
         crank_n_teeth      : in  unsigned(7 downto 0);
         crank_n_missing    : in  unsigned(7 downto 0);
         crank_z_edge       : in  std_logic;
+        ab_count           : in  unsigned(7 downto 0);  -- from src_sel
+        ppr_conf           : in  unsigned(7 downto 0);  -- from src_sel
         -- Speed inputs
         speed_rpm_slow     : in  unsigned(15 downto 0);
+        max_rpm            : in  unsigned(15 downto 0);
         -- PLL inputs
         pll_phase_err      : in  signed(31 downto 0);
         pll_phase_err_thresh: in unsigned(31 downto 0);
@@ -117,9 +122,10 @@ begin
                 end if;
 
                 -- Cam fault: wrong tooth count at 720 deg boundary
+                -- Only when cam is selected as ref source (ref_sel=0)
                 if cam_window_z = '1' then
                     cam_window_z <= '0';
-                    if cam_tooth_count /= cam_n_teeth then
+                    if cam_tooth_count /= cam_n_teeth and ref_sel = '0' then
                         cam_fault_int <= '1';
                         cam_cnt <= sat_inc(cam_cnt);
                     end if;
@@ -142,6 +148,14 @@ begin
                     end if;
                 end if;
 
+                -- AB count fault: ab_count != ppr_conf at z_edge
+                -- (works for both crank and encoder sources)
+                if z_edge = '1' and sync_full = '1' then
+                    if ab_count /= ppr_conf then
+                        ab_cnt <= sat_inc(ab_cnt);
+                    end if;
+                end if;
+
                 -- Phase fault: falling edge of phase_ref_ok
                 phase_ref_ok_prev <= phase_ref_ok;
                 if phase_ref_ok = '0' and phase_ref_ok_prev = '1' then
@@ -150,7 +164,7 @@ begin
 
                 -- Speed fault: RPM out of range (0 < RPM < 15000)
                 speed_fault_int <= '0';
-                if speed_rpm_slow = 0 or speed_rpm_slow > to_unsigned(15000, 16) then
+                if speed_rpm_slow = 0 or speed_rpm_slow > max_rpm then
                     speed_fault_int <= '1';
                     if sync_full = '1' then
                         speed_cnt <= sat_inc(speed_cnt);
