@@ -327,7 +327,7 @@ begin
             enc_ab_edge_sel     => enc_ab_edge_sel,
             enc_z_edge_sel      => enc_z_edge_sel,
             dma_buffer_size     => dma_buffer_size,
-            pll_nco_ab_inc      => angle_nco_ab_inc,  -- from angle.vhd
+            pll_nco_ab_inc      => open,  -- obsolete: angle.vhd is now the source
             -- Runtime config
             fault_clear         => fault_clear,
             pll_corr_dir        => pll_corr_dir,
