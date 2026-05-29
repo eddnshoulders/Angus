@@ -57,7 +57,7 @@ architecture rtl of pll is
     signal z_phase_cnt    : unsigned(1 downto 0)  := (others => '0');
     signal phase_err_int  : signed(31 downto 0)   := (others => '0');
     signal p_term_int     : signed(31 downto 0)   := (others => '0');
-    signal i_term_int     : signed(31 downto 0)   := (others => '0');
+    signal i_term_int     : signed(63 downto 0)   := (others => '0');
     signal pi_corr_int    : signed(31 downto 0)   := (others => '0');
     signal ang_hires_int  : unsigned(15 downto 0) := (others => '0');
     signal corr_max_s     : signed(32 downto 0);
@@ -68,8 +68,10 @@ begin
     p_pll : process(clk)
         variable err    : signed(31 downto 0);
         variable p_t    : signed(48 downto 0);
-        variable i_upd  : signed(64 downto 0);
-        variable i_t    : signed(31 downto 0);
+        variable i_upd  : signed(63 downto 0);  -- phase_error * ab_period
+        variable i_scaled: signed(47 downto 0);  -- i_upd >> 16
+        variable i_ki   : signed(63 downto 0);  -- i_scaled * ki
+        variable i_t    : signed(63 downto 0);  -- accumulated i_term
         variable corr   : signed(32 downto 0);
         variable exp_acc: unsigned(79 downto 0);
     begin
@@ -114,19 +116,19 @@ begin
                     p_term_int <= p_t(47 downto 16);
 
                     -- I term: simplified - accumulate err*ki
-                    i_upd := err * signed(resize(pll_ki, 33));
-                    i_t := i_term_int + i_upd(47 downto 16);
-                    -- Clamp i_term to +/- corr_max
-                    if i_t > signed(resize(pll_corr_max, 32)) then
-                        i_term_int <= signed(resize(pll_corr_max, 32));
-                    elsif i_t < -signed(resize(pll_corr_max, 32)) then
-                        i_term_int <= -signed(resize(pll_corr_max, 32));
-                    else
-                        i_term_int <= i_t;
-                    end if;
+                    -- I term with variable dt = ab_period
+                    -- Step 1: phase_error * ab_period -> 64-bit
+                    i_upd   := err * signed(resize(ab_period, 32));
+                    -- Step 2: scale down by 16 to keep width manageable
+                    i_scaled := i_upd(63 downto 16);
+                    -- Step 3: multiply by ki
+                    i_ki    := i_scaled * signed(resize(pll_ki, 16));
+                    -- Step 4: accumulate (upper 32 bits used for correction)
+                    i_t     := i_term_int + i_ki;
+                    i_term_int <= i_t;
 
                     -- PI correction
-                    corr := resize(p_t(47 downto 16), 33) + resize(i_t, 33);
+                    corr := resize(p_t(47 downto 16), 33) + resize(i_t(63 downto 32), 33);
                     if corr > corr_max_s then
                         corr := corr_max_s;
                     elsif corr < -corr_max_s then
@@ -169,7 +171,7 @@ begin
     pll_nco_accum      <= nco_accum_int;
     pll_phase_err      <= phase_err_int;
     pll_p_term         <= p_term_int;
-    pll_i_term         <= i_term_int;
+    pll_i_term         <= i_term_int(63 downto 32);
     pll_pi_corr        <= pi_corr_int;
     pll_cycle_ab_count <= cycle_ab_cnt;
 
