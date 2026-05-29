@@ -16,7 +16,7 @@ use ieee.numeric_std.all;
 --   First phase_ref_det: latch phase_inv -> phase_inv_latch, phase_ref_found=1
 --
 -- phase_ang_corr = (angle_deg + phase_inv_latch*3600) % 7200
--- phase_ang_eng  = (phase_ang_corr + tdc_offset) % 7200  [held 0 until phase_ref_found]
+-- phase_eng_ang  = (phase_ang_corr + tdc_offset) % 7200  [held 0 until phase_ref_found]
 -- phase_eng      = phase_raw XOR phase_inv_latch
 --
 -- phase_ref_ok:
@@ -43,7 +43,7 @@ entity phase is
         phase_inv_latch : out std_logic;
         phase_ang_corr  : out unsigned(15 downto 0);
         phase_eng       : out std_logic;
-        phase_ang_eng   : out unsigned(15 downto 0);
+        phase_eng_ang   : out unsigned(15 downto 0);
         phase_ref_det_cnt: out unsigned(15 downto 0)
     );
 end entity phase;
@@ -102,10 +102,10 @@ begin
                     when phase_inv_l_int = '1' else angle_deg;
     phase_ang_corr <= ang_corr_int;
 
-    -- phase_ang_eng (held 0 until phase_ref_found)
+    -- phase_eng_ang (held 0 until phase_ref_found)
     ang_eng_int <= mod7200(resize(ang_corr_int, 17) + resize(tdc_offset, 17))
                    when phase_ref_found_int = '1' else (others => '0');
-    phase_ang_eng <= ang_eng_int;
+    phase_eng_ang <= ang_eng_int;
 
     -- phase_eng
     phase_eng <= (angle_deg(12)) xor phase_inv_l_int;  -- bit 12 set when >= 4096 ~ >= 3600
