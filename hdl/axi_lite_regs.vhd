@@ -140,7 +140,7 @@ entity axi_lite_regs is
         phase_inv_latch : in  std_logic;
         phase_ang_corr  : in  unsigned(15 downto 0);
         phase_eng       : in  std_logic;
-        phase_ang_eng   : in  unsigned(15 downto 0);
+        phase_eng_ang   : in  unsigned(15 downto 0);
         phase_ref_det_cnt: in unsigned(15 downto 0);
         ref_angle       : in  unsigned(15 downto 0);
         -- Status inputs -- pll
@@ -506,7 +506,7 @@ begin
                         when A_PHASE_INV_LATCH   => axi_rdata <= x"0000000" & "000" & phase_inv_latch;
                         when A_PHASE_ANG_CORR    => axi_rdata <= x"0000" & std_logic_vector(phase_ang_corr);
                         when A_PHASE_ENG         => axi_rdata <= x"0000000" & "000" & phase_eng;
-                        when A_PHASE_ANG_ENG     => axi_rdata <= x"0000" & std_logic_vector(phase_ang_eng);
+                        when A_PHASE_ANG_ENG     => axi_rdata <= x"0000" & std_logic_vector(phase_eng_ang);
                         when A_PHASE_REF_DET_CNT => axi_rdata <= x"0000" & std_logic_vector(phase_ref_det_cnt);
                         when A_PLL_ANG_HIRES     => axi_rdata <= x"0000" & std_logic_vector(pll_ang_hires);
                         when A_PLL_DIV_VALID     => axi_rdata <= x"0000000" & "000" & pll_div_valid;
