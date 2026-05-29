@@ -23,6 +23,7 @@ architecture sim of pll_tb is
     signal kp         : unsigned(15 downto 0) := to_unsigned(0, 16);
     signal ki         : unsigned(15 downto 0) := to_unsigned(0, 16);
     signal corr_dir   : std_logic := '0';
+    signal nco_clk_inc_s: unsigned(31 downto 0) := to_unsigned(4294, 32);  -- ~10000RPM 60tooth
     signal corr_max   : unsigned(15 downto 0) := to_unsigned(65535, 16);
     signal ang_hires  : unsigned(15 downto 0);
     signal div_valid  : std_logic;
@@ -37,7 +38,8 @@ begin
     clk <= not clk after CLK_PERIOD/2 when not done else '0';
     dut : entity work.pll port map(clk=>clk, rst=>rst, sync_full=>sync_full,
         phase_eng=>phase_eng, ab_edge=>ab_edge, ab_period=>ab_per, z_edge=>z_edge,
-        pll_nco_ab_inc=>nco_ab_inc_s, pll_kp=>kp, pll_ki=>ki, pll_corr_dir=>corr_dir,
+        pll_nco_ab_inc=>nco_ab_inc_s, angle_nco_clk_inc=>nco_clk_inc_s,
+        pll_kp=>kp, pll_ki=>ki, pll_corr_dir=>corr_dir,
         pll_corr_max=>corr_max, pll_ang_hires=>ang_hires, pll_div_valid=>div_valid,
         pll_nco_inc=>nco_inc_o, pll_nco_accum=>nco_accum, pll_phase_err=>phase_err,
         pll_p_term=>p_term, pll_i_term=>i_term, pll_pi_corr=>pi_corr,
