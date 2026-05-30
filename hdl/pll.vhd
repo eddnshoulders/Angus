@@ -134,16 +134,17 @@ begin
                     end if;
                     pi_corr_int <= corr(31 downto 0);
 
-                    -- Update nco_inc = angle_nco_clk_inc +/- PI correction
+                    -- Update nco_inc using REGISTERED pi_corr_int from previous ab_edge
+                    -- (1-tooth latency -- harmless at engine speeds)
                     if pll_corr_dir = '1' then
-                        if unsigned(corr(31 downto 0)) <= angle_nco_clk_inc then
-                            nco_inc_int <= angle_nco_clk_inc + unsigned(corr(31 downto 0));
+                        if pi_corr_int >= 0 and unsigned(pi_corr_int) <= angle_nco_clk_inc then
+                            nco_inc_int <= angle_nco_clk_inc + unsigned(pi_corr_int);
                         else
                             nco_inc_int <= angle_nco_clk_inc;
                         end if;
                     else
-                        if unsigned(corr(31 downto 0)) <= angle_nco_clk_inc then
-                            nco_inc_int <= angle_nco_clk_inc - unsigned(corr(31 downto 0));
+                        if pi_corr_int >= 0 and unsigned(pi_corr_int) <= angle_nco_clk_inc then
+                            nco_inc_int <= angle_nco_clk_inc - unsigned(pi_corr_int);
                         else
                             nco_inc_int <= angle_nco_clk_inc;
                         end if;
