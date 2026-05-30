@@ -84,6 +84,7 @@ architecture rtl of angle is
     signal nco_accum        : unsigned(31 downto 0) := (others => '0');
     signal edge_count       : unsigned(7 downto 0)  := (others => '0');
     signal z_phase_cnt      : unsigned(1 downto 0)  := (others => '0');
+    signal angle_deg_reg    : unsigned(15 downto 0) := (others => '0');
 
     -- =========================================================================
     -- Output conversion: (nco_accum * 7200) >> 32
@@ -179,6 +180,7 @@ begin
                 tooth_start    <= '0';
                 clk_inc_valid  <= '0';
                 nco_clk_inc_int <= (others => '0');
+                angle_deg_reg  <= (others => '0');
             else
                 tooth_start <= '0';
 
@@ -217,6 +219,8 @@ begin
                     -- Bresenham interpolation: advance accumulator each clock
                     nco_accum <= nco_accum + nco_clk_inc_int;
                 end if;
+                -- Register angle_deg output (breaks multiply from downstream logic)
+                angle_deg_reg <= ang_convert(nco_accum);
             end if;
         end if;
     end process p_angle;
@@ -224,7 +228,7 @@ begin
     -- =========================================================================
     -- Output assignments
     -- =========================================================================
-    angle_deg         <= ang_convert(nco_accum);
+    angle_deg         <= angle_deg_reg;
     angle_nco_ab_inc  <= nco_ab_inc_int;
     angle_nco_clk_inc <= nco_clk_inc_int;
 
