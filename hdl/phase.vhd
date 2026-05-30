@@ -49,6 +49,10 @@ entity phase is
 end entity phase;
 
 architecture rtl of phase is
+    -- Registered config inputs (break AXI register from combinatorial path)
+    signal phase_ref_ang_r  : unsigned(15 downto 0) := (others => '0');
+    signal phase_ref_tol_r  : unsigned(15 downto 0) := to_unsigned(600, 16);
+    signal tdc_offset_r     : unsigned(15 downto 0) := (others => '0');
     signal phase_inv_int    : std_logic := '0';
     signal phase_inv_l_int  : std_logic := '0';
     signal phase_ref_found_int: std_logic := '0';
@@ -103,7 +107,7 @@ begin
     phase_ang_corr <= ang_corr_int;
 
     -- phase_eng_ang (held 0 until phase_ref_found)
-    ang_eng_int <= mod7200(resize(ang_corr_int, 17) + resize(tdc_offset, 17))
+    ang_eng_int <= mod7200(resize(ang_corr_int, 17) + resize(tdc_offset_r, 17))
                    when phase_ref_found_int = '1' else (others => '0');
     phase_eng_ang <= ang_eng_int;
 
@@ -114,6 +118,9 @@ begin
     begin
         if rising_edge(clk) then
             if rst = '1' then
+                phase_ref_ang_r   <= (others => '0');
+                phase_ref_tol_r   <= to_unsigned(600, 16);
+                tdc_offset_r      <= (others => '0');
                 phase_inv_int     <= '0';
                 phase_inv_l_int   <= '0';
                 phase_ref_found_int <= '0';
@@ -123,6 +130,10 @@ begin
                 det_cnt_prev      <= (others => '0');
                 z_miss_cnt        <= (others => '0');
             else
+                -- Register config inputs each clock
+                phase_ref_ang_r <= phase_ref_ang;
+                phase_ref_tol_r <= phase_ref_tol;
+                tdc_offset_r    <= tdc_offset;
                 phase_ref_det_int <= '0';
 
                 -- z_edge: check for missed ref detections
@@ -142,7 +153,7 @@ begin
 
                 -- ref_edge detection
                 if ref_edge = '1' then
-                    if in_window(angle_deg, phase_ref_ang, phase_ref_tol) then
+                    if in_window(angle_deg, phase_ref_ang_r, phase_ref_tol_r) then
                         phase_inv_int <= '0';
                         phase_ref_det_int <= '1';
                         det_cnt_int <= det_cnt_int + 1;
@@ -155,7 +166,7 @@ begin
                         else
                             phase_ref_ok_int <= '0';
                         end if;
-                    elsif in_window(angle_deg, w2_centre, phase_ref_tol) then
+                    elsif in_window(angle_deg, w2_centre, phase_ref_tol_r) then
                         phase_inv_int <= '1';
                         phase_ref_det_int <= '1';
                         det_cnt_int <= det_cnt_int + 1;
