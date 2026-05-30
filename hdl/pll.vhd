@@ -80,7 +80,7 @@ begin
         variable i_ki   : signed(63 downto 0);  -- i_scaled * ki
         variable i_t    : signed(63 downto 0);  -- accumulated i_term
         variable corr   : signed(32 downto 0);
-        variable exp_acc: unsigned(159 downto 0);
+        variable exp_acc: unsigned(39 downto 0);  -- 8-bit count × 32-bit inc
     begin
         if rising_edge(clk) then
             if rst = '1' then
@@ -115,12 +115,14 @@ begin
                     cycle_ab_cnt <= cycle_ab_cnt + 1;
 
                     -- Phase error
-                    exp_acc := resize(cycle_ab_cnt, 80) * resize(pll_nco_ab_inc, 80);
-                    err := signed(nco_accum_int) - signed(exp_acc(39 downto 8));
+                    -- Right-sized multiply: cycle_ab_cnt(8) × nco_ab_inc(32) = 40-bit
+                    exp_acc := resize(cycle_ab_cnt, 8) * pll_nco_ab_inc;
+                    err := signed(nco_accum_int) - signed(exp_acc(31 downto 0));
                     phase_err_int <= err;
 
-                    -- P term: err * kp
-                    p_t := err * signed(resize(pll_kp, 17));
+                    -- P term: use REGISTERED phase_err_int (breaks double-multiply chain)
+                    -- 1-tooth lag on P term -- consistent with I term latency
+                    p_t := phase_err_int * signed(resize(pll_kp, 17));
                     p_term_int <= p_t(48 downto 17);
 
                     -- I term stage 1: queue multiply for next cycle
