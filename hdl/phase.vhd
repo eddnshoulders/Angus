@@ -51,6 +51,7 @@ end entity phase;
 architecture rtl of phase is
     -- Registered config inputs (break AXI register from combinatorial path)
     signal phase_ref_ang_r  : unsigned(15 downto 0) := (others => '0');
+    signal w2_centre_r      : unsigned(15 downto 0) := (others => '0');
     signal phase_ref_tol_r  : unsigned(15 downto 0) := to_unsigned(600, 16);
     signal tdc_offset_r     : unsigned(15 downto 0) := (others => '0');
     signal phase_inv_int    : std_logic := '0';
@@ -89,14 +90,12 @@ architecture rtl of phase is
         end if;
     end function;
 
-    signal w2_centre : unsigned(15 downto 0) := (others => '0');
     signal ang_corr_int : unsigned(15 downto 0) := (others => '0');
     signal ang_eng_int  : unsigned(15 downto 0) := (others => '0');
 
 begin
 
-    -- window2 centre = (phase_ref_ang + 3600) % 7200
-    w2_centre <= mod7200(resize(phase_ref_ang, 17) + to_unsigned(3600, 17));
+    -- w2_centre computed inside process using registered phase_ref_ang_r
 
     -- phase_raw
     phase_raw <= '1' when angle_deg >= to_unsigned(3600, 16) else '0';
@@ -121,6 +120,7 @@ begin
                 phase_ref_ang_r   <= (others => '0');
                 phase_ref_tol_r   <= to_unsigned(600, 16);
                 tdc_offset_r      <= (others => '0');
+                w2_centre_r       <= to_unsigned(3600, 16);
                 phase_inv_int     <= '0';
                 phase_inv_l_int   <= '0';
                 phase_ref_found_int <= '0';
@@ -134,6 +134,8 @@ begin
                 phase_ref_ang_r <= phase_ref_ang;
                 phase_ref_tol_r <= phase_ref_tol;
                 tdc_offset_r    <= tdc_offset;
+                -- w2_centre registered to break AXI reg from combinatorial path
+                w2_centre_r <= mod7200(resize(phase_ref_ang, 17) + to_unsigned(3600, 17));
                 phase_ref_det_int <= '0';
 
                 -- z_edge: check for missed ref detections
@@ -166,7 +168,7 @@ begin
                         else
                             phase_ref_ok_int <= '0';
                         end if;
-                    elsif in_window(angle_deg, w2_centre, phase_ref_tol_r) then
+                    elsif in_window(angle_deg, w2_centre_r, phase_ref_tol_r) then
                         phase_inv_int <= '1';
                         phase_ref_det_int <= '1';
                         det_cnt_int <= det_cnt_int + 1;
