@@ -85,6 +85,7 @@ begin
         -- angle_deg = (1 * 35791394 * 7200) >> 32 = (35791394 * 7200) >> 32
         -- = 257697956800 >> 32 = 59.99... ~ 60
         fire_ab(ab_edge, clk);
+        wait until rising_edge(clk);  -- extra cycle for registered angle_deg
         assert to_integer(angle_deg) >= 59 and to_integer(angle_deg) <= 61
             report "FAIL T3: angle_deg after edge 1 wrong: " &
                    integer'image(to_integer(angle_deg)) severity failure;
@@ -94,6 +95,7 @@ begin
         -- angle_deg = (214748364 * 7200) >> 32 = 360
         fire_ab(ab_edge, clk); fire_ab(ab_edge, clk);
         fire_ab(ab_edge, clk); fire_ab(ab_edge, clk); fire_ab(ab_edge, clk);
+        wait until rising_edge(clk);  -- extra cycle for registered angle_deg
         assert to_integer(angle_deg) >= 359 and to_integer(angle_deg) <= 361
             report "FAIL T3: angle_deg at edge 6 wrong: " &
                    integer'image(to_integer(angle_deg)) severity failure;
@@ -104,6 +106,7 @@ begin
         assert to_integer(angle_deg) >= 359  -- first z doesn't reset
             report "FAIL T4: first z_edge reset accumulator (should not)" severity failure;
         fire_z(z_edge, clk);
+        wait until rising_edge(clk);  -- registered angle_deg
         assert angle_deg = to_unsigned(0, 16)
             report "FAIL T4: second z_edge did not reset accumulator" severity failure;
         -- Verify edge_count reset by firing one ab_edge -- should snap to 0
