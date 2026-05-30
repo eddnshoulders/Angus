@@ -125,8 +125,9 @@ begin
                     i_upd_pipe   <= err * signed(resize(ab_period, 32));
                     i_pipe_valid <= '1';
 
-                    -- PI correction using previous i_term
-                    corr := resize(p_t(48 downto 17), 33) + resize(i_term_int(63 downto 32), 33);
+                    -- PI correction using registered p_term_int and i_term (both previous ab_edge)
+                    -- Removes DSP multiply from pi_corr critical path entirely
+                    corr := resize(p_term_int, 33) + resize(i_term_int(63 downto 32), 33);
                     if corr > corr_max_s then
                         corr := corr_max_s;
                     elsif corr < -corr_max_s then
