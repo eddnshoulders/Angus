@@ -62,6 +62,8 @@ architecture rtl of pll is
     -- Pipeline stage 1 outputs (registered)
     signal i_upd_pipe     : signed(63 downto 0)   := (others => '0');
     signal i_pipe_valid   : std_logic              := '0';
+    signal i_ki_pipe      : signed(63 downto 0)   := (others => '0');
+    signal i_ki_valid     : std_logic              := '0';
     signal err_pipe       : signed(31 downto 0)   := (others => '0');
     signal pi_corr_int    : signed(31 downto 0)   := (others => '0');
     signal ang_hires_int  : unsigned(15 downto 0) := (others => '0');
@@ -152,13 +154,20 @@ begin
                     end if;
                 end if;
 
-                -- I term stage 2: complete multiply and accumulate (pipelined)
+                -- I term stage 2: i_upd_pipe * ki -> register i_ki_pipe
+                i_ki_valid <= '0';
                 if i_pipe_valid = '1' then
                     i_pipe_valid <= '0';
                     i_scaled     := i_upd_pipe(63 downto 16);
                     i_ki         := i_scaled * signed(resize(pll_ki, 16));
-                    i_t          := i_term_int + i_ki;
-                    i_term_int   <= i_t;
+                    i_ki_pipe    <= i_ki;  -- register result
+                    i_ki_valid   <= '1';
+                end if;
+
+                -- I term stage 3: accumulate i_ki_pipe into i_term_int
+                if i_ki_valid = '1' then
+                    i_t        := i_term_int + i_ki_pipe;
+                    i_term_int <= i_t;
                 end if;
 
 
