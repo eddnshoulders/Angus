@@ -44,7 +44,6 @@ architecture sim of crank_tb is
 begin
     clk <= not clk after CLK_PERIOD/2 when not done else '0';
     dut : entity work.crank port map(clk=>clk, rst=>rst, crank_clean=>clean,
-        crank_signal_ok=>'1',
         crank_edge_sel=>edge_sel, crank_gap_thresh=>gap_thresh,
         crank_n_teeth=>n_teeth_s, crank_n_missing=>n_missing_s,
         crank_ab_edge=>ab_edge, crank_z_edge=>z_edge, crank_ppr_conf=>ppr_conf,
