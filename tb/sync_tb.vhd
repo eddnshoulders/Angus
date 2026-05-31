@@ -54,11 +54,14 @@ begin
         report "T3: PASS";
 
         -- T4: fault_count increments when ab_count wrong at z_edge
+        -- ab_count must be set one cycle BEFORE z_edge (sync registers ab_count)
         ab_count <= to_unsigned(45, 8);  -- wrong
+        wait for CLK_PERIOD;  -- let ab_count_r register the value
         pulse(z_edge, clk);
         wait for CLK_PERIOD;
         assert to_integer(fault_cnt) = 1 report "FAIL T4: fault not counted" severity failure;
         ab_count <= to_unsigned(60, 8);  -- correct
+        wait for CLK_PERIOD;  -- let ab_count_r register the value
         pulse(z_edge, clk);
         wait for CLK_PERIOD;
         assert to_integer(fault_cnt) = 1 report "FAIL T4: fault counted for correct ab_count" severity failure;
