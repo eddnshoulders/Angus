@@ -445,7 +445,9 @@ begin
     -- Crank
     -- =========================================================================
     u_crank : entity work.crank
-        port map (clk=>clk, rst=>rst, crank_clean=>crank_clean,
+        port map (clk=>clk, rst=>rst,
+                  crank_clean=>crank_clean,
+                  crank_signal_ok=>crank_signal_ok,
                   crank_edge_sel=>crank_edge_sel,
                   crank_gap_thresh=>crank_gap_thresh,
                   crank_n_teeth=>crank_n_teeth,
@@ -454,11 +456,11 @@ begin
                   crank_z_edge=>crank_z_edge,
                   crank_ppr_conf=>crank_ppr_conf,
                   crank_tooth_period=>crank_tooth_period,
+                  crank_gap_period=>crank_gap_period,
                   crank_tooth_count=>crank_tooth_count,
                   crank_ab_count=>crank_ab_count,
                   crank_gap_det=>crank_gap_det,
-                  crank_gap_period=>crank_gap_period,
-                  crank_signal_ok=>crank_signal_ok,
+                  crank_signal_ok_out=>crank_signal_ok,
                   crank_ab=>crank_ab,
                   crank_z=>crank_z);
 
