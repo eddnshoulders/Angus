@@ -31,6 +31,9 @@ architecture rtl of sync is
     signal state_int     : unsigned(1 downto 0) := (others => '0');
     signal z_count       : unsigned(1 downto 0) := (others => '0');
     signal fault_cnt     : unsigned(15 downto 0) := (others => '0');
+    -- ab_count registered one cycle: crank resets ab_count on the same
+    -- clock as z_edge fires. The previous cycle holds the full revolution count.
+    signal ab_count_r    : unsigned(7 downto 0) := (others => '0');
 begin
     p_sync : process(clk)
     begin
@@ -39,7 +42,11 @@ begin
                 state_int <= (others => '0');
                 z_count   <= (others => '0');
                 fault_cnt <= (others => '0');
+                ab_count_r <= (others => '0');
             else
+                -- Register ab_count every cycle to get pre-z_edge value
+                ab_count_r <= ab_count;
+
                 case to_integer(state_int) is
 
                     when 0 =>  -- STOPPED
@@ -52,7 +59,7 @@ begin
                             z_count <= z_count + 1;
                             if z_count = "01" then
                                 -- 2nd z_edge: check ab_count
-                                if ab_count = ppr_conf then
+                                if ab_count_r = ppr_conf then
                                     state_int <= to_unsigned(2, 2);  -- CRANK_SYNC
                                 else
                                     -- Wrong count, stay MOVING, reset z_count
@@ -69,7 +76,7 @@ begin
                             state_int <= to_unsigned(3, 2);  -- FULL_SYNC
                         end if;
                         -- Check ab_count at each z_edge
-                        if z_edge = '1' and ab_count /= ppr_conf then
+                        if z_edge = '1' and ab_count_r /= ppr_conf then
                             if fault_cnt /= (fault_cnt'range => '1') then
                                 fault_cnt <= fault_cnt + 1;
                             end if;
@@ -77,7 +84,7 @@ begin
 
                     when 3 =>  -- FULL_SYNC
                         -- Check ab_count at each z_edge
-                        if z_edge = '1' and ab_count /= ppr_conf then
+                        if z_edge = '1' and ab_count_r /= ppr_conf then
                             if fault_cnt /= (fault_cnt'range => '1') then
                                 fault_cnt <= fault_cnt + 1;
                             end if;
