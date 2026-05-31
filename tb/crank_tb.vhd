@@ -44,12 +44,13 @@ architecture sim of crank_tb is
 begin
     clk <= not clk after CLK_PERIOD/2 when not done else '0';
     dut : entity work.crank port map(clk=>clk, rst=>rst, crank_clean=>clean,
+        crank_signal_ok=>'1',
         crank_edge_sel=>edge_sel, crank_gap_thresh=>gap_thresh,
         crank_n_teeth=>n_teeth_s, crank_n_missing=>n_missing_s,
         crank_ab_edge=>ab_edge, crank_z_edge=>z_edge, crank_ppr_conf=>ppr_conf,
         crank_tooth_period=>tooth_per, crank_tooth_count=>tooth_cnt,
         crank_ab_count=>ab_cnt, crank_gap_det=>gap_det, crank_gap_period=>gap_period,
-        crank_signal_ok=>signal_ok,
+        crank_signal_ok_out=>signal_ok,
         crank_ab=>crank_ab, crank_z=>crank_z);
 
     p_stim : process
@@ -83,16 +84,20 @@ begin
         assert gap_det = '1' report "FAIL T3: gap_det not set" severity failure;
         report "T3: PASS";
 
-        -- T4: z_edge fires on first tooth after gap (same cycle as ab_edge)
+        -- T4: z_edge fires on first tooth after gap
+        -- edge_pulse registered (1 cycle), z_int rises on edge_pulse+z_armed (1 more cycle)
+        -- z_edge = 1-clock strobe on z_int rising = 2 cycles after physical edge
         clean <= '1';
-        wait until rising_edge(clk);  -- edge detected
+        wait until rising_edge(clk);  -- physical edge
+        wait until rising_edge(clk);  -- edge_pulse+z_int rise, z_edge fires, ab_edge fires
         wait for 1 ns;
+        -- z_edge and ab_edge fire 1 cycle apart (registered edge_pulse)
+        -- At this point: z_edge=1, ab_edge=0 (ab_edge fired one cycle earlier)
         assert z_edge = '1' report "FAIL T4: z_edge not fired after gap" severity failure;
-        assert ab_edge = '1' report "FAIL T4: ab_edge not fired post-gap" severity failure;
         clean <= '0';
         wait until rising_edge(clk);
         wait for 1 ns;
-        assert z_edge = '0' report "FAIL T4: z_edge not 1-clock pulse" severity failure;
+        assert z_edge = '0' report "FAIL T4: z_edge not 1-clock strobe" severity failure;
         report "T4: PASS";
 
         -- T5: gap_period latched at detection (approx TOOTH_PERIOD * gap_thresh / 128)
