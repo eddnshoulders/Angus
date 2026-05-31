@@ -44,7 +44,8 @@ entity phase is
         phase_ang_corr  : out unsigned(15 downto 0);
         phase_eng       : out std_logic;
         phase_eng_ang   : out unsigned(15 downto 0);
-        phase_ref_det_cnt: out unsigned(15 downto 0)
+        phase_ref_det_cnt: out unsigned(15 downto 0);
+        ref_angle        : out unsigned(15 downto 0)  -- angle_deg latched at ref_edge detection
     );
 end entity phase;
 
@@ -55,6 +56,7 @@ architecture rtl of phase is
     signal phase_ref_tol_r  : unsigned(15 downto 0) := to_unsigned(600, 16);
     signal tdc_offset_r     : unsigned(15 downto 0) := (others => '0');
     signal phase_inv_int    : std_logic := '0';
+    signal ref_angle_int    : unsigned(15 downto 0) := (others => '0');
     signal phase_inv_l_int  : std_logic := '0';
     signal phase_ref_found_int: std_logic := '0';
     signal phase_ref_ok_int : std_logic := '0';
@@ -122,6 +124,7 @@ begin
                 tdc_offset_r      <= (others => '0');
                 w2_centre_r       <= to_unsigned(3600, 16);
                 phase_inv_int     <= '0';
+                ref_angle_int     <= (others => '0');
                 phase_inv_l_int   <= '0';
                 phase_ref_found_int <= '0';
                 phase_ref_ok_int  <= '0';
@@ -193,5 +196,6 @@ begin
     phase_ref_ok    <= phase_ref_ok_int;
     phase_ref_det   <= phase_ref_det_int;
     phase_ref_det_cnt <= det_cnt_int;
+    ref_angle         <= ref_angle_int;
 
 end architecture rtl;
