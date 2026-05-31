@@ -219,6 +219,7 @@ architecture rtl of top is
     signal phase_eng       : std_logic;
     signal phase_eng_ang   : unsigned(15 downto 0);
     signal phase_ref_det_cnt: unsigned(15 downto 0);
+    signal ref_angle        : unsigned(15 downto 0);  -- angle at last ref detection
 
     -- =========================================================================
     -- Sync block
@@ -381,7 +382,7 @@ begin
             crank_ab_count      => crank_ab_count,
             crank_gap_det       => crank_gap_det,
             cam_tooth_count     => cam_tooth_count,
-            ref_angle           => phase_ang_corr,  -- ref_angle = angle at last ref detection
+            ref_angle           => ref_angle,
             enc_ab_count        => enc_ab_count,
             enc_a_count         => enc_a_count,
             enc_b_count         => enc_b_count,
@@ -544,7 +545,8 @@ begin
                   phase_ang_corr=>phase_ang_corr,
                   phase_eng=>phase_eng,
                   phase_eng_ang=>phase_eng_ang,
-                  phase_ref_det_cnt=>phase_ref_det_cnt);
+                  phase_ref_det_cnt=>phase_ref_det_cnt,
+                  ref_angle=>ref_angle);
 
     -- =========================================================================
     -- Sync
