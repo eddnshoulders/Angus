@@ -39,7 +39,6 @@ entity crank is
 
         -- From filter
         crank_clean      : in  std_logic;
-        crank_signal_ok  : in  std_logic;  -- signal stable (from filter)
 
         -- Startup config
         crank_edge_sel   : in  std_logic;
@@ -194,7 +193,7 @@ begin
 
                 -- Continuous timeout comparison
                 gap_det_int <= '0';
-                if period_valid = '1' and crank_signal_ok = '1' then
+                if period_valid = '1' and sig_present = '1' then
                     lhs := resize(period_cnt, 32) * to_unsigned(128, 32);
                     rhs := resize(current_period, 32) *
                            resize(crank_gap_thresh, 32);
