@@ -447,7 +447,6 @@ begin
     u_crank : entity work.crank
         port map (clk=>clk, rst=>rst,
                   crank_clean=>crank_clean,
-                  crank_signal_ok=>crank_signal_ok,
                   crank_edge_sel=>crank_edge_sel,
                   crank_gap_thresh=>crank_gap_thresh,
                   crank_n_teeth=>crank_n_teeth,
