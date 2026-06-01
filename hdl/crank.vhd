@@ -3,33 +3,30 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 -- =============================================================================
--- crank.vhd  (v2 -- adapted directly from archive crank_input.vhd)
+-- crank.vhd  (v2)
 --
--- Converts a conditioned crank wheel signal into AB/Z encoder-equivalent
--- outputs for downstream sync and angle blocks.
+-- Directly adapted from archive/crank_input.vhd -- internal logic unchanged.
+-- Interface changes only:
+--   entity name:    crank_input       -> crank
+--   clean_signal    -> crank_clean
+--   signal_stable   -> removed (sig_present used internally for gap gating)
+--   crank_edge_sel  -> crank_edge_sel (unchanged)
+--   gap_threshold   -> crank_gap_thresh
+--   n_teeth         -> crank_n_teeth
+--   n_missing       -> crank_n_missing
+--   ab_crank        -> crank_ab
+--   z_crank         -> crank_z
+--   tooth_period    -> crank_tooth_period
+--   tooth_count     -> crank_tooth_count
+--   gap_detected    -> crank_gap_det
+--   signal_present  -> crank_signal_ok
+--   edge_pulse_out  -> crank_ab_edge
+--   gap_period      -> crank_gap_period
+--   ppr_crank       -> crank_ppr_conf
 --
--- Signal flow:
---   crank_clean edges -> period measurement -> tooth counting
---   period_cnt timeout -> gap_det, z_armed
---   Next real edge_pulse with z_armed -> Z fires, tooth_count resets to 0
---   tooth_count = last_real on edge_pulse -> interpolator fills gap with AB
---
--- Key architectural properties (preserved from archive):
---   - edge_pulse is REGISTERED (1 cycle after physical edge). All downstream
---     processes see the same edge consistently. This avoids same-cycle races
---     between z_edge firing and ab_count resetting.
---   - crank_z (z_int) is held high for one tooth period, not a 1-clock strobe.
---     crank_z_edge is a separate 1-clock strobe on the rising edge of z_int.
---   - gap_det arms z on its RISING EDGE (not on the post-gap tooth), via
---     gap_det_prev tracking.
---   - Interpolation starts at last_real = n_teeth - n_missing - 2 to account
---     for the 1-cycle registered edge_pulse scheduling lag.
---   - crank_signal_ok gates gap detection, preventing false gaps during startup.
---
--- Added vs archive:
---   crank_ab_count: total AB edges per revolution (real + interpolated).
---     Resets to 0 on z_armed edge. Sync checks at z_int rising edge window.
---   crank_z_edge: 1-clock strobe on rising edge of z_int (for sync block).
+-- Added outputs (not in archive):
+--   crank_z_edge    -- 1-clock strobe on rising edge of z_crank (for sync block)
+--   crank_ab_count  -- AB edges per revolution (real + interpolated), reset on z
 -- =============================================================================
 
 entity crank is
@@ -46,75 +43,64 @@ entity crank is
         crank_n_teeth    : in  unsigned(7 downto 0);
         crank_n_missing  : in  unsigned(7 downto 0);
 
-        -- Outputs
-        crank_ab_edge    : out std_logic;            -- 1-clock strobe per real edge
+        -- Encoder-equivalent outputs
+        crank_ab         : out std_logic;
+        crank_z          : out std_logic;
         crank_z_edge     : out std_logic;            -- 1-clock strobe on z rising edge
-        crank_ppr_conf   : out unsigned(7 downto 0); -- = n_teeth
+        crank_ab_edge    : out std_logic;
         crank_tooth_period : out unsigned(31 downto 0);
         crank_gap_period   : out unsigned(31 downto 0);
         crank_tooth_count  : out unsigned(7 downto 0);
         crank_ab_count     : out unsigned(7 downto 0);
+        crank_ppr_conf     : out unsigned(7 downto 0);
         crank_gap_det      : out std_logic;
-        crank_signal_ok_out: out std_logic;
-        crank_ab           : out std_logic;
-        crank_z            : out std_logic
+        crank_signal_ok    : out std_logic
     );
 end entity crank;
 
 architecture rtl of crank is
 
     constant MAX_32    : unsigned(31 downto 0) := (others => '1');
+    signal last_real   : unsigned(7 downto 0) := to_unsigned(56, 8);
 
-    -- last_real: tooth_cnt at which interpolator triggers
-    -- = n_teeth - n_missing - 2 (accounts for 1-cycle edge_pulse lag)
-    signal last_real      : unsigned(7 downto 0) := to_unsigned(56, 8);
-
-    -- Edge detection
     signal clean_prev     : std_logic := '0';
-    signal edge_pulse     : std_logic := '0';  -- REGISTERED: 1 cycle after physical edge
+    signal edge_pulse     : std_logic := '0';
 
-    -- Period measurement
     signal period_cnt     : unsigned(31 downto 0) := (others => '0');
     signal current_period : unsigned(31 downto 0) := (others => '0');
     signal last_period    : unsigned(31 downto 0) := (others => '0');
     signal edge_seen      : std_logic := '0';
     signal period_valid   : std_logic := '0';
 
-    -- Gap detection and Z arming
-    signal gap_det_int    : std_logic := '0';
+    signal gap_det        : std_logic := '0';
     signal gap_det_prev   : std_logic := '0';
     signal gap_period_int : unsigned(31 downto 0) := (others => '0');
     signal z_armed        : std_logic := '0';
 
-    -- Tooth counting
     signal tooth_cnt      : unsigned(7 downto 0) := (others => '0');
 
-    -- Interpolator
     signal interp_active  : std_logic := '0';
     signal interp_cnt     : integer range 0 to 7 := 0;
     signal interp_timer   : unsigned(31 downto 0) := (others => '0');
     signal interp_period  : unsigned(31 downto 0) := (others => '0');
     signal interp_pulse   : std_logic := '0';
 
-    -- Z pulse
     signal z_int          : std_logic := '0';
     signal z_int_prev     : std_logic := '0';
     signal z_timer        : unsigned(31 downto 0) := (others => '0');
 
-    -- AB output and count
     signal ab_int         : std_logic := '0';
     signal ab_count_int   : unsigned(7 downto 0) := (others => '0');
 
-    -- Signal present / timeout
     signal timeout_cnt    : unsigned(31 downto 0) := (others => '0');
     signal timeout_limit  : unsigned(31 downto 0) := MAX_32;
     signal sig_present    : std_logic := '0';
 
 begin
 
-    -- =========================================================================
-    -- Edge detection (registered -- 1 cycle after physical edge)
-    -- =========================================================================
+    -- -------------------------------------------------------------------------
+    -- Edge detection (unchanged from archive)
+    -- -------------------------------------------------------------------------
     p_edge : process(clk)
     begin
         if rising_edge(clk) then
@@ -137,9 +123,9 @@ begin
         end if;
     end process p_edge;
 
-    -- =========================================================================
-    -- Period measurement
-    -- =========================================================================
+    -- -------------------------------------------------------------------------
+    -- Period measurement (unchanged from archive)
+    -- -------------------------------------------------------------------------
     p_period : process(clk)
     begin
         if rising_edge(clk) then
@@ -173,42 +159,36 @@ begin
         end if;
     end process p_period;
 
-    -- =========================================================================
-    -- Gap detection and Z arming
-    -- gap_det_int: high while period_cnt > gap_thresh * current_period
-    -- z_armed: set on rising edge of gap_det_int
-    -- =========================================================================
+    -- -------------------------------------------------------------------------
+    -- Gap detection and Z arming (unchanged from archive, uses sig_present)
+    -- -------------------------------------------------------------------------
     p_gap : process(clk)
         variable lhs : unsigned(63 downto 0);
         variable rhs : unsigned(63 downto 0);
     begin
         if rising_edge(clk) then
             if rst = '1' then
-                gap_det_int  <= '0';
+                gap_det      <= '0';
                 gap_det_prev <= '0';
                 z_armed      <= '0';
-                gap_period_int <= (others => '0');
             else
-                gap_det_prev <= gap_det_int;
+                gap_det_prev <= gap_det;
 
-                -- Continuous timeout comparison
-                gap_det_int <= '0';
+                gap_det <= '0';
                 if period_valid = '1' and sig_present = '1' then
                     lhs := resize(period_cnt, 32) * to_unsigned(128, 32);
                     rhs := resize(current_period, 32) *
                            resize(crank_gap_thresh, 32);
                     if lhs > rhs then
-                        gap_det_int <= '1';
+                        gap_det <= '1';
                     end if;
                 end if;
 
-                -- Arm Z on rising edge of gap_det_int
-                if gap_det_int = '1' and gap_det_prev = '0' then
+                if gap_det = '1' and gap_det_prev = '0' then
                     z_armed        <= '1';
                     gap_period_int <= period_cnt;
                 end if;
 
-                -- Clear z_armed when p_z fires
                 if z_armed = '1' and edge_pulse = '1' then
                     z_armed <= '0';
                 end if;
@@ -216,11 +196,9 @@ begin
         end if;
     end process p_gap;
 
-    -- =========================================================================
-    -- Tooth counting
-    -- Starts on second real edge (edge_seen gates first)
-    -- Resets to 0 on first real edge after gap (z_armed high)
-    -- =========================================================================
+    -- -------------------------------------------------------------------------
+    -- Tooth counting (unchanged from archive)
+    -- -------------------------------------------------------------------------
     p_tooth_count : process(clk)
     begin
         if rising_edge(clk) then
@@ -242,11 +220,9 @@ begin
         end if;
     end process p_tooth_count;
 
-    -- =========================================================================
-    -- Interpolator
-    -- Triggered at tooth_cnt = last_real (= n_teeth - n_missing - 2)
-    -- Fires n_missing interp_pulses at current_period intervals
-    -- =========================================================================
+    -- -------------------------------------------------------------------------
+    -- Interpolator (unchanged from archive)
+    -- -------------------------------------------------------------------------
     p_interp : process(clk)
     begin
         if rising_edge(clk) then
@@ -284,12 +260,9 @@ begin
         end if;
     end process p_interp;
 
-    -- =========================================================================
-    -- Z pulse
-    -- Fires on first real edge_pulse after gap (z_armed set by p_gap)
-    -- Held high for one current_period then released
-    -- crank_z_edge: 1-clock strobe on rising edge of z_int
-    -- =========================================================================
+    -- -------------------------------------------------------------------------
+    -- Z pulse (unchanged from archive, plus z_int_prev for z_edge strobe)
+    -- -------------------------------------------------------------------------
     p_z : process(clk)
     begin
         if rising_edge(clk) then
@@ -314,11 +287,9 @@ begin
         end if;
     end process p_z;
 
-    -- =========================================================================
-    -- AB output and AB count
-    -- Toggles on every real edge_pulse and every interp_pulse
-    -- ab_count_int resets to 0 when z_armed fires (same clock as z_int rises)
-    -- =========================================================================
+    -- -------------------------------------------------------------------------
+    -- AB output (unchanged from archive, plus ab_count_int)
+    -- -------------------------------------------------------------------------
     p_ab : process(clk)
     begin
         if rising_edge(clk) then
@@ -326,9 +297,9 @@ begin
                 ab_int       <= '0';
                 ab_count_int <= (others => '0');
             else
+                -- Reset ab_count on z (z_armed + edge_pulse)
                 if z_armed = '1' and edge_pulse = '1' then
-                    -- Z tooth: reset ab_count, toggle ab
-                    ab_count_int <= to_unsigned(1, 8);  -- count the z_tooth itself
+                    ab_count_int <= to_unsigned(1, 8);
                     ab_int       <= not ab_int;
                 elsif edge_pulse = '1' then
                     ab_count_int <= ab_count_int + 1;
@@ -341,9 +312,9 @@ begin
         end if;
     end process p_ab;
 
-    -- =========================================================================
-    -- Signal present / timeout
-    -- =========================================================================
+    -- -------------------------------------------------------------------------
+    -- Signal present (unchanged from archive)
+    -- -------------------------------------------------------------------------
     p_signal_present : process(clk)
     begin
         if rising_edge(clk) then
@@ -353,8 +324,8 @@ begin
                 sig_present   <= '0';
             else
                 if edge_pulse = '1' then
-                    timeout_cnt <= (others => '0');
-                    sig_present <= '1';
+                    timeout_cnt   <= (others => '0');
+                    sig_present   <= '1';
                     if period_valid = '1' then
                         timeout_limit <= resize(
                             last_period * resize(crank_n_missing + 3, 8), 32);
@@ -370,10 +341,9 @@ begin
         end if;
     end process p_signal_present;
 
-    -- =========================================================================
-    -- Compute last_real from runtime config
-    -- last_real = n_teeth - n_missing - 2
-    -- =========================================================================
+    -- -------------------------------------------------------------------------
+    -- last_real (unchanged from archive)
+    -- -------------------------------------------------------------------------
     p_last_real : process(clk)
     begin
         if rising_edge(clk) then
@@ -385,19 +355,19 @@ begin
         end if;
     end process p_last_real;
 
-    -- =========================================================================
+    -- -------------------------------------------------------------------------
     -- Output assignments
-    -- =========================================================================
+    -- -------------------------------------------------------------------------
     crank_ab           <= ab_int;
     crank_z            <= z_int;
-    crank_ab_edge      <= edge_pulse;           -- registered 1-clock strobe
     crank_z_edge       <= '1' when (z_int = '1' and z_int_prev = '0') else '0';
+    crank_ab_edge      <= edge_pulse;
     crank_tooth_period <= current_period;
     crank_tooth_count  <= tooth_cnt;
     crank_ab_count     <= ab_count_int;
-    crank_gap_det      <= gap_det_int;
+    crank_gap_det      <= gap_det;
     crank_gap_period   <= gap_period_int;
     crank_ppr_conf     <= crank_n_teeth;
-    crank_signal_ok_out<= sig_present;
+    crank_signal_ok    <= sig_present;
 
 end architecture rtl;
