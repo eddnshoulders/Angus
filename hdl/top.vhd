@@ -278,11 +278,11 @@ architecture rtl of top is
     -- =========================================================================
     -- Debug pulse wideners (1us = 100 clocks @ 100MHz)
     -- =========================================================================
-    constant PULSE_WIDTH   : integer := 100;
-    signal dbg_crank_ab    : unsigned(6 downto 0) := (others => '0');
-    signal dbg_ref_edge    : unsigned(6 downto 0) := (others => '0');
-    signal dbg_ab_edge     : unsigned(6 downto 0) := (others => '0');
-    signal dbg_z_edge      : unsigned(6 downto 0) := (others => '0');
+    constant PULSE_WIDTH   : integer := 50000;  -- 500us @ 100MHz
+    signal dbg_crank_ab    : unsigned(16 downto 0) := (others => '0');
+    signal dbg_ref_edge    : unsigned(16 downto 0) := (others => '0');
+    signal dbg_ab_edge     : unsigned(16 downto 0) := (others => '0');
+    signal dbg_z_edge      : unsigned(16 downto 0) := (others => '0');
 
 begin
 
@@ -459,7 +459,7 @@ begin
                   crank_tooth_count=>crank_tooth_count,
                   crank_ab_count=>crank_ab_count,
                   crank_gap_det=>crank_gap_det,
-                  crank_signal_ok_out=>crank_signal_ok,
+                  crank_signal_ok=>crank_signal_ok,
                   crank_ab=>crank_ab,
                   crank_z=>crank_z);
 
@@ -693,25 +693,25 @@ begin
                 dbg_z_edge   <= (others => '0');
             else
                 if crank_ab_edge = '1' then
-                    dbg_crank_ab <= to_unsigned(PULSE_WIDTH - 1, 7);
+                    dbg_crank_ab <= to_unsigned(PULSE_WIDTH - 1, 17);
                 elsif dbg_crank_ab > 0 then
                     dbg_crank_ab <= dbg_crank_ab - 1;
                 end if;
 
                 if ref_edge = '1' then
-                    dbg_ref_edge <= to_unsigned(PULSE_WIDTH - 1, 7);
+                    dbg_ref_edge <= to_unsigned(PULSE_WIDTH - 1, 17);
                 elsif dbg_ref_edge > 0 then
                     dbg_ref_edge <= dbg_ref_edge - 1;
                 end if;
 
                 if ab_edge = '1' then
-                    dbg_ab_edge <= to_unsigned(PULSE_WIDTH - 1, 7);
+                    dbg_ab_edge <= to_unsigned(PULSE_WIDTH - 1, 17);
                 elsif dbg_ab_edge > 0 then
                     dbg_ab_edge <= dbg_ab_edge - 1;
                 end if;
 
                 if z_edge = '1' then
-                    dbg_z_edge <= to_unsigned(PULSE_WIDTH - 1, 7);
+                    dbg_z_edge <= to_unsigned(PULSE_WIDTH - 1, 17);
                 elsif dbg_z_edge > 0 then
                     dbg_z_edge <= dbg_z_edge - 1;
                 end if;
