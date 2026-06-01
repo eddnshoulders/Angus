@@ -53,7 +53,7 @@ set_property PACKAGE_PIN B20 [get_ports {debug_out_0[6]}]
 set_property PACKAGE_PIN W8 [get_ports {debug_out_0[7]}]
 set_property PACKAGE_PIN W10 [get_ports {debug_out_0[8]}]
 set_property PACKAGE_PIN B19 [get_ports {debug_out_0[9]}]
-set_property PACKAGE_PIN U7 [get_ports {debug_out_0[10]}]
+set_property PACKAGE_PIN V8 [get_ports {debug_out_0[10]}]
 set_property PACKAGE_PIN C20 [get_ports {debug_out_0[11]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {debug_out_0[*]}]
 set_false_path -to [get_ports {debug_out_0[*]}]
@@ -74,3 +74,9 @@ set_property PACKAGE_PIN T10 [get_ports CAN0_PHY_TX_0]
 set_property IOSTANDARD LVCMOS33 [get_ports a_raw_0]
 set_property IOSTANDARD LVCMOS33 [get_ports b_raw_0]
 set_property IOSTANDARD LVCMOS33 [get_ports z_raw_0]
+
+set_multicycle_path -setup -from [get_cells -hierarchical -filter {NAME =~ *u_pll/phase_err_int*}] 4
+set_multicycle_path -hold -from [get_cells -hierarchical -filter {NAME =~ *u_pll/phase_err_int*}] 3
+
+set_property PACKAGE_PIN V6 [get_ports {debug_out_0[12]}]
+set_property PACKAGE_PIN V10 [get_ports {debug_out_0[13]}]
