@@ -49,7 +49,7 @@ begin
         crank_ab_edge=>ab_edge, crank_z_edge=>z_edge, crank_ppr_conf=>ppr_conf,
         crank_tooth_period=>tooth_per, crank_tooth_count=>tooth_cnt,
         crank_ab_count=>ab_cnt, crank_gap_det=>gap_det, crank_gap_period=>gap_period,
-        crank_signal_ok_out=>signal_ok,
+        crank_signal_ok=>signal_ok,
         crank_ab=>crank_ab, crank_z=>crank_z);
 
     p_stim : process
