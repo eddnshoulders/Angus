@@ -293,7 +293,6 @@ begin
         if rising_edge(clk) then
             -- AB toggle detection
             if crank_ab /= ab_prev then
-                ab_cnt  <= ab_cnt + 1;
                 cycle_ab  := cycle_ab + 1;
             end if;
             ab_prev := crank_ab;

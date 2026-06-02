@@ -162,6 +162,7 @@ begin
                         phase_inv_int <= '0';
                         phase_ref_det_int <= '1';
                         det_cnt_int <= det_cnt_int + 1;
+                        ref_angle_int <= angle_deg;
                         if phase_ref_found_int = '0' then
                             phase_inv_l_int <= '0';
                             phase_ref_found_int <= '1';
@@ -175,6 +176,7 @@ begin
                         phase_inv_int <= '1';
                         phase_ref_det_int <= '1';
                         det_cnt_int <= det_cnt_int + 1;
+                        ref_angle_int <= angle_deg;
                         if phase_ref_found_int = '0' then
                             phase_inv_l_int <= '1';
                             phase_ref_found_int <= '1';

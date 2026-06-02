@@ -1,145 +1,305 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-library std; use std.env.all;
 
--- =============================================================================
--- angle_tb
--- T1: startup divider -- angle_nco_ab_inc = 0xFFFFFFFF / (ppr*2)
---     For ppr=60: 0xFFFFFFFF / 120 = 35791394 (0x2222222)
--- T2: ab_edge snaps accumulator to edge_count * nco_ab_inc
--- T3: angle_deg correct after several edges (no interpolation)
--- T4: 2nd z_edge resets edge_count and accumulator
--- T5: interpolation -- nco_accum advances between edges when enabled
--- T6: angle_nco_clk_inc = angle_nco_ab_inc / ab_period
--- =============================================================================
-entity angle_tb is end entity;
+library std;
+use std.env.all;
+
+entity angle_tb is
+end entity angle_tb;
+
 architecture sim of angle_tb is
-    constant CLK_PERIOD   : time    := 10 ns;
-    constant PPR          : integer := 60;
-    constant AB_PERIOD_C  : integer := 10000;
-    -- angle_nco_ab_inc = 0xFFFFFFFF / 120 = 35791394
-    constant NCO_AB_INC   : integer := 35791394;
 
-    signal clk        : std_logic := '0';
-    signal done       : boolean   := false;
-    signal rst        : std_logic := '1';
-    signal ab_edge    : std_logic := '0';
-    signal z_edge     : std_logic := '0';
-    signal ab_per     : unsigned(31 downto 0) := to_unsigned(AB_PERIOD_C, 32);
-    signal ppr_s      : unsigned(7 downto 0)  := to_unsigned(PPR, 8);
-    signal interp_en  : std_logic := '0';
-    signal angle_deg  : unsigned(15 downto 0);
+    -- -------------------------------------------------------------------------
+    -- Constants
+    -- angle_nco_ab_inc = 0xFFFFFFFF / (ppr * 2) = 0xFFFFFFFF / 120 = 35791394
+    -- angle_deg = (nco_accum * 7200) >> 32
+    -- At edge N: nco_accum snaps to N * nco_ab_inc
+    --   Edge 1: accum = 35791394, angle_deg = (35791394 * 7200) >> 32 = 60
+    --   Edge 6: accum = 214748364, angle_deg = 360
+    --   Edge 60: accum = 2147483640, angle_deg = 3600
+    -- angle_nco_clk_inc = nco_ab_inc / ab_period = 35791394 / 10000 = 3579
+    -- -------------------------------------------------------------------------
+    constant CLK_PERIOD  : time    := 10 ns;
+    constant PPR         : integer := 60;
+    constant AB_PERIOD_C : integer := 10000;
+    constant NCO_AB_INC  : integer := 35791394;   -- 0xFFFFFFFF / 120
+    constant NCO_CLK_INC_C : integer := 3579;       -- 35791394 / 10000
+
+    -- -------------------------------------------------------------------------
+    -- DUT signals
+    -- -------------------------------------------------------------------------
+    signal clk          : std_logic := '0';
+    signal rst          : std_logic := '1';
+    signal ab_edge_s    : std_logic := '0';
+    signal z_edge_s     : std_logic := '0';
+    signal ab_per       : unsigned(31 downto 0) := to_unsigned(AB_PERIOD_C, 32);
+    signal ppr_s        : unsigned(7 downto 0)  := to_unsigned(PPR, 8);
+    signal interp_en    : std_logic := '0';
+    signal angle_deg    : unsigned(15 downto 0);
     signal nco_ab_inc_s : unsigned(31 downto 0);
-    signal nco_clk_inc: unsigned(31 downto 0);
+    signal nco_clk_inc  : unsigned(31 downto 0);
 
-    procedure fire_ab(signal s : out std_logic; signal c : in std_logic) is
-    begin
-        s <= '1'; wait until rising_edge(c); wait for 1 ns; s <= '0';
-        wait until rising_edge(c);
-    end procedure;
+    -- -------------------------------------------------------------------------
+    -- Testbench control
+    -- -------------------------------------------------------------------------
+    signal sim_done : boolean := false;
+    signal test_num : integer := 0;
 
-    procedure fire_z(signal s : out std_logic; signal c : in std_logic) is
+    -- -------------------------------------------------------------------------
+    -- Fire an ab_edge strobe and wait for output to update (registered)
+    -- -------------------------------------------------------------------------
+    procedure fire_ab(
+        signal   s   : out std_logic;
+        signal   c   : in  std_logic
+    ) is
     begin
-        s <= '1'; wait until rising_edge(c); wait for 1 ns; s <= '0';
+        s <= '1'; wait until rising_edge(c);
+        wait for 1 ns;
+        s <= '0';
+        wait until rising_edge(c);   -- extra cycle for registered angle_deg
+    end procedure fire_ab;
+
+    -- -------------------------------------------------------------------------
+    -- Fire a z_edge strobe and wait for output to update (registered)
+    -- -------------------------------------------------------------------------
+    procedure fire_z(
+        signal   s   : out std_logic;
+        signal   c   : in  std_logic
+    ) is
+    begin
+        s <= '1'; wait until rising_edge(c);
+        wait for 1 ns;
+        s <= '0';
         wait until rising_edge(c);
-    end procedure;
+    end procedure fire_z;
+
 begin
-    clk <= not clk after CLK_PERIOD/2 when not done else '0';
 
+    -- -------------------------------------------------------------------------
+    -- Clock generation
+    -- -------------------------------------------------------------------------
+    p_clk : process
+    begin
+        while not sim_done loop
+            clk <= '0'; wait for CLK_PERIOD / 2;
+            clk <= '1'; wait for CLK_PERIOD / 2;
+        end loop;
+        wait;
+    end process p_clk;
+
+    -- -------------------------------------------------------------------------
+    -- DUT instantiation
+    -- -------------------------------------------------------------------------
     dut : entity work.angle
-        port map (clk=>clk, rst=>rst, ab_edge=>ab_edge, z_edge=>z_edge,
-                  ab_period=>ab_per, ppr_conf=>ppr_s,
-                  angle_interp_en=>interp_en,
-                  angle_deg=>angle_deg,
-                  angle_nco_ab_inc=>nco_ab_inc_s,
-                  angle_nco_clk_inc=>nco_clk_inc);
+        port map (
+            clk              => clk,
+            rst              => rst,
+            ab_edge          => ab_edge_s,
+            z_edge           => z_edge_s,
+            ab_period        => ab_per,
+            ppr_conf         => ppr_s,
+            angle_interp_en  => interp_en,
+            angle_deg        => angle_deg,
+            angle_nco_ab_inc => nco_ab_inc_s,
+            angle_nco_clk_inc => nco_clk_inc
+        );
 
+    -- -------------------------------------------------------------------------
+    -- Stimulus
+    -- -------------------------------------------------------------------------
     p_stim : process
     begin
-        wait for 5 * CLK_PERIOD;
-        rst <= '0';
-        -- Wait for startup divider to complete (~70 cycles for ppr=60)
-        wait for 100 * CLK_PERIOD;
 
-        -- T1: verify angle_nco_ab_inc = 0xFFFFFFFF / 120
+        -- --------------------------------------------------------------------
+        -- TEST 1: Startup divider produces correct angle_nco_ab_inc
+        -- angle_nco_ab_inc = 0xFFFFFFFF / (ppr * 2) = 35791394 for ppr=60
+        -- Divider is 32-bit sequential; allow 70 cycles to complete
+        -- --------------------------------------------------------------------
+        report "TEST 1: Startup divider - angle_nco_ab_inc correct";
+        test_num <= 1;
+
+        rst <= '1'; wait for 5 * CLK_PERIOD;
+        rst <= '0';
+        wait for 100 * CLK_PERIOD;   -- divider completion + margin
+        wait for 1 ns;
+
         assert nco_ab_inc_s = to_unsigned(NCO_AB_INC, 32)
             report "FAIL T1: nco_ab_inc wrong: " &
                    integer'image(to_integer(nco_ab_inc_s)) &
                    " expected " & integer'image(NCO_AB_INC)
             severity failure;
-        report "T1: PASS";
 
-        -- T2: ab_edge snaps nco_accum to edge_count * nco_ab_inc
-        -- Before first ab_edge: angle_deg should be 0
-        assert angle_deg = to_unsigned(0, 16)
-            report "FAIL T2: angle_deg not 0 before first edge" severity failure;
-        fire_ab(ab_edge, clk);
-        -- edge_count was 0, snap to 0 * nco_ab_inc = 0, then edge_count becomes 1
-        assert angle_deg = to_unsigned(0, 16)
-            report "FAIL T2: angle_deg wrong after edge 0" severity failure;
-        report "T2: PASS";
+        assert to_integer(angle_deg) = 0
+            report "FAIL T1: angle_deg should be 0 before first z_edge"
+            severity failure;
 
-        -- T3: angle_deg advances correctly over several edges
-        -- After edge 1 (second fire_ab): snap to 1 * nco_ab_inc
-        -- angle_deg = (1 * 35791394 * 7200) >> 32 = (35791394 * 7200) >> 32
-        -- = 257697956800 >> 32 = 59.99... ~ 60
-        fire_ab(ab_edge, clk);
-        wait until rising_edge(clk);  -- extra cycle for registered angle_deg
+        report "TEST 1: PASS - nco_ab_inc = " &
+               integer'image(to_integer(nco_ab_inc_s));
+
+        -- --------------------------------------------------------------------
+        -- TEST 2: First ab_edge before 2nd z_edge does not advance angle
+        -- angle block requires 2 z_edges before it tracks
+        -- --------------------------------------------------------------------
+        report "TEST 2: angle stays 0 before 2nd z_edge";
+        test_num <= 2;
+
+        fire_ab(ab_edge_s, clk);
+        wait for 1 ns;
+        assert to_integer(angle_deg) = 0
+            report "FAIL T2: angle should be 0 before 2nd z_edge"
+            severity failure;
+
+        -- First z_edge: angle still locked at 0
+        fire_z(z_edge_s, clk);
+        wait for 1 ns;
+        assert to_integer(angle_deg) = 0
+            report "FAIL T2: angle should be 0 after 1st z_edge"
+            severity failure;
+
+        report "TEST 2: PASS";
+        wait for 3 * CLK_PERIOD;
+
+        -- --------------------------------------------------------------------
+        -- TEST 3: After 2nd z_edge, ab_edges advance angle_deg
+        -- Edge 1 after 2nd z: angle_deg = 60 (= 1 * 35791394 * 7200 >> 32)
+        -- Edge 6 after 2nd z: angle_deg = 360
+        -- --------------------------------------------------------------------
+        report "TEST 3: ab_edges advance angle_deg after 2nd z_edge";
+        test_num <= 3;
+
+        -- 2nd z_edge: tracking starts
+        fire_z(z_edge_s, clk);
+        wait for 1 ns;
+
+        -- Edge 0 after 2nd z: snap to 0
+        fire_ab(ab_edge_s, clk);
+        wait for 1 ns;
+        assert to_integer(angle_deg) = 0
+            report "FAIL T3: edge 0 should give angle 0, got " &
+                   integer'image(to_integer(angle_deg))
+            severity failure;
+
+        -- Edge 1: angle = 60
+        fire_ab(ab_edge_s, clk);
+        wait until rising_edge(clk); wait for 1 ns;
         assert to_integer(angle_deg) >= 59 and to_integer(angle_deg) <= 61
-            report "FAIL T3: angle_deg after edge 1 wrong: " &
-                   integer'image(to_integer(angle_deg)) severity failure;
+            report "FAIL T3: edge 1 should give ~60 deg, got " &
+                   integer'image(to_integer(angle_deg))
+            severity failure;
 
-        -- After 5 more edges (total edge_count=6):
-        -- snap to 6 * 35791394 = 214748364
-        -- angle_deg = (214748364 * 7200) >> 32 = 360
-        fire_ab(ab_edge, clk); fire_ab(ab_edge, clk);
-        fire_ab(ab_edge, clk); fire_ab(ab_edge, clk); fire_ab(ab_edge, clk);
-        wait until rising_edge(clk);  -- extra cycle for registered angle_deg
-        assert to_integer(angle_deg) >= 359 and to_integer(angle_deg) <= 361
-            report "FAIL T3: angle_deg at edge 6 wrong: " &
-                   integer'image(to_integer(angle_deg)) severity failure;
-        report "T3: PASS";
+        -- Edges 2-5: angle = 360 by edge 6
+        fire_ab(ab_edge_s, clk); fire_ab(ab_edge_s, clk);
+        fire_ab(ab_edge_s, clk); fire_ab(ab_edge_s, clk);
+        fire_ab(ab_edge_s, clk);   -- edge 6
+        wait until rising_edge(clk); wait for 1 ns;
 
-        -- T4: 2nd z_edge resets edge_count and accumulator
-        fire_z(z_edge, clk);
-        assert to_integer(angle_deg) >= 359  -- first z doesn't reset
-            report "FAIL T4: first z_edge reset accumulator (should not)" severity failure;
-        fire_z(z_edge, clk);
-        wait until rising_edge(clk);  -- registered angle_deg
-        assert angle_deg = to_unsigned(0, 16)
-            report "FAIL T4: second z_edge did not reset accumulator" severity failure;
-        -- Verify edge_count reset by firing one ab_edge -- should snap to 0
-        fire_ab(ab_edge, clk);
-        assert angle_deg = to_unsigned(0, 16)
-            report "FAIL T4: edge_count not reset after 2nd z (snap to non-zero)" severity failure;
-        report "T4: PASS";
+        assert to_integer(angle_deg) >= 358 and to_integer(angle_deg) <= 362
+            report "FAIL T3: edge 6 should give ~360 deg, got " &
+                   integer'image(to_integer(angle_deg))
+            severity failure;
 
-        -- T5: interpolation -- accumulator advances between edges
+        report "TEST 3: PASS";
+        wait for 3 * CLK_PERIOD;
+
+        -- --------------------------------------------------------------------
+        -- TEST 4: 2nd z_edge resets edge_count and accumulator to 0
+        -- The NEXT 2nd z_edge (3rd total) should reset; first z_edge should not
+        -- --------------------------------------------------------------------
+        report "TEST 4: 2nd z_edge (in pair) resets accumulator";
+        test_num <= 4;
+
+        -- We've had 2 z_edges and are tracking.
+        -- Fire a 3rd z_edge: first of new pair -- should NOT reset
+        fire_z(z_edge_s, clk);
+        wait for 1 ns;
+        assert to_integer(angle_deg) >= 358
+            report "FAIL T4: 1st z_edge of pair reset accumulator (should not)"
+            severity failure;
+
+        -- Fire 4th z_edge: 2nd of new pair -- should reset to 0
+        fire_z(z_edge_s, clk);
+        wait until rising_edge(clk); wait for 1 ns;
+        assert to_integer(angle_deg) = 0
+            report "FAIL T4: 2nd z_edge of pair did not reset accumulator, got " &
+                   integer'image(to_integer(angle_deg))
+            severity failure;
+
+        report "TEST 4: PASS";
+        wait for 3 * CLK_PERIOD;
+
+        -- --------------------------------------------------------------------
+        -- TEST 5: Interpolation advances angle between ab_edges
+        -- Enable interp_en; after one ab_edge triggers the tooth divider,
+        -- angle_deg should advance each clock between edges
+        -- --------------------------------------------------------------------
+        report "TEST 5: Interpolation advances angle between ab_edges";
+        test_num <= 5;
+
         interp_en <= '1';
-        -- Fire ab_edge to trigger tooth divider
-        fire_ab(ab_edge, clk);
-        -- Wait for tooth divider to complete and supply clk_inc
-        wait for 100 * CLK_PERIOD;
-        -- After tooth divider: nco_clk_inc_int = nco_ab_inc / ab_period
-        -- = 35791394 / 10000 = 3579
-        -- After 10 more clocks accumulator should have advanced ~35790
-        -- vs snap position + 10 * 3579 = snap + 35790
-        -- angle_deg should be slightly above snap value
+
+        -- Trigger tooth divider with an ab_edge
+        fire_ab(ab_edge_s, clk);
+        -- Wait for tooth divider (32 cycles) + a few clocks of accumulation
+        wait for 1000 * CLK_PERIOD;
+        wait for 1 ns;
+
         assert to_integer(angle_deg) > 0
-            report "FAIL T5: interpolation not advancing accumulator" severity failure;
-        -- angle_deg at this point should be > edge 2 snap (60 deg)
-        assert to_integer(angle_deg) >= 60
-            report "FAIL T5: angle_deg below expected with interpolation" severity failure;
-        report "T5: PASS";
+            report "FAIL T5: interpolation not advancing angle"
+            severity failure;
 
-        -- T6: angle_nco_clk_inc = nco_ab_inc / ab_period = 35791394 / 10000 = 3579
-        assert to_integer(nco_clk_inc) >= 3570 and to_integer(nco_clk_inc) <= 3590
+
+        report "TEST 5: PASS";
+        interp_en <= '0';
+        wait for 3 * CLK_PERIOD;
+
+        -- --------------------------------------------------------------------
+        -- TEST 6: angle_nco_clk_inc = nco_ab_inc / ab_period
+        -- = 35791394 / 10000 = 3579 (within 1 LSB)
+        -- --------------------------------------------------------------------
+        report "TEST 6: angle_nco_clk_inc = nco_ab_inc / ab_period";
+        test_num <= 6;
+
+        -- Trigger tooth divider
+        interp_en <= '1';
+        fire_ab(ab_edge_s, clk);
+        wait for 60 * CLK_PERIOD;   -- divider completion
+        wait for 1 ns;
+
+        assert to_integer(nco_clk_inc) >= NCO_CLK_INC_C - 2 and
+               to_integer(nco_clk_inc) <= NCO_CLK_INC_C + 2
             report "FAIL T6: nco_clk_inc wrong: " &
-                   integer'image(to_integer(nco_clk_inc)) severity failure;
-        report "T6: PASS";
+                   integer'image(to_integer(nco_clk_inc)) &
+                   " expected ~" & integer'image(NCO_CLK_INC_C)
+            severity failure;
 
-        report "All angle tests PASS";
-        done <= true; std.env.stop; wait;
-    end process;
+        interp_en <= '0';
+        report "TEST 6: PASS - nco_clk_inc = " &
+               integer'image(to_integer(nco_clk_inc));
+
+        -- --------------------------------------------------------------------
+        -- Done
+        -- --------------------------------------------------------------------
+        wait for 10 * CLK_PERIOD;
+        report "========================================";
+        report "All angle tests complete";
+        report "========================================";
+
+        sim_done <= true;
+        std.env.stop;
+        wait;
+
+    end process p_stim;
+
+    -- -------------------------------------------------------------------------
+    -- Monitor
+    -- -------------------------------------------------------------------------
+    p_monitor : process(angle_deg)
+    begin
+        if angle_deg'event then
+            report "ANGLE: " & integer'image(to_integer(angle_deg)) &
+                   " deg  test=" & integer'image(test_num);
+        end if;
+    end process p_monitor;
+
 end architecture sim;
