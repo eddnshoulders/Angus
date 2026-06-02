@@ -1,3 +1,4 @@
+cp ../vivado/angus.runs/impl_1/pynq_z2_wrapper.bit angus.bit
+cp ../vivado/angus.gen/sources_1/bd/pynq_z2/hw_handoff/pynq_z2.hwh angus.hwh
 scp angus.bit xilinx@pynq.clients.buggins.haus:/home/xilinx/angus.bit
 scp angus.hwh xilinx@pynq.clients.buggins.haus:/home/xilinx/angus.hwh
-

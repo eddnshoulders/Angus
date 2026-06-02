@@ -1,0 +1,7 @@
+ghdl -a --std=08 ../../hdl/crank.vhd
+ghdl -a --std=08 ../../tb/crank_tb.vhd
+ghdl -e --std=08 crank_tb
+ghdl -a --std=08 ../../tb/crank_tb2.vhd
+ghdl -e --std=08 crank_tb2
+ghdl -r --std=08 crank_tb --vcd=../../sim/crank.vcd --stop-time=1000ms --assert-level=error
+ghdl -r --std=08 crank_tb2 --vcd=../../sim/crank2.vcd --stop-time=1000ms --assert-level=error

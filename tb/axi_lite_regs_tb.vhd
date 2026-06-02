@@ -89,7 +89,7 @@ architecture sim of axi_lite_regs_tb is
     signal phase_inv_latch_in  : std_logic := '0';
     signal phase_ang_corr_in   : unsigned(15 downto 0) := (others => '0');
     signal phase_eng_in        : std_logic := '0';
-    signal phase_ang_eng_in    : unsigned(15 downto 0) := (others => '0');
+    signal phase_eng_ang_in    : unsigned(15 downto 0) := (others => '0');
     signal phase_ref_det_cnt_in: unsigned(15 downto 0) := (others => '0');
     signal pll_ang_hires_in    : unsigned(15 downto 0) := (others => '0');
     signal pll_div_valid_in    : std_logic := '0';
@@ -196,7 +196,7 @@ begin
             phase_inv_latch  => phase_inv_latch_in,
             phase_ang_corr   => phase_ang_corr_in,
             phase_eng        => phase_eng_in,
-            phase_ang_eng    => phase_ang_eng_in,
+            phase_eng_ang    => phase_eng_ang_in,
             phase_ref_det_cnt => phase_ref_det_cnt_in,
             pll_ang_hires    => pll_ang_hires_in,
             pll_div_valid    => pll_div_valid_in,

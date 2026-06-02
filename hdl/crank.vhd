@@ -361,7 +361,7 @@ begin
     crank_ab           <= ab_int;
     crank_z            <= z_int;
     crank_z_edge       <= '1' when (z_int = '1' and z_int_prev = '0') else '0';
-    crank_ab_edge      <= edge_pulse;
+    crank_ab_edge      <= edge_pulse or interp_pulse;
     crank_tooth_period <= current_period;
     crank_tooth_count  <= tooth_cnt;
     crank_ab_count     <= ab_count_int;

@@ -1,0 +1,4 @@
+ghdl -a --std=08 ../../hdl/pack.vhd
+ghdl -a --std=08 ../../tb/pack_tb.vhd
+ghdl -e --std=08 pack_tb
+ghdl -r --std=08 pack_tb --vcd=../../sim/sample_pack.vcd --stop-time=1000ms --assert-level=error

@@ -1,0 +1,4 @@
+ghdl -a --std=08 ../../hdl/pll.vhd
+ghdl -a --std=08 ../../tb/pll_tb.vhd
+ghdl -e --std=08 pll_tb
+ghdl -r --std=08 pll_tb --vcd=../../sim/pll.vcd --stop-time=1000ms --assert-level=error

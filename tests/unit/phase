@@ -1,0 +1,4 @@
+ghdl -a --std=08 ../../hdl/phase.vhd
+ghdl -a --std=08 ../../tb/phase_tb.vhd
+ghdl -e --std=08 phase_tb
+ghdl -r --std=08 phase_tb --vcd=../../sim/phase.vcd --stop-time=1000ms --assert-level=error

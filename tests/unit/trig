@@ -1,0 +1,4 @@
+ghdl -a --std=08 ../../hdl/trig.vhd
+ghdl -a --std=08 ../../tb/trig_tb.vhd
+ghdl -e --std=08 trig_tb
+ghdl -r --std=08 trig_tb --vcd=../../sim/trig.vcd --stop-time=1000ms --assert-level=error

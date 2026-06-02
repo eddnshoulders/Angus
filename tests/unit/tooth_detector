@@ -1,4 +1,0 @@
-ghdl -a --std=08 ../../hdl/tooth_detector.vhd
-ghdl -a --std=08 ../../tb/tooth_detector_tb.vhd
-ghdl -e --std=08 tooth_detector_tb
-ghdl -r --std=08 tooth_detector_tb --vcd=../../sim/tooth_detector.vcd --stop-time=1000ms --assert-level=error

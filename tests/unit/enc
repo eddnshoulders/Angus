@@ -1,0 +1,4 @@
+ghdl -a --std=08 ../../hdl/enc.vhd
+ghdl -a --std=08 ../../tb/enc_tb.vhd
+ghdl -e --std=08 enc_tb
+ghdl -r --std=08 enc_tb --vcd=../../sim/enc.vcd --stop-time=1000ms --assert-level=error

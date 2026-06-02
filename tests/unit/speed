@@ -1,0 +1,4 @@
+ghdl -a --std=08 ../../hdl/speed.vhd
+ghdl -a --std=08 ../../tb/speed_tb.vhd
+ghdl -e --std=08 speed_tb
+ghdl -r --std=08 speed_tb --vcd=../../sim/speed.vcd --stop-time=1000ms --assert-level=error

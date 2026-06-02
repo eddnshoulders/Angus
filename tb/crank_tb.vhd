@@ -5,10 +5,11 @@ library std; use std.env.all;
 
 entity crank_tb is end entity;
 architecture sim of crank_tb is
-    constant CLK_PERIOD   : time    := 10 ns;
-    constant TOOTH_PERIOD : integer := 100;  -- 100 clocks per tooth
-    constant N_TEETH      : integer := 8;    -- 8 total teeth (6 real + 2 missing)
-    constant N_MISSING    : integer := 2;
+    constant CLK_PERIOD    : time    := 10 ns;
+    constant TOOTH_PERIOD  : integer := 100;  -- 100 clocks per tooth
+    constant N_TEETH       : integer := 60;   -- 60 total teeth (58 real + 2 missing)
+    constant N_MISSING     : integer := 2;
+    constant GAP_THRESHOLD : unsigned(7 downto 0) := x"C0";
     -- gap_threshold 0xC0 = 192 = 1.5 in 1.7 fp
     -- gap fires when period_cnt * 128 >= last_period * 192
     -- = period_cnt >= last_period * 1.5
@@ -19,7 +20,7 @@ architecture sim of crank_tb is
     signal rst        : std_logic := '1';
     signal clean      : std_logic := '0';
     signal edge_sel   : std_logic := '1';
-    signal gap_thresh : unsigned(7 downto 0) := x"C0";
+    signal gap_thresh : unsigned(7 downto 0) := GAP_THRESHOLD;
     signal n_teeth_s  : unsigned(7 downto 0) := to_unsigned(N_TEETH, 8);
     signal n_missing_s: unsigned(7 downto 0) := to_unsigned(N_MISSING, 8);
     signal ab_edge    : std_logic;
@@ -43,14 +44,27 @@ architecture sim of crank_tb is
     end procedure;
 begin
     clk <= not clk after CLK_PERIOD/2 when not done else '0';
-    dut : entity work.crank port map(clk=>clk, rst=>rst, crank_clean=>clean,
-        crank_edge_sel=>edge_sel, crank_gap_thresh=>gap_thresh,
-        crank_n_teeth=>n_teeth_s, crank_n_missing=>n_missing_s,
-        crank_ab_edge=>ab_edge, crank_z_edge=>z_edge, crank_ppr_conf=>ppr_conf,
-        crank_tooth_period=>tooth_per, crank_tooth_count=>tooth_cnt,
-        crank_ab_count=>ab_cnt, crank_gap_det=>gap_det, crank_gap_period=>gap_period,
-        crank_signal_ok=>signal_ok,
-        crank_ab=>crank_ab, crank_z=>crank_z);
+    dut : entity work.crank port 
+        map(
+            clk=>clk,
+            rst=>rst,
+            crank_clean=>clean,
+            crank_edge_sel=>edge_sel,
+            crank_gap_thresh=>gap_thresh,
+            crank_n_teeth=>n_teeth_s,
+            crank_n_missing=>n_missing_s,
+            crank_ab_edge=>ab_edge,
+            crank_z_edge=>z_edge,
+            crank_ppr_conf=>ppr_conf,
+            crank_tooth_period=>tooth_per,
+            crank_tooth_count=>tooth_cnt,
+            crank_ab_count=>ab_cnt,
+            crank_gap_det=>gap_det,
+            crank_gap_period=>gap_period,
+            crank_signal_ok=>signal_ok,
+            crank_ab=>crank_ab,
+            crank_z=>crank_z
+        );
 
     p_stim : process
     begin

@@ -1,0 +1,4 @@
+ghdl -a --std=08 ../../hdl/filter.vhd
+ghdl -a --std=08 ../../tb/filter_tb.vhd
+ghdl -e --std=08 filter_tb
+ghdl -r --std=08 filter_tb --vcd=../../sim/filter.vcd --stop-time=1000ms --assert-level=error

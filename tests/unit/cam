@@ -1,0 +1,4 @@
+ghdl -a --std=08 ../../hdl/cam.vhd
+ghdl -a --std=08 ../../tb/cam_tb.vhd
+ghdl -e --std=08 cam_tb
+ghdl -r --std=08 cam_tb --vcd=../../sim/cam.vcd --stop-time=1000ms --assert-level=error

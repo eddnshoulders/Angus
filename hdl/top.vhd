@@ -84,7 +84,7 @@ entity top is
         di_ch              : in  std_logic_vector(7 downto 0);
 
         -- Debug outputs (Pi header, 22 bits)
-        debug_out          : out std_logic_vector(13 downto 0)
+        debug_out          : out std_logic_vector(15 downto 0)
     );
 end entity top;
 
@@ -278,11 +278,13 @@ architecture rtl of top is
     -- =========================================================================
     -- Debug pulse wideners (1us = 100 clocks @ 100MHz)
     -- =========================================================================
-    constant PULSE_WIDTH   : integer := 50000;  -- 500us @ 100MHz
-    signal dbg_crank_ab    : unsigned(16 downto 0) := (others => '0');
-    signal dbg_ref_edge    : unsigned(16 downto 0) := (others => '0');
-    signal dbg_ab_edge     : unsigned(16 downto 0) := (others => '0');
-    signal dbg_z_edge      : unsigned(16 downto 0) := (others => '0');
+    constant PULSE_WIDTH   : integer := 1000;
+    signal dbg_crank_ab    : unsigned(15 downto 0) := (others => '0');
+    signal dbg_ref_edge    : unsigned(15 downto 0) := (others => '0');
+    signal dbg_ab_edge     : unsigned(15 downto 0) := (others => '0');
+    signal dbg_z_edge      : unsigned(15 downto 0) := (others => '0');
+    signal dbg_peak_edge   : unsigned(15 downto 0) := (others => '0');
+    signal dbg_cam_edge    : unsigned(15 downto 0) := (others => '0');
 
 begin
 
@@ -437,9 +439,12 @@ begin
     -- Cam
     -- =========================================================================
     u_cam : entity work.cam
-        port map (clk=>clk, rst=>rst, cam_clean=>cam_clean,
-                  z_edge=>z_edge, cam_edge_sel=>cam_edge_sel,
-                  cam_edge=>cam_edge, cam_tooth_count=>cam_tooth_count);
+        port map (clk=>clk, rst=>rst,
+                  cam_clean=>cam_clean,
+                  z_edge=>z_edge, 
+                  cam_edge_sel=>cam_edge_sel,
+                  cam_edge=>cam_edge,
+                  cam_tooth_count=>cam_tooth_count);
 
     -- =========================================================================
     -- Crank
@@ -693,27 +698,39 @@ begin
                 dbg_z_edge   <= (others => '0');
             else
                 if crank_ab_edge = '1' then
-                    dbg_crank_ab <= to_unsigned(PULSE_WIDTH - 1, 17);
+                    dbg_crank_ab <= to_unsigned(PULSE_WIDTH - 1, 16);
                 elsif dbg_crank_ab > 0 then
                     dbg_crank_ab <= dbg_crank_ab - 1;
                 end if;
 
                 if ref_edge = '1' then
-                    dbg_ref_edge <= to_unsigned(PULSE_WIDTH - 1, 17);
+                    dbg_ref_edge <= to_unsigned(PULSE_WIDTH - 1, 16);
                 elsif dbg_ref_edge > 0 then
                     dbg_ref_edge <= dbg_ref_edge - 1;
                 end if;
 
                 if ab_edge = '1' then
-                    dbg_ab_edge <= to_unsigned(PULSE_WIDTH - 1, 17);
+                    dbg_ab_edge <= to_unsigned(PULSE_WIDTH - 1, 16);
                 elsif dbg_ab_edge > 0 then
                     dbg_ab_edge <= dbg_ab_edge - 1;
                 end if;
 
                 if z_edge = '1' then
-                    dbg_z_edge <= to_unsigned(PULSE_WIDTH - 1, 17);
+                    dbg_z_edge <= to_unsigned(PULSE_WIDTH - 1, 16);
                 elsif dbg_z_edge > 0 then
                     dbg_z_edge <= dbg_z_edge - 1;
+                end if;
+                
+                if peak_edge = '1' then
+                    dbg_peak_edge <= to_unsigned(PULSE_WIDTH - 1, 16);
+                elsif dbg_peak_edge > 0 then
+                    dbg_peak_edge <= dbg_peak_edge - 1;
+                end if;
+                
+                if cam_edge = '1' then
+                    dbg_cam_edge <= to_unsigned(PULSE_WIDTH - 1, 16);
+                elsif dbg_cam_edge > 0 then
+                    dbg_cam_edge <= dbg_cam_edge - 1;
                 end if;
             end if;
         end if;
@@ -723,18 +740,21 @@ begin
     -- Debug output assignments
     -- =========================================================================
     debug_out(0)  <= crank_clean;
-    debug_out(1)  <= cam_clean;
-    debug_out(2)  <= '1' when dbg_crank_ab > 0 else '0';
-    debug_out(3)  <= '1' when dbg_ref_edge > 0 else '0';
-    debug_out(4)  <= '1' when dbg_ab_edge  > 0 else '0';
-    debug_out(5)  <= '1' when dbg_z_edge   > 0 else '0';
-    debug_out(6)  <= crank_gap_det;
-    debug_out(7)  <= phase_ref_det;
-    debug_out(8)  <= trig_pulse;
-    debug_out(9)  <= pll_div_valid;
-    debug_out(10) <= crank_signal_ok;
-    debug_out(11) <= sync_full;
-    debug_out(12) <= phase_inv_latch;
-    debug_out(13) <= phase_ref_found;
-
+    debug_out(1)  <= crank_gap_det;
+    debug_out(2)  <= crank_ab;
+    debug_out(3)  <= crank_z;
+    debug_out(4)  <= '1' when dbg_ab_edge > 0 else '0';
+    debug_out(5)  <= '1' when dbg_z_edge > 0 else '0';
+    debug_out(6)  <= cam_clean;
+    debug_out(7)  <= '1' when dbg_cam_edge > 0 else '0';
+    debug_out(8)  <= '1' when dbg_ref_edge > 0 else '0';
+    debug_out(9)  <= phase_ref_det;
+    debug_out(10)  <= phase_inv_latch;
+    debug_out(11) <= phase_ref_found;
+    debug_out(12) <= phase_raw;
+    debug_out(13) <= phase_eng;
+    debug_out(14) <= sync_full;
+    debug_out(15) <= trig_pulse;
+    
+    
 end architecture rtl;

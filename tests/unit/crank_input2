@@ -1,4 +1,0 @@
-ghdl -a --std=08 ../../hdl/crank_input.vhd
-ghdl -a --std=08 ../../tb/crank_input_tb2.vhd
-ghdl -e --std=08 crank_input_tb2
-ghdl -r --std=08 crank_input_tb2 --vcd=../../sim/crank_input2.vcd --stop-time=1000ms --assert-level=error
