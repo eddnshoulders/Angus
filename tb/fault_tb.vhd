@@ -161,7 +161,7 @@ begin
 
         -- --------------------------------------------------------------------
         -- TEST 2: Crank tooth count fault on crank_z_edge with wrong count
-        -- Expected: crank_tooth_count = n_teeth - n_missing = 58
+        -- Expected: crank_tooth_count = n_teeth - n_missing - 1 = 57 (0-indexed)
         -- --------------------------------------------------------------------
         report "TEST 2: Crank tooth fault on wrong tooth count at crank_z_edge";
         test_num <= 2;
@@ -177,7 +177,7 @@ begin
             severity failure;
 
         -- Verify correct count does not fault
-        crank_tooth <= to_unsigned(58, 8);   -- correct
+        crank_tooth <= to_unsigned(57, 8);   -- correct
         fire_crank_z(crank_z, clk);
         assert to_integer(crank_cnt) = 1
             report "FAIL T2: crank_cnt incremented on correct tooth count"

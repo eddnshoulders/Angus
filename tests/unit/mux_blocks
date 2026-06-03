@@ -1,0 +1,6 @@
+ghdl -a --std=08 ../../hdl/ang_sel.vhd
+ghdl -a --std=08 ../../hdl/ref_sel.vhd
+ghdl -a --std=08 ../../hdl/src_sel.vhd
+ghdl -a --std=08 ../../tb/mux_blocks_tb.vhd
+ghdl -e --std=08 mux_blocks_tb
+ghdl -r --std=08 mux_blocks_tb --vcd=../../sim/mux_blocks.vcd --stop-time=1000ms --assert-level=error

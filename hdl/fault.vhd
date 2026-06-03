@@ -135,13 +135,13 @@ begin
                 crank_tooth_fault <= '0';
                 crank_ab_fault    <= '0';
                 if crank_z_edge = '1' and sync_full = '1' then
-                    if crank_tooth_count /= (crank_n_teeth - crank_n_missing) then
+                    if crank_tooth_count /= (crank_n_teeth - crank_n_missing - 1) then
                         crank_tooth_fault <= '1';
                         crank_cnt <= sat_inc(crank_cnt);
                     end if;
                     if crank_ab_count /= crank_n_teeth then
                         crank_ab_fault <= '1';
-                        if crank_tooth_count = (crank_n_teeth - crank_n_missing) then
+                        if crank_tooth_count = (crank_n_teeth - crank_n_missing - 1) then
                             -- Only count as separate fault if tooth count was OK
                             crank_cnt <= sat_inc(crank_cnt);
                         end if;
@@ -151,7 +151,7 @@ begin
                 -- AB count fault: ab_count != ppr_conf at z_edge
                 -- (works for both crank and encoder sources)
                 if z_edge = '1' and sync_full = '1' then
-                    if ab_count /= ppr_conf then
+                    if ab_count /= (ppr_conf - 1) then
                         ab_cnt <= sat_inc(ab_cnt);
                     end if;
                 end if;

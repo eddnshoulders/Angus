@@ -59,7 +59,7 @@ begin
                             z_count <= z_count + 1;
                             if z_count = "01" then
                                 -- 2nd z_edge: check ab_count
-                                if ab_count_r = ppr_conf then
+                                if ab_count_r = (ppr_conf - 1) then   -- ab_count is 0-indexed
                                     state_int <= to_unsigned(2, 2);  -- CRANK_SYNC
                                 else
                                     -- Wrong count, stay MOVING, reset z_count
@@ -76,7 +76,7 @@ begin
                             state_int <= to_unsigned(3, 2);  -- FULL_SYNC
                         end if;
                         -- Check ab_count at each z_edge
-                        if z_edge = '1' and ab_count_r /= ppr_conf then
+                        if z_edge = '1' and ab_count_r /= (ppr_conf - 1) then
                             if fault_cnt /= (fault_cnt'range => '1') then
                                 fault_cnt <= fault_cnt + 1;
                             end if;
@@ -84,7 +84,7 @@ begin
 
                     when 3 =>  -- FULL_SYNC
                         -- Check ab_count at each z_edge
-                        if z_edge = '1' and ab_count_r /= ppr_conf then
+                        if z_edge = '1' and ab_count_r /= (ppr_conf - 1) then
                             if fault_cnt /= (fault_cnt'range => '1') then
                                 fault_cnt <= fault_cnt + 1;
                             end if;

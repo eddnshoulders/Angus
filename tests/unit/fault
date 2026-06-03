@@ -1,0 +1,4 @@
+ghdl -a --std=08 ../../hdl/fault.vhd
+ghdl -a --std=08 ../../tb/fault_tb.vhd
+ghdl -e --std=08 fault_tb
+ghdl -r --std=08 fault_tb --vcd=../../sim/fault.vcd --stop-time=1000ms --assert-level=error

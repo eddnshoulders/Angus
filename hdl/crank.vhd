@@ -299,7 +299,7 @@ begin
             else
                 -- Reset ab_count on z (z_armed + edge_pulse)
                 if z_armed = '1' and edge_pulse = '1' then
-                    ab_count_int <= to_unsigned(1, 8);
+                    ab_count_int <= to_unsigned(0, 8);
                     ab_int       <= not ab_int;
                 elsif edge_pulse = '1' then
                     ab_count_int <= ab_count_int + 1;
