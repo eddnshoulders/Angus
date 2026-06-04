@@ -125,7 +125,7 @@ class Angus:
         ip_core: PYNQ IP object (e.g. overlay.angus_0).
         Use ol.ip_dict.keys() to find the correct block name.
         """
-        self._r       = AngusRegs(ip_core)
+        self.regs       = AngusRegs(ip_core)
         self._startup = dict(self._STARTUP_DEFAULTS)
         self._runtime = dict(self._RUNTIME_DEFAULTS)
 
@@ -228,7 +228,7 @@ class Angus:
     # -------------------------------------------------------------------------
     def clear_faults(self):
         """Clear all fault counters."""
-        self._r.write_raw(0x004, 1 << _RT_FAULT_CLR)
+        self.regs.write_raw(0x004, 1 << _RT_FAULT_CLR)
 
     def wait_for_sync(self, level='full', timeout=10.0):
         """
@@ -241,7 +241,7 @@ class Angus:
         target = {'moving': 1, 'crank': 2, 'full': 3}[level]
         t0 = time.time()
         while time.time() - t0 < timeout:
-            if self._r.read('SYNC_STATE') >= target:
+            if self.regs.read('SYNC_STATE') >= target:
                 return True
             time.sleep(0.01)
         return False
@@ -252,47 +252,47 @@ class Angus:
     @property
     def rpm(self):
         """Engine speed in RPM (z-period based, low noise)."""
-        return self._r.read('SPEED_RPM_SLOW')
+        return self.regs.read('SPEED_RPM_SLOW')
 
     @property
     def rpm_fast(self):
         """Engine speed in RPM (ab-period based, fast update rate)."""
-        return self._r.read('SPEED_RPM_FAST')
+        return self.regs.read('SPEED_RPM_FAST')
 
     @property
     def tdc_deg(self):
         """TDC-referenced engine angle in degrees (0.0-719.9)."""
-        return self._r.read('TDC_DEG') * _TDC_LSB
+        return self.regs.read('TDC_DEG') * _TDC_LSB
 
     @property
     def crank_deg(self):
         """Raw crank angle in degrees (0.0-360.0, Z-referenced)."""
-        return _from_angfac(self._r.read('ANGLE_ANGFAC'))
+        return _from_angfac(self.regs.read('ANGLE_ANGFAC'))
 
     @property
     def sync_state(self):
         """Sync state string: 'STOPPED', 'MOVING', 'CRANK_SYNC', or 'FULL_SYNC'."""
-        return _SYNC_STATES[self._r.read('SYNC_STATE')]
+        return _SYNC_STATES[self.regs.read('SYNC_STATE')]
 
     @property
     def is_synced(self):
         """True when FULL_SYNC (crank and phase both locked)."""
-        return self._r.read('SYNC_STATE') == 3
+        return self.regs.read('SYNC_STATE') == 3
 
     @property
     def phase_found(self):
         """True after the first successful cam detection."""
-        return bool(self._r.read('PHASE_REF_FOUND'))
+        return bool(self.regs.read('PHASE_REF_FOUND'))
 
     @property
     def phase_ok(self):
         """True when cam detection is healthy (no consecutive misses)."""
-        return bool(self._r.read('PHASE_REF_OK'))
+        return bool(self.regs.read('PHASE_REF_OK'))
 
     @property
     def engine_phase(self):
         """Current engine phase: 0 (compression stroke) or 1 (exhaust stroke)."""
-        return self._r.read('PHASE_ENG')
+        return self.regs.read('PHASE_ENG')
 
     @property
     def faults(self):
@@ -300,7 +300,7 @@ class Angus:
         Dict of active fault flags and per-type counts.
         Keys: 'cam', 'crank', 'ab', 'speed', 'pll', 'counts'.
         """
-        flags = self._r.read('FAULT_FLAGS')
+        flags = self.regs.read('FAULT_FLAGS')
         return {
             'cam':    bool(flags & (1 << 0)),
             'crank':  bool(flags & (1 << 1)),
@@ -308,24 +308,24 @@ class Angus:
             'speed':  bool(flags & (1 << 3)),
             'pll':    bool(flags & (1 << 4)),
             'counts': {
-                'cam':     self._r.read('FAULT_CAM_COUNT'),
-                'crank':   self._r.read('FAULT_CRANK_COUNT'),
-                'pll':     self._r.read('FAULT_PLL_COUNT'),
-                'ab':      self._r.read('FAULT_AB_COUNT'),
-                'speed':   self._r.read('FAULT_SPEED_COUNT'),
-                'encoder': self._r.read('FAULT_ENC_COUNT'),
+                'cam':     self.regs.read('FAULT_CAM_COUNT'),
+                'crank':   self.regs.read('FAULT_CRANK_COUNT'),
+                'pll':     self.regs.read('FAULT_PLL_COUNT'),
+                'ab':      self.regs.read('FAULT_AB_COUNT'),
+                'speed':   self.regs.read('FAULT_SPEED_COUNT'),
+                'encoder': self.regs.read('FAULT_ENC_COUNT'),
             }
         }
 
     @property
     def packet_count(self):
         """Total DMA packets transmitted since last reset."""
-        return self._r.read('PKT_COUNT')
+        return self.regs.read('PKT_COUNT')
 
     @property
     def overflow_count(self):
         """DMA overflow count (samples dropped while buffer not ready)."""
-        return self._r.read('OVF_COUNT')
+        return self.regs.read('OVF_COUNT')
 
     # -------------------------------------------------------------------------
     # Packet decoding
@@ -377,56 +377,93 @@ class Angus:
     # -------------------------------------------------------------------------
     # Diagnostics
     # -------------------------------------------------------------------------
-    def status(self):
-        """Print a concise operational status summary."""
-        f = self.faults
-        any_fault = any(f[k] for k in ('cam', 'crank', 'ab', 'speed', 'pll'))
-        print("=== Angus Status ===")
-        print(f"  sync          {self.sync_state}")
-        print(f"  rpm           {self.rpm} (slow)  {self.rpm_fast} (fast)")
-        print(f"  tdc_deg       {self.tdc_deg:.1f}")
-        print(f"  crank_deg     {self.crank_deg:.2f}")
-        print(f"  engine_phase  {self.engine_phase}  "
-              f"phase_found={self.phase_found}  phase_ok={self.phase_ok}")
-        print(f"  faults        {'ACTIVE' if any_fault else 'none'}  "
-              f"pkts={self.packet_count}  ovf={self.overflow_count}")
-
-    def pll_status(self):
-        """Print PLL diagnostic values in engineering units."""
-        nco_ab  = self._r.read('ANGLE_NCO_AB_INC')
-        nco_clk = self._r.read('ANGLE_NCO_CLK_INC')
-        ppr     = round((_ANGFAC_FS + 1) / nco_ab) if nco_ab else 0
-        err_raw = self._r.read_signed('PLL_ERR_ANGFAC')
-        print("=== PLL Status ===")
-        print(f"  active        {bool(self._r.read('PLL_DIV_VALID'))}")
-        print(f"  pll_deg       {_from_angfac(self._r.read('PLL_ANGFAC')):.3f}")
-        print(f"  error         {_from_angfac(abs(err_raw)):.4f} deg  "
-              f"({'ahead' if err_raw < 0 else 'behind'})")
-        print(f"  p_term        {self._r.read_signed('PLL_P_TERM')}")
-        print(f"  i_term        {self._r.read_signed('PLL_I_TERM')}")
-        print(f"  pi_corr       {self._r.read_signed('PLL_PI_CORR')}")
-        print(f"  ppr (derived) {ppr}")
-        print(f"  nco_ab_inc    {nco_ab}  ({_from_angfac(nco_ab):.3f} deg/tooth)")
-        print(f"  nco_clk_inc   {nco_clk}  "
-              f"({_from_angfac(nco_clk) * 1e3:.4f} mdeg/clk)")
-
-    def full_status(self):
-        """Print combined status, PLL, and configuration summary."""
-        self.status()
-        print()
-        self.pll_status()
-        print()
+    def config_status(self):
+        """Print a full readback of current configuration (startup and runtime)."""
         s = self._startup
         r = self._runtime
-        print("=== Configuration ===")
-        print(f"  src / ref     {s['src']} / {s['ref']}")
-        print(f"  crank_teeth   {s['crank_n_teeth']} (missing={s['crank_n_missing']})")
+        nco_ab = self.regs.read('ANGLE_NCO_AB_INC')
+        ppr    = round((_ANGFAC_FS + 1) / nco_ab) if nco_ab else 0
+        print("=== Config -- Startup ===")
+        print(f"  src           {s['src']}  ref={s['ref']}  ang_sel={s['ang_sel']}")
+        print(f"  crank_edge    {s['crank_edge']}  cam_edge={s['cam_edge']}")
+        print(f"  crank_teeth   {s['crank_n_teeth']} (missing={s['crank_n_missing']})  ppr={ppr}")
+        print(f"  cam_teeth     {s['cam_n_teeth']}")
         print(f"  phase_ref_deg {s['phase_ref_deg']:.1f}  tol={s['phase_tol_deg']:.1f} deg")
-        print(f"  tdc_offset    {r['tdc_offset_deg']:.2f} deg")
-        print(f"  decimation    {r['trig_decimation']}")
         print(f"  dma_buf_size  {s['dma_buffer_size']} engine cycles")
         print(f"  interp        {s['angle_interp']}")
-        print(f"  ang_sel       {s['ang_sel']}")
+        print(f"  enc_n_ppr     {s['enc_n_ppr']}  ab_edge={s['enc_ab_edge_sel']}  z_edge={s['enc_z_edge_sel']}")
+        print()
+        print("=== Config -- Runtime ===")
+        print(f"  tdc_offset    {r['tdc_offset_deg']:.2f} deg")
+        print(f"  trig_decim    {r['trig_decimation']}")
+        print(f"  max_rpm       {r['max_rpm']}")
+        print(f"  peak_hyst     {r['peak_hyst']}")
+        print(f"  pll_kp        {r['pll_kp']}  ki={r['pll_ki']}  "
+              f"corr_max={r['pll_corr_max']}  dir={r['pll_corr_dir']}")
+        print(f"  debounce      crank={r['crank_dbc']}  cam={r['cam_dbc']}  "
+              f"enc_a={r['enc_a_dbc']}  enc_b={r['enc_b_dbc']}  enc_z={r['enc_z_dbc']}")
+
+    def run_status(self):
+        """Print runtime signal values grouped by block."""
+        f      = self.faults
+        nco_ab = self.regs.read('ANGLE_NCO_AB_INC')
+        ppr    = round((_ANGFAC_FS + 1) / nco_ab) if nco_ab else 0
+        err    = self.regs.read_signed('PLL_ERR_ANGFAC')
+
+        print("=== Sync ===")
+        print(f"  state         {self.sync_state}")
+        print(f"  tooth_count   {self.regs.read('CRANK_TOOTH_COUNT')}  "
+              f"(expected {self.regs.read('CRANK_N_TEETH') if hasattr(self.regs, 'read') else '?'})")
+        print(f"  tooth_period  {self.regs.read('CRANK_TOOTH_PERIOD')} clks")
+
+        print()
+        print("=== Speed ===")
+        print(f"  rpm_slow      {self.rpm}")
+        print(f"  rpm_fast      {self.rpm_fast}")
+
+        print()
+        print("=== Angle ===")
+        print(f"  crank_deg     {self.crank_deg:.2f}")
+        print(f"  tdc_deg       {self.tdc_deg:.1f}")
+        print(f"  nco_ab_inc    {nco_ab}  ({_from_angfac(nco_ab):.3f} deg/tooth)")
+        print(f"  nco_clk_inc   {self.regs.read('ANGLE_NCO_CLK_INC')}  "
+              f"({_from_angfac(self.regs.read('ANGLE_NCO_CLK_INC')) * 1e3:.4f} mdeg/clk)")
+
+        print()
+        print("=== Phase ===")
+        print(f"  found         {self.phase_found}  ok={self.phase_ok}")
+        print(f"  engine_phase  {self.engine_phase}")
+        print(f"  det_count     {self.regs.read('PHASE_REF_DET_CNT')}")
+        print(f"  ref_angfac    {self.regs.read('PHASE_REF_ANGFAC')}  "
+              f"({_from_angfac(self.regs.read('PHASE_REF_ANGFAC')):.2f} crank deg)")
+
+        print()
+        print("=== PLL ===")
+        print(f"  active        {bool(self.regs.read('PLL_DIV_VALID'))}")
+        print(f"  pll_deg       {_from_angfac(self.regs.read('PLL_ANGFAC')):.3f}")
+        print(f"  error         {_from_angfac(abs(err)):.4f} deg  "
+              f"({'ahead' if err < 0 else 'behind'})")
+        print(f"  p_term        {self.regs.read_signed('PLL_P_TERM')}")
+        print(f"  i_term        {self.regs.read_signed('PLL_I_TERM')}")
+        print(f"  pi_corr       {self.regs.read_signed('PLL_PI_CORR')}")
+        print(f"  nco_inc       {self.regs.read('PLL_NCO_INC')}")
+
+        print()
+        print("=== Fault ===")
+        any_fault = any(f[k] for k in ('cam', 'crank', 'ab', 'speed', 'pll'))
+        print(f"  flags         {'ACTIVE' if any_fault else 'none'}")
+        for name in ('cam', 'crank', 'ab', 'speed', 'pll', 'encoder'):
+            count = f['counts'][name]
+            active = f.get(name, False)
+            if count or active:
+                print(f"  {name:8s}      {'ACTIVE  ' if active else '        '}"
+                      f"count={count}")
+
+        print()
+        print("=== Pack ===")
+        print(f"  pkt_count     {self.packet_count}")
+        print(f"  ovf_count     {self.overflow_count}")
+        print(f"  trig_count    {self.regs.read('TRIG_COUNT')}")
 
     # =========================================================================
     # Private implementation
@@ -436,11 +473,11 @@ class Angus:
         s = self._startup
 
         # Crank / cam tooth counts
-        self._r.write('CRANK_N_TEETH',   s['crank_n_teeth'])
-        self._r.write('CRANK_N_MISSING', s['crank_n_missing'])
-        self._r.write('CAM_N_TEETH',     s['cam_n_teeth'])
-        self._r.write('ENC_N_PPR',       s['enc_n_ppr'])
-        self._r.write('DMA_BUFFER_SIZE', s['dma_buffer_size'])
+        self.regs.write('CRANK_N_TEETH',   s['crank_n_teeth'])
+        self.regs.write('CRANK_N_MISSING', s['crank_n_missing'])
+        self.regs.write('CAM_N_TEETH',     s['cam_n_teeth'])
+        self.regs.write('ENC_N_PPR',       s['enc_n_ppr'])
+        self.regs.write('DMA_BUFFER_SIZE', s['dma_buffer_size'])
 
         # Phase window -- phase bit derived from engine degree range
         self._write_phase_window(s['phase_ref_deg'], s['phase_tol_deg'])
@@ -457,7 +494,7 @@ class Angus:
             (1 if s['angle_interp'] else 0)             << _CTRL_INTERP     |
             1                                           << _CTRL_APPLY
         )
-        self._r.write_raw(0x000, ctrl)
+        self.regs.write_raw(0x000, ctrl)
 
         # Apply runtime config on top (written after reset so they take effect)
         self._apply_runtime()
@@ -466,26 +503,26 @@ class Angus:
         """Write all runtime registers. No reset required."""
         r = self._runtime
 
-        self._r.write('TDC_OFFSET',      _to_angfac(r['tdc_offset_deg']))
-        self._r.write('TRIG_DECIMATION', r['trig_decimation'])
-        self._r.write('MAX_RPM',         r['max_rpm'])
-        self._r.write('PEAK_HYST',       r['peak_hyst'])
-        self._r.write('PLL_KP',          r['pll_kp'])
-        self._r.write('PLL_KI',          r['pll_ki'])
-        self._r.write('PLL_CORR_MAX',    r['pll_corr_max'])
-        self._r.write('CRANK_DBC',       r['crank_dbc'])
-        self._r.write('CAM_DBC',         r['cam_dbc'])
-        self._r.write('ENC_A_DBC',       r['enc_a_dbc'])
-        self._r.write('ENC_B_DBC',       r['enc_b_dbc'])
-        self._r.write('ENC_Z_DBC',       r['enc_z_dbc'])
+        self.regs.write('TDC_OFFSET',      _to_angfac(r['tdc_offset_deg']))
+        self.regs.write('TRIG_DECIMATION', r['trig_decimation'])
+        self.regs.write('MAX_RPM',         r['max_rpm'])
+        self.regs.write('PEAK_HYST',       r['peak_hyst'])
+        self.regs.write('PLL_KP',          r['pll_kp'])
+        self.regs.write('PLL_KI',          r['pll_ki'])
+        self.regs.write('PLL_CORR_MAX',    r['pll_corr_max'])
+        self.regs.write('CRANK_DBC',       r['crank_dbc'])
+        self.regs.write('CAM_DBC',         r['cam_dbc'])
+        self.regs.write('ENC_A_DBC',       r['enc_a_dbc'])
+        self.regs.write('ENC_B_DBC',       r['enc_b_dbc'])
+        self.regs.write('ENC_Z_DBC',       r['enc_z_dbc'])
 
         # PLL correction direction lives in CONTROL_RT
-        rt = self._r.read_raw(0x004)
+        rt = self.regs.read_raw(0x004)
         if r['pll_corr_dir'] == 'add':
             rt |=  (1 << _RT_CORR_DIR)
         else:
             rt &= ~(1 << _RT_CORR_DIR)
-        self._r.write_raw(0x004, rt)
+        self.regs.write_raw(0x004, rt)
 
     def _write_phase_window(self, ref_deg, tol_deg):
         """
@@ -512,9 +549,9 @@ class Angus:
                 UserWarning, stacklevel=4
             )
 
-        self._r.write('PHASE_REF_MIN', max(0, lo))
-        self._r.write('PHASE_REF_MAX', min(_ANGFAC_FS, hi))
+        self.regs.write('PHASE_REF_MIN', max(0, lo))
+        self.regs.write('PHASE_REF_MAX', min(_ANGFAC_FS, hi))
 
-        rt = self._r.read_raw(0x004)
+        rt = self.regs.read_raw(0x004)
         rt = (rt & ~(1 << _RT_PHASE_PH)) | (phase_bit << _RT_PHASE_PH)
-        self._r.write_raw(0x004, rt)
+        self.regs.write_raw(0x004, rt)
