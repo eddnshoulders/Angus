@@ -487,8 +487,8 @@ begin
     -- =========================================================================
     u_pll : entity work.pll
         port map (clk=>clk, rst=>rst, sync_full=>sync_full,
-                  ab_edge=>ab_edge, ab_period=>ab_period, ab_count=>ab_count,
-                  z_edge=>z_edge, angle_nco_ab_inc=>angle_nco_ab_inc,
+                  ab_edge=>ab_edge, ab_period=>ab_period,
+                  z_edge=>z_edge, angle_angfac=>angle_angfac,
                   angle_nco_clk_inc=>angle_nco_clk_inc, pll_kp=>pll_kp,
                   pll_ki=>pll_ki, pll_corr_dir=>pll_corr_dir, pll_corr_max=>pll_corr_max,
                   pll_angfac=>pll_angfac, pll_div_valid=>pll_div_valid,

@@ -39,9 +39,8 @@ architecture sim of pll_tb is
     signal sync_full     : std_logic := '0';
     signal ab_edge       : std_logic := '0';
     signal ab_per        : unsigned(31 downto 0) := to_unsigned(AB_PERIOD_C, 32);
-    signal ab_count      : unsigned(7 downto 0)  := (others => '0');
     signal z_edge        : std_logic := '0';
-    signal nco_ab_inc    : unsigned(31 downto 0) := to_unsigned(NCO_AB_INC_C, 32);
+    signal angle_angfac_s : unsigned(31 downto 0) := (others => '0');
     signal nco_clk_inc   : unsigned(31 downto 0) := to_unsigned(NCO_CLK_INC_C, 32);
     signal kp            : unsigned(15 downto 0) := (others => '0');
     signal ki            : unsigned(15 downto 0) := (others => '0');
@@ -67,16 +66,12 @@ architecture sim of pll_tb is
     -- -------------------------------------------------------------------------
     procedure fire_ab(
         signal   ab  : out std_logic;
-        signal   cnt : out unsigned(7 downto 0);
-        signal   c   : in  std_logic;
-        variable count : inout integer
+        signal   c   : in  std_logic
     ) is
     begin
-        cnt <= to_unsigned(count, 8);
-        ab  <= '1'; wait until rising_edge(c);
-        ab  <= '0'; wait until rising_edge(c);
+        ab <= '1'; wait until rising_edge(c);
+        ab <= '0'; wait until rising_edge(c);
         wait for 1 ns;
-        count := count + 1;
     end procedure fire_ab;
 
     -- -------------------------------------------------------------------------
@@ -84,13 +79,11 @@ architecture sim of pll_tb is
     -- -------------------------------------------------------------------------
     procedure fire_z(
         signal   z   : out std_logic;
-        signal   cnt : out unsigned(7 downto 0);
         signal   c   : in  std_logic
     ) is
     begin
-        cnt <= (others => '0');
-        z   <= '1'; wait until rising_edge(c);
-        z   <= '0'; wait until rising_edge(c);
+        z <= '1'; wait until rising_edge(c);
+        z <= '0'; wait until rising_edge(c);
         wait for 1 ns;
     end procedure fire_z;
 
@@ -118,9 +111,8 @@ begin
             sync_full         => sync_full,
             ab_edge           => ab_edge,
             ab_period         => ab_per,
-            ab_count          => ab_count,
             z_edge            => z_edge,
-            angle_nco_ab_inc  => nco_ab_inc,
+            angle_angfac      => angle_angfac_s,
             angle_nco_clk_inc => nco_clk_inc,
             pll_kp            => kp,
             pll_ki            => ki,
@@ -140,7 +132,6 @@ begin
     -- Stimulus
     -- -------------------------------------------------------------------------
     p_stim : process
-        variable ab_cnt  : integer := 0;
         variable acc_prev: unsigned(31 downto 0);
     begin
 
@@ -199,7 +190,6 @@ begin
             report "FAIL T3 setup: pll_angfac should be non-zero before reset"
             severity failure;
 
-        ab_count <= (others => '0');
         z_edge   <= '1';
         wait until rising_edge(clk); wait for 1 ns;   -- reset fires this clock
         z_edge   <= '0';
@@ -228,8 +218,7 @@ begin
         test_num <= 4;
 
         kp <= (others => '0'); ki <= (others => '0');
-        ab_cnt := 0;
-        fire_ab(ab_edge, ab_count, clk, ab_cnt);
+        fire_ab(ab_edge, clk);
         wait for 1 ns;
 
         assert nco_inc_o = nco_clk_inc
@@ -293,15 +282,15 @@ begin
         test_num <= 7;
 
         sync_full <= '1';
-        ab_cnt := 0;
-        fire_z(z_edge, ab_count, clk);   -- reset accum and ab_count
+        angle_angfac_s <= (others => '0');
+        fire_z(z_edge, clk);   -- reset accum
 
         -- Fire a tooth: accum snapped to 0*nco_ab_inc = 0, then nco advances.
         -- After ~NCO_CLK_INC_C clocks nco_accum ≈ 1 * nco_clk_inc per clock.
         -- At the ab_edge snap, the PLL accumulator will lag slightly due to
         -- free-running, so error will be small but not necessarily zero.
         -- Just verify pll_err_angfac is a plausible signed value (not extreme).
-        fire_ab(ab_edge, ab_count, clk, ab_cnt);
+        fire_ab(ab_edge, clk);
         wait for 1 ns;
 
         assert to_integer(abs(phase_err)) < NCO_AB_INC_C
