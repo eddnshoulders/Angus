@@ -3,134 +3,165 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 -- =============================================================================
--- pll.vhd  (v2 first draft)
--- NCO + PI loop for high-resolution engine angle.
+-- pll.vhd  (v3)
 --
--- nco_inc_base = pll_nco_ab_inc (pre-calculated at startup from axi_lite_regs)
--- At each ab_edge: phase error calculated, PI correction computed, nco_inc updated.
--- nco_accum runs every clock: nco_accum += nco_inc.
--- Resets every 2nd z_edge (720 deg boundary).
+-- NCO + PI loop for high-resolution engine angle tracking.
+-- Internal unit: _angfac -- unsigned 32-bit fraction of one crank revolution.
+-- Full scale (0xFFFFFFFF) = 360 crank degrees.
+-- All degree conversion is performed in angus_regs.py on the PS side.
 --
--- Output: pll_ang_hires = (nco_accum * 7200) >> 32, range 0-7199, 0.1 deg/LSB
--- Held at 0 until sync_full=1.
+-- The NCO accumulates angle_nco_clk_inc every clock, corrected by the PI loop
+-- at each ab_edge. The PI correction steers the NCO to stay aligned with
+-- the tooth-based accumulator from angle.vhd.
 --
--- pll_cycle_ab_count: increments on ab_edge, resets every 2nd z_edge.
--- pll_phase_err = nco_accum - (pll_cycle_ab_count * pll_nco_ab_inc)
+-- Phase error:
+--   pll_err_angfac = nco_accum - (ab_count * angle_nco_ab_inc)
+--   Calculated at each ab_edge using the current ab_count from src_sel.
+--   This is the signed deviation of the PLL accumulator from the expected
+--   tooth-snap position.
+--
+-- PI loop (updates at each ab_edge):
+--   P term: pll_err_angfac * kp  (1-tooth lag on registered error)
+--   I term: accumulated (pll_err_angfac * ab_period * ki)
+--           ab_period is used as the integration dt to give consistent
+--           integral gain across varying engine speeds.
+--   nco_inc = angle_nco_clk_inc +/- pi_corr  (bounded by pll_corr_max)
+--   Direction: pll_corr_dir=1 adds correction, pll_corr_dir=0 subtracts.
+--
+-- Reset behaviour:
+--   nco_accum resets to 0 on every z_edge (one crank revolution boundary).
+--   NCO and PI state held at 0 until sync_full = 1.
+--   nco_inc pre-loaded with angle_nco_clk_inc when sync_full = 0 so the
+--   NCO starts at the correct speed immediately on sync.
+--
+-- PI pipeline (to keep DSP multiplies off the critical path):
+--   Stage 1: err * ab_period  (at ab_edge)
+--   Stage 2: result * ki      (next clock)
+--   Stage 3: accumulate into i_term  (clock after that)
+--   P term uses registered phase_err_int (1-tooth lag, consistent with I lag)
 -- =============================================================================
+
 entity pll is
     port (
-        clk              : in  std_logic;
-        rst              : in  std_logic;
-        sync_full        : in  std_logic;
-        phase_eng        : in  std_logic;
-        ab_edge          : in  std_logic;
-        ab_period        : in  unsigned(31 downto 0);
-        z_edge           : in  std_logic;
-        pll_nco_ab_inc   : in  unsigned(31 downto 0);  -- per-tooth increment from angle.vhd
-        angle_nco_clk_inc: in  unsigned(31 downto 0);  -- per-clock increment from angle.vhd
-        pll_kp           : in  unsigned(15 downto 0);
-        pll_ki           : in  unsigned(15 downto 0);
-        pll_corr_dir     : in  std_logic;
-        pll_corr_max     : in  unsigned(15 downto 0);
-        pll_ang_hires    : out unsigned(15 downto 0);
-        pll_div_valid    : out std_logic;
-        pll_nco_inc      : out unsigned(31 downto 0);
-        pll_nco_accum    : out unsigned(31 downto 0);
-        pll_phase_err    : out signed(31 downto 0);
-        pll_p_term       : out signed(31 downto 0);
-        pll_i_term       : out signed(31 downto 0);
-        pll_pi_corr      : out signed(31 downto 0);
-        pll_cycle_ab_count: out unsigned(7 downto 0)
+        clk               : in  std_logic;
+        rst               : in  std_logic;
+        -- Sync gating
+        sync_full         : in  std_logic;
+        -- Source signals (from src_sel)
+        ab_edge           : in  std_logic;
+        ab_period         : in  unsigned(31 downto 0);
+        ab_count          : in  unsigned(7 downto 0);
+        z_edge            : in  std_logic;
+        -- Increments from angle.vhd
+        angle_nco_ab_inc  : in  unsigned(31 downto 0);  -- angfac per tooth edge
+        angle_nco_clk_inc : in  unsigned(31 downto 0);  -- angfac per clock
+        -- PI config
+        pll_kp            : in  unsigned(15 downto 0);
+        pll_ki            : in  unsigned(15 downto 0);
+        pll_corr_dir      : in  std_logic;              -- 0=subtract, 1=add correction
+        pll_corr_max      : in  unsigned(15 downto 0);
+        -- Outputs
+        pll_angfac        : out unsigned(31 downto 0);  -- NCO position (angfac)
+        pll_div_valid     : out std_logic;              -- 1 when sync_full=1
+        pll_nco_inc       : out unsigned(31 downto 0);  -- current NCO increment per clock
+        pll_nco_accum     : out unsigned(31 downto 0);  -- NCO accumulator (= pll_angfac)
+        pll_err_angfac    : out signed(31 downto 0);    -- signed phase error (angfac units)
+        pll_p_term        : out signed(31 downto 0);    -- proportional term
+        pll_i_term        : out signed(31 downto 0);    -- integral term (upper 32 of 64)
+        pll_pi_corr       : out signed(31 downto 0)     -- PI correction applied to nco_inc
     );
 end entity pll;
 
 architecture rtl of pll is
 
-    function ang_conv_v(accum : unsigned(31 downto 0)) return unsigned is
-        variable prod : unsigned(47 downto 0);
-    begin
-        prod := accum * to_unsigned(7200, 16);
-        return prod(47 downto 32);
-    end function;
+    -- =========================================================================
+    -- Internal state
+    -- =========================================================================
     signal nco_accum_int  : unsigned(31 downto 0) := (others => '0');
     signal nco_inc_int    : unsigned(31 downto 0) := (others => '0');
-    signal cycle_ab_cnt   : unsigned(7 downto 0)  := (others => '0');
-    signal z_phase_cnt    : unsigned(1 downto 0)  := (others => '0');
     signal phase_err_int  : signed(31 downto 0)   := (others => '0');
     signal p_term_int     : signed(31 downto 0)   := (others => '0');
     signal i_term_int     : signed(63 downto 0)   := (others => '0');
-    -- Pipeline stage 1 outputs (registered)
+    signal pi_corr_int    : signed(31 downto 0)   := (others => '0');
+
+    -- PI pipeline stage 1: err * ab_period
     signal i_upd_pipe     : signed(63 downto 0)   := (others => '0');
     signal i_pipe_valid   : std_logic              := '0';
+
+    -- PI pipeline stage 2: scaled * ki
     signal i_ki_pipe      : signed(63 downto 0)   := (others => '0');
     signal i_ki_valid     : std_logic              := '0';
-    signal err_pipe       : signed(31 downto 0)   := (others => '0');
-    signal pi_corr_int    : signed(31 downto 0)   := (others => '0');
-    signal ang_hires_int  : unsigned(15 downto 0) := (others => '0');
+
+    -- Correction limit as signed for comparisons
     signal corr_max_s     : signed(32 downto 0);
+
 begin
 
     corr_max_s <= signed(resize(pll_corr_max, 33));
 
+    -- =========================================================================
+    -- PLL process
+    -- =========================================================================
     p_pll : process(clk)
-        variable err    : signed(31 downto 0);
-        variable p_t    : signed(48 downto 0);
-        variable i_upd  : signed(63 downto 0);  -- phase_error * ab_period
-        variable i_scaled: signed(47 downto 0);  -- i_upd >> 16
-        variable i_ki   : signed(63 downto 0);  -- i_scaled * ki
-        variable i_t    : signed(63 downto 0);  -- accumulated i_term
-        variable corr   : signed(32 downto 0);
-        variable exp_acc: unsigned(39 downto 0);  -- 8-bit count × 32-bit inc
+        variable err      : signed(31 downto 0);
+        variable p_t      : signed(48 downto 0);
+        variable i_scaled : signed(47 downto 0);
+        variable i_ki     : signed(63 downto 0);
+        variable corr     : signed(32 downto 0);
+        variable exp_acc  : unsigned(39 downto 0);   -- 8-bit ab_count × 32-bit nco_ab_inc
     begin
         if rising_edge(clk) then
             if rst = '1' then
-                nco_accum_int <= (others => '0');
-                nco_inc_int   <= (others => '0');
-                cycle_ab_cnt  <= (others => '0');
-                z_phase_cnt   <= (others => '0');
-                phase_err_int <= (others => '0');
-                p_term_int    <= (others => '0');
-                i_term_int    <= (others => '0');
-                pi_corr_int   <= (others => '0');
-                ang_hires_int <= (others => '0');
+                nco_accum_int  <= (others => '0');
+                nco_inc_int    <= (others => '0');
+                phase_err_int  <= (others => '0');
+                p_term_int     <= (others => '0');
+                i_term_int     <= (others => '0');
+                pi_corr_int    <= (others => '0');
+                i_upd_pipe     <= (others => '0');
+                i_pipe_valid   <= '0';
+                i_ki_pipe      <= (others => '0');
+                i_ki_valid     <= '0';
+
             elsif sync_full = '1' then
+
+                -- -------------------------------------------------------
                 -- NCO runs every clock
+                -- -------------------------------------------------------
                 nco_accum_int <= nco_accum_int + nco_inc_int;
 
-                -- z_edge: reset every 2nd z
+                -- -------------------------------------------------------
+                -- z_edge: reset accumulator each crank revolution
+                -- -------------------------------------------------------
                 if z_edge = '1' then
-                    if z_phase_cnt = "01" then
-                        -- 2nd z_edge: reset
-                        cycle_ab_cnt  <= (others => '0');
-                        z_phase_cnt   <= (others => '0');
-                        nco_accum_int <= (others => '0');
-                    else
-                        z_phase_cnt <= z_phase_cnt + 1;
-                    end if;
+                    nco_accum_int <= (others => '0');
                 end if;
 
-                -- ab_edge: update PI and nco_inc
-                -- nco_inc uses pi_corr_int from PREVIOUS ab_edge (1-tooth latency, harmless)
+                -- -------------------------------------------------------
+                -- ab_edge: calculate phase error and update PI loop
+                -- nco_inc update uses pi_corr_int from the previous ab_edge
+                -- (1-tooth latency -- harmless at engine speeds)
+                -- -------------------------------------------------------
                 if ab_edge = '1' then
-                    cycle_ab_cnt <= cycle_ab_cnt + 1;
 
-                    -- Phase error
-                    -- Right-sized multiply: cycle_ab_cnt(8) × nco_ab_inc(32) = 40-bit
-                    exp_acc := resize(cycle_ab_cnt, 8) * pll_nco_ab_inc;
+                    -- Phase error: deviation from expected tooth position.
+                    -- ab_count × angle_nco_ab_inc = expected accumulator value.
+                    -- 8-bit × 32-bit = 40-bit; lower 32 bits wrap naturally.
+                    exp_acc := ab_count * angle_nco_ab_inc;
                     err := signed(nco_accum_int) - signed(exp_acc(31 downto 0));
                     phase_err_int <= err;
 
-                    -- P term: use REGISTERED phase_err_int (breaks double-multiply chain)
-                    -- 1-tooth lag on P term -- consistent with I term latency
+                    -- P term: registered phase_err_int (1-tooth lag, consistent
+                    -- with I term latency). Keeps multiply off critical path.
                     p_t := phase_err_int * signed(resize(pll_kp, 17));
                     p_term_int <= p_t(48 downto 17);
 
-                    -- I term stage 1: queue multiply for next cycle
+                    -- I term stage 1: queue err * ab_period for next clock
                     i_upd_pipe   <= err * signed(resize(ab_period, 32));
                     i_pipe_valid <= '1';
 
-                    -- PI correction using registered p_term_int and i_term (both previous ab_edge)
-                    -- Removes DSP multiply from pi_corr critical path entirely
+                    -- nco_inc update using registered pi_corr_int from
+                    -- the previous ab_edge (avoids double-multiply chain)
                     corr := resize(p_term_int, 33) + resize(i_term_int(63 downto 32), 33);
                     if corr > corr_max_s then
                         corr := corr_max_s;
@@ -139,60 +170,63 @@ begin
                     end if;
                     pi_corr_int <= corr(31 downto 0);
 
-                    -- Update nco_inc using REGISTERED pi_corr_int from previous ab_edge
-                    -- (1-tooth latency -- harmless at engine speeds)
                     if pll_corr_dir = '1' then
-                        if pi_corr_int >= 0 and unsigned(pi_corr_int) <= angle_nco_clk_inc then
-                            nco_inc_int <= angle_nco_clk_inc + unsigned(pi_corr_int);
+                        if corr >= 0 and unsigned(corr(31 downto 0)) <= angle_nco_clk_inc then
+                            nco_inc_int <= angle_nco_clk_inc + unsigned(corr(31 downto 0));
                         else
                             nco_inc_int <= angle_nco_clk_inc;
                         end if;
                     else
-                        if pi_corr_int >= 0 and unsigned(pi_corr_int) <= angle_nco_clk_inc then
-                            nco_inc_int <= angle_nco_clk_inc - unsigned(pi_corr_int);
+                        if corr >= 0 and unsigned(corr(31 downto 0)) <= angle_nco_clk_inc then
+                            nco_inc_int <= angle_nco_clk_inc - unsigned(corr(31 downto 0));
                         else
                             nco_inc_int <= angle_nco_clk_inc;
                         end if;
                     end if;
+
                 end if;
 
-                -- I term stage 2: i_upd_pipe * ki -> register i_ki_pipe
-                i_ki_valid <= '0';
+                -- -------------------------------------------------------
+                -- I term stage 2: scale i_upd by ki
+                -- -------------------------------------------------------
+                i_ki_valid   <= '0';
                 if i_pipe_valid = '1' then
                     i_pipe_valid <= '0';
                     i_scaled     := i_upd_pipe(63 downto 16);
                     i_ki         := i_scaled * signed(resize(pll_ki, 16));
-                    i_ki_pipe    <= i_ki;  -- register result
+                    i_ki_pipe    <= i_ki;
                     i_ki_valid   <= '1';
                 end if;
 
-                -- I term stage 3: accumulate i_ki_pipe into i_term_int
+                -- -------------------------------------------------------
+                -- I term stage 3: accumulate
+                -- -------------------------------------------------------
                 if i_ki_valid = '1' then
-                    i_t        := i_term_int + i_ki_pipe;
-                    i_term_int <= i_t;
+                    i_term_int <= i_term_int + i_ki_pipe;
                 end if;
 
-
-                -- Output angle conversion: (nco_accum * 7200) >> 32
-                -- Use top variable already declared
-                ang_hires_int <= ang_conv_v(nco_accum_int);
-
             else
+                -- sync_full = 0: hold accum at 0, pre-load nco_inc at
+                -- current speed so NCO starts at correct rate on sync
                 nco_accum_int <= (others => '0');
-                nco_inc_int   <= angle_nco_clk_inc;  -- pre-load with current speed estimate
-                ang_hires_int <= (others => '0');
+                nco_inc_int   <= angle_nco_clk_inc;
+                i_term_int    <= (others => '0');
+                i_pipe_valid  <= '0';
+                i_ki_valid    <= '0';
             end if;
         end if;
     end process p_pll;
 
-    pll_ang_hires      <= ang_hires_int;
-    pll_div_valid      <= '1' when sync_full = '1' else '0';
-    pll_nco_inc        <= nco_inc_int;
-    pll_nco_accum      <= nco_accum_int;
-    pll_phase_err      <= phase_err_int;
-    pll_p_term         <= p_term_int;
-    pll_i_term         <= i_term_int(63 downto 32);
-    pll_pi_corr        <= pi_corr_int;
-    pll_cycle_ab_count <= cycle_ab_cnt;
+    -- =========================================================================
+    -- Output assignments
+    -- =========================================================================
+    pll_angfac     <= nco_accum_int;
+    pll_nco_accum  <= nco_accum_int;   -- same signal, for AXI debug readback
+    pll_div_valid  <= sync_full;
+    pll_nco_inc    <= nco_inc_int;
+    pll_err_angfac <= phase_err_int;
+    pll_p_term     <= p_term_int;
+    pll_i_term     <= i_term_int(63 downto 32);
+    pll_pi_corr    <= pi_corr_int;
 
 end architecture rtl;
