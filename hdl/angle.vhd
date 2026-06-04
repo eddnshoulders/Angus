@@ -163,11 +163,20 @@ begin
     -- =========================================================================
     -- Main angle process
     --
-    -- Priority: z_edge > ab_edge
-    -- When both z_edge and ab_edge are asserted simultaneously (which occurs
-    -- at the first tooth after the crank gap), z_edge resets edge_count and
-    -- nco_accum and the ab_edge snap is skipped. The following ab_edge
-    -- (second real tooth) snaps to edge_count=1, which is correct.
+    -- Priority: z_edge > ab_edge, with simultaneous case handled explicitly.
+    --
+    -- When z_edge and ab_edge arrive at the same clock (which always occurs
+    -- at the first tooth after the crank gap -- crank.vhd asserts both on
+    -- the same clock edge), a pure if-elsif skips the ab_edge entirely,
+    -- leaving edge_count at 0. The next ab_edge then snaps to position 0
+    -- instead of 1*nco_ab_inc, producing a permanent one-tooth offset for
+    -- the rest of the revolution and two missing trig pulses per revolution.
+    --
+    -- Fix: within the z_edge branch, a nested if detects the simultaneous
+    -- ab_edge and advances edge_count to 1 (last-assignment-wins in VHDL).
+    -- nco_accum correctly stays at 0 -- tooth 0 IS at position 0.
+    -- The tooth divider is also started so interpolation resumes within
+    -- ~32 clocks rather than waiting a full tooth period.
     -- =========================================================================
     p_angle : process(clk)
         variable snap : unsigned(79 downto 0);
@@ -196,9 +205,19 @@ begin
                     nco_accum     <= (others => '0');
                     clk_inc_valid <= '0';
 
+                    -- Simultaneous z_edge + ab_edge: first tooth after gap.
+                    -- nco_accum stays 0 (correct -- tooth 0 is at position 0).
+                    -- edge_count advances to 1 so the next tooth snaps correctly.
+                    -- Tooth divider starts immediately to resume interpolation.
+                    if ab_edge = '1' then
+                        edge_count <= to_unsigned(1, 8);
+                        if angle_interp_en = '1' and ab_period > 0 then
+                            tooth_start <= '1';
+                        end if;
+                    end if;
+
                 -- -------------------------------------------------------
                 -- ab_edge: snap to exact tooth position
-                -- Skipped when z_edge is simultaneously asserted.
                 -- -------------------------------------------------------
                 elsif ab_edge = '1' then
                     -- Snap accumulator to (edge_count × angle_nco_ab_inc).

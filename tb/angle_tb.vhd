@@ -253,22 +253,22 @@ begin
         wait for 3 * CLK_PERIOD;
 
         -- --------------------------------------------------------------------
-        -- TEST 5: z_edge priority over simultaneous ab_edge
-        -- When both fire together (as at the first tooth after the crank gap),
-        -- z_edge wins: angle_angfac resets to 0, edge_count resets.
+        -- TEST 5: Simultaneous z_edge + ab_edge (first tooth after gap)
+        -- nco_accum stays 0 (tooth 0 is at position 0).
+        -- edge_count advances to 1 so the NEXT ab_edge snaps to 1*nco_ab_inc.
         -- --------------------------------------------------------------------
-        report "TEST 5: z_edge takes priority over simultaneous ab_edge";
+        report "TEST 5: Simultaneous z+ab -- accum=0, next tooth snaps to nco_ab_inc";
         test_num <= 5;
 
-        -- Advance to some non-zero state
+        -- Advance to non-zero state
         fire_ab(ab_edge_s, clk);
         fire_ab(ab_edge_s, clk);
         fire_ab(ab_edge_s, clk);
         assert to_integer(angle_angfac) > 0
-            report "FAIL T5: setup: angle_angfac should be non-zero"
+            report "FAIL T5 setup: angle_angfac should be non-zero"
             severity failure;
 
-        -- Fire z_edge and ab_edge simultaneously (same clock edge)
+        -- Fire z_edge and ab_edge simultaneously
         ab_edge_s <= '1';
         z_edge_s  <= '1';
         wait until rising_edge(clk);
@@ -277,17 +277,19 @@ begin
         wait until rising_edge(clk);
         wait for 1 ns;
 
-        -- z_edge should win: angle_angfac = 0
+        -- nco_accum = 0: tooth 0 is at position 0
         assert to_integer(angle_angfac) = 0
-            report "FAIL T5: z_edge should reset when simultaneous with ab_edge, got " &
+            report "FAIL T5: nco_accum should be 0 at tooth 0, got " &
                    integer'image(to_integer(angle_angfac))
             severity failure;
 
-        -- Next ab_edge should snap to 0 (edge_count was reset by z_edge)
+        -- Next ab_edge: edge_count was 1 (not 0), so snaps to 1*nco_ab_inc
         fire_ab(ab_edge_s, clk);
-        wait for 1 ns;
-        assert to_integer(angle_angfac) = 0
-            report "FAIL T5: first tooth after simultaneous z+ab should snap to 0, got " &
+        wait until rising_edge(clk); wait for 1 ns;
+        assert to_integer(angle_angfac) >= NCO_AB_INC - 2 and
+               to_integer(angle_angfac) <= NCO_AB_INC + 2
+            report "FAIL T5: next tooth should snap to nco_ab_inc (~" &
+                   integer'image(NCO_AB_INC) & "), got " &
                    integer'image(to_integer(angle_angfac))
             severity failure;
 
