@@ -5,6 +5,16 @@ use ieee.numeric_std.all;
 library std;
 use std.env.all;
 
+-- =============================================================================
+-- phase_tb.vhd  (v3)
+--
+-- Unit testbench for phase.vhd.
+-- Detection window: WIN_MIN to WIN_MAX (in angfac units).
+-- phase_ref_phase = '0' means the ref edge is expected on phase 0.
+--
+-- Expected cam fire position: WIN_CENTRE = (WIN_MIN + WIN_MAX) / 2
+-- =============================================================================
+
 entity phase_tb is
 end entity phase_tb;
 
@@ -12,37 +22,30 @@ architecture sim of phase_tb is
 
     -- -------------------------------------------------------------------------
     -- Constants
-    -- angle domain: 0-7199 = 0-719.9 degrees (0.1 deg per LSB)
-    -- phase_ref_ang=1800: window centred at 180.0 degrees
-    -- phase_ref_tol=600:  window spans 120 degrees (180 ± 60)
-    -- w2_centre = (phase_ref_ang + 3600) mod 7200 = 5400 (540.0 deg)
     -- -------------------------------------------------------------------------
-    constant CLK_PERIOD : time    := 10 ns;
-    constant REF_ANG_C  : integer := 1800;   -- 180.0 deg
-    constant REF_TOL_C  : integer := 600;    -- ±60.0 deg
+    constant CLK_PERIOD  : time     := 10 ns;
+    constant WIN_MIN_C   : unsigned(31 downto 0) := x"10000000";
+    constant WIN_MAX_C   : unsigned(31 downto 0) := x"20000000";
+    constant WIN_CENTRE_C: unsigned(31 downto 0) := x"18000000";
+    constant OUTSIDE_C   : unsigned(31 downto 0) := x"30000000";
 
     -- -------------------------------------------------------------------------
     -- DUT signals
     -- -------------------------------------------------------------------------
-    signal clk         : std_logic := '0';
-    signal rst         : std_logic := '1';
-    signal ref_edge    : std_logic := '0';
-    signal angle_deg   : unsigned(15 downto 0) := (others => '0');
-    signal z_edge      : std_logic := '0';
-    signal ref_ang     : unsigned(15 downto 0) := to_unsigned(REF_ANG_C, 16);
-    signal ref_tol     : unsigned(15 downto 0) := to_unsigned(REF_TOL_C, 16);
-    signal tdc_off     : unsigned(15 downto 0) := (others => '0');
-    signal ph_raw      : std_logic;
-    signal ph_ref_det  : std_logic;
-    signal ph_ref_ok   : std_logic;
-    signal ph_ref_found: std_logic;
-    signal ph_inv      : std_logic;
-    signal ph_inv_l    : std_logic;
-    signal ph_ang_corr : unsigned(15 downto 0);
-    signal ph_eng      : std_logic;
-    signal ph_ang_eng  : unsigned(15 downto 0);
-    signal det_cnt     : unsigned(15 downto 0);
-    signal ref_angle_s : unsigned(15 downto 0);
+    signal clk          : std_logic := '0';
+    signal rst          : std_logic := '1';
+    signal ref_edge     : std_logic := '0';
+    signal angle_angfac : unsigned(31 downto 0) := (others => '0');
+    signal z_edge       : std_logic := '0';
+    signal ref_min      : unsigned(31 downto 0) := WIN_MIN_C;
+    signal ref_max      : unsigned(31 downto 0) := WIN_MAX_C;
+    signal ref_phase    : std_logic := '0';
+    signal ph_ref_det   : std_logic;
+    signal ph_ref_ok    : std_logic;
+    signal ph_ref_found : std_logic;
+    signal ph_eng       : std_logic;
+    signal ph_angfac    : unsigned(31 downto 0);
+    signal ph_det_cnt   : unsigned(15 downto 0);
 
     -- -------------------------------------------------------------------------
     -- Testbench control
@@ -51,53 +54,34 @@ architecture sim of phase_tb is
     signal test_num : integer := 0;
 
     -- -------------------------------------------------------------------------
-    -- Fire a ref_edge strobe at the given angle
+    -- Fire a 1-clock ref_edge at the given angle_angfac value
     -- -------------------------------------------------------------------------
     procedure fire_ref(
-        signal   ang     : out unsigned(15 downto 0);
-        signal   ref     : out std_logic;
-        signal   c   : in  std_logic;
-        constant ang_val : in  integer
+        signal   ang  : out unsigned(31 downto 0);
+        signal   ref  : out std_logic;
+        signal   c    : in  std_logic;
+        constant val  : in  unsigned(31 downto 0)
     ) is
     begin
-        ang <= to_unsigned(ang_val, 16);
-        wait until rising_edge(c);
+        ang <= val;
+        wait until rising_edge(c); wait for 1 ns;
         ref <= '1';
-        wait until rising_edge(c);
+        wait until rising_edge(c); wait for 1 ns;
         ref <= '0';
-        wait until rising_edge(c);
-        wait for 1 ns;
+        wait until rising_edge(c); wait for 1 ns;
     end procedure fire_ref;
 
     -- -------------------------------------------------------------------------
-    -- Fire a z_edge strobe
+    -- Fire a 1-clock z_edge strobe
     -- -------------------------------------------------------------------------
     procedure fire_z(
-        signal   z   : out std_logic;
-        signal   c   : in  std_logic
+        signal   z : out std_logic;
+        signal   c : in  std_logic
     ) is
     begin
-        z <= '1'; wait until rising_edge(c);
-        z <= '0'; wait until rising_edge(c);
-        wait for 1 ns;
+        z <= '1'; wait until rising_edge(c); wait for 1 ns;
+        z <= '0'; wait until rising_edge(c); wait for 1 ns;
     end procedure fire_z;
-
-    -- -------------------------------------------------------------------------
-    -- Reset and wait for outputs to clear
-    -- -------------------------------------------------------------------------
-    procedure do_reset(
-        signal rst : out std_logic;
-        signal ref : out std_logic;
-        signal z   : out std_logic
-    ) is
-    begin
-        rst <= '1';
-        ref <= '0';
-        z   <= '0';
-        wait for 5 * CLK_PERIOD;
-        rst <= '0';
-        wait for 2 * CLK_PERIOD;
-    end procedure do_reset;
 
 begin
 
@@ -121,22 +105,17 @@ begin
             clk              => clk,
             rst              => rst,
             ref_edge         => ref_edge,
-            angle_deg        => angle_deg,
+            angle_angfac     => angle_angfac,
             z_edge           => z_edge,
-            phase_ref_ang    => ref_ang,
-            phase_ref_tol    => ref_tol,
-            tdc_offset       => tdc_off,
-            phase_raw        => ph_raw,
+            phase_ref_min    => ref_min,
+            phase_ref_max    => ref_max,
+            phase_ref_phase  => ref_phase,
             phase_ref_det    => ph_ref_det,
             phase_ref_ok     => ph_ref_ok,
             phase_ref_found  => ph_ref_found,
-            phase_inv        => ph_inv,
-            phase_inv_latch  => ph_inv_l,
-            phase_ang_corr   => ph_ang_corr,
             phase_eng        => ph_eng,
-            phase_eng_ang    => ph_ang_eng,
-            phase_ref_det_cnt => det_cnt,
-            ref_angle        => ref_angle_s
+            phase_ref_angfac => ph_angfac,
+            phase_ref_det_cnt => ph_det_cnt
         );
 
     -- -------------------------------------------------------------------------
@@ -146,174 +125,228 @@ begin
     begin
 
         -- --------------------------------------------------------------------
-        -- TEST 1: phase_raw follows angle_deg
-        -- phase_raw=0 for angle < 3600 (first crank revolution)
-        -- phase_raw=1 for angle >= 3600 (second crank revolution)
+        -- TEST 1: Reset behaviour -- all outputs zero
         -- --------------------------------------------------------------------
-        report "TEST 1: phase_raw follows angle_deg";
+        report "TEST 1: Reset behaviour";
         test_num <= 1;
 
-        do_reset(rst, ref_edge, z_edge);
+        rst <= '1'; wait for 5 * CLK_PERIOD;
+        rst <= '0'; wait for 2 * CLK_PERIOD; wait for 1 ns;
 
-        angle_deg <= to_unsigned(1800, 16); wait for 2 * CLK_PERIOD;
-        assert ph_raw = '0'
-            report "FAIL T1: phase_raw should be 0 at 1800 (first revolution)"
+        assert ph_ref_found = '0'
+            report "FAIL T1: phase_ref_found should be 0 after reset"
             severity failure;
-
-        angle_deg <= to_unsigned(3600, 16); wait for 2 * CLK_PERIOD;
-        assert ph_raw = '1'
-            report "FAIL T1: phase_raw should be 1 at 3600 (second revolution)"
+        assert ph_ref_ok = '0'
+            report "FAIL T1: phase_ref_ok should be 0 after reset"
             severity failure;
-
-        angle_deg <= to_unsigned(7199, 16); wait for 2 * CLK_PERIOD;
-        assert ph_raw = '1'
-            report "FAIL T1: phase_raw should be 1 at 7199"
+        assert ph_eng = '0'
+            report "FAIL T1: phase_eng should be 0 after reset"
+            severity failure;
+        assert ph_ref_det = '0'
+            report "FAIL T1: phase_ref_det should be 0 after reset"
             severity failure;
 
         report "TEST 1: PASS";
+        wait for 3 * CLK_PERIOD;
 
         -- --------------------------------------------------------------------
-        -- TEST 2: ref_edge in window 1 (around ref_ang=1800, tol=600)
-        -- Fires at 1800 -> phase_ref_det, phase_ref_ok, phase_ref_found, inv=0
+        -- TEST 2: First ref_edge in window latches phase_ref_found
+        --         and sets phase_eng to phase_ref_phase
         -- --------------------------------------------------------------------
-        report "TEST 2: ref_edge in window 1 -> phase_ref_found, inv=0";
+        report "TEST 2: First detection in window latches phase_ref_found";
         test_num <= 2;
 
-        do_reset(rst, ref_edge, z_edge);
-
-        -- Check phase_ref_det WHILE ref_edge is still high (it's a 1-clock strobe)
-        angle_deg <= to_unsigned(1800, 16);
-        wait for CLK_PERIOD;
+        -- Check phase_ref_det while ref_edge is still asserted --
+        -- it is a 1-clock strobe cleared on the following clock.
+        ref_phase <= '0';
+        angle_angfac <= WIN_CENTRE_C;
+        wait until rising_edge(clk); wait for 1 ns;
         ref_edge <= '1';
-        wait for CLK_PERIOD; wait for 1 ns;  -- phase_ref_det fires this clock
+        wait until rising_edge(clk); wait for 1 ns;  -- detection fires this clock
+
         assert ph_ref_det = '1'
-            report "FAIL T2: phase_ref_det not set" severity failure;
-        ref_edge <= '0';
-        wait for CLK_PERIOD; wait for 1 ns;  -- ref_found, ok, inv_l latch
-        assert ph_ref_ok = '1'
-            report "FAIL T2: phase_ref_ok not set" severity failure;
+            report "FAIL T2: phase_ref_det not set on detection"
+            severity failure;
         assert ph_ref_found = '1'
-            report "FAIL T2: phase_ref_found not latched" severity failure;
-        assert ph_inv_l = '0'
-            report "FAIL T2: phase_inv_latch should be 0 for window 1" severity failure;
+            report "FAIL T2: phase_ref_found not latched"
+            severity failure;
+        assert ph_eng = '0'
+            report "FAIL T2: phase_eng should match phase_ref_phase (0)"
+            severity failure;
+        assert ph_ref_ok = '1'
+            report "FAIL T2: phase_ref_ok should be 1 after detection"
+            severity failure;
+
+        -- Clear ref_edge; phase_ref_det should go low on next clock
+        ref_edge <= '0';
+        wait until rising_edge(clk); wait for 1 ns;
+        assert ph_ref_det = '0'
+            report "FAIL T2: phase_ref_det should be a 1-clock strobe"
+            severity failure;
 
         report "TEST 2: PASS";
         wait for 3 * CLK_PERIOD;
 
         -- --------------------------------------------------------------------
-        -- TEST 3: ref_edge in window 2 (w2_centre=5400, tol=600)
-        -- Fires at 5400 -> phase_ref_found, inv=1
+        -- TEST 3: z_edge toggles phase_eng each crank revolution
+        --         (once phase_ref_found = 1)
         -- --------------------------------------------------------------------
-        report "TEST 3: ref_edge in window 2 -> inv=1";
+        report "TEST 3: z_edge toggles phase_eng each revolution";
         test_num <= 3;
 
-        do_reset(rst, ref_edge, z_edge);
+        assert ph_eng = '0' report "FAIL T3 setup: phase_eng should be 0" severity failure;
 
-        fire_ref(angle_deg, ref_edge, clk, 5400);
+        fire_z(z_edge, clk);
+        assert ph_eng = '1'
+            report "FAIL T3: phase_eng should toggle to 1 on first z_edge"
+            severity failure;
 
-        assert ph_ref_found = '1'
-            report "FAIL T3: phase_ref_found not set for window 2" severity failure;
-        assert ph_inv_l = '1'
-            report "FAIL T3: phase_inv_latch should be 1 for window 2" severity failure;
+        fire_z(z_edge, clk);
+        assert ph_eng = '0'
+            report "FAIL T3: phase_eng should toggle to 0 on second z_edge"
+            severity failure;
+
+        fire_z(z_edge, clk);
+        assert ph_eng = '1'
+            report "FAIL T3: phase_eng should toggle to 1 on third z_edge"
+            severity failure;
+
+        -- Return to phase 0 for subsequent tests
+        fire_z(z_edge, clk);
+        assert ph_eng = '0' report "FAIL T3: restore" severity failure;
 
         report "TEST 3: PASS";
         wait for 3 * CLK_PERIOD;
 
         -- --------------------------------------------------------------------
-        -- TEST 4: ref_edge outside both windows -> no detection
+        -- TEST 4: ref_edge outside window -- no detection
         -- --------------------------------------------------------------------
-        report "TEST 4: ref_edge outside windows -> no detection";
+        report "TEST 4: ref_edge outside window causes no detection";
         test_num <= 4;
 
-        do_reset(rst, ref_edge, z_edge);
+        fire_ref(angle_angfac, ref_edge, clk, OUTSIDE_C);
 
-        -- Fire at 3600 (halfway between windows, outside both)
-        fire_ref(angle_deg, ref_edge, clk, 3600);
-
-        assert ph_ref_found = '0'
-            report "FAIL T4: phase_ref_found should not be set outside windows"
-            severity failure;
         assert ph_ref_det = '0'
-            report "FAIL T4: phase_ref_det should not be set outside windows"
+            report "FAIL T4: phase_ref_det should not fire outside window"
+            severity failure;
+
+        -- phase_ref_found stays latched from T2
+        assert ph_ref_found = '1'
+            report "FAIL T4: phase_ref_found should remain latched"
             severity failure;
 
         report "TEST 4: PASS";
         wait for 3 * CLK_PERIOD;
 
         -- --------------------------------------------------------------------
-        -- TEST 5: ref_angle output latches angle_deg at detection
+        -- TEST 5: phase_ref_phase = '1' -- first detection sets phase_eng = 1
+        -- Reset to get clean state for this test.
         -- --------------------------------------------------------------------
-        report "TEST 5: ref_angle latches angle_deg at detection";
+        report "TEST 5: phase_ref_phase = 1 sets phase_eng = 1 on first detection";
         test_num <= 5;
 
-        do_reset(rst, ref_edge, z_edge);
+        rst <= '1'; wait for 5 * CLK_PERIOD; rst <= '0';
+        wait for 3 * CLK_PERIOD;
 
-        -- Fire ref_edge at a specific angle
-        fire_ref(angle_deg, ref_edge, clk, 1500);   -- within window (1800±600)
+        ref_phase <= '1';
+        fire_ref(angle_angfac, ref_edge, clk, WIN_CENTRE_C);
 
-        assert to_integer(ref_angle_s) = 1500
-            report "FAIL T5: ref_angle wrong: " &
-                   integer'image(to_integer(ref_angle_s)) & " expected 1500"
+        assert ph_ref_found = '1'
+            report "FAIL T5: phase_ref_found not set" severity failure;
+        assert ph_eng = '1'
+            report "FAIL T5: phase_eng should be 1 when phase_ref_phase=1"
             severity failure;
 
-        -- Angle changes but ref_angle stays latched
-        angle_deg <= to_unsigned(2000, 16); wait for 3 * CLK_PERIOD;
-        assert to_integer(ref_angle_s) = 1500
-            report "FAIL T5: ref_angle changed after detection (should be latched)"
+        -- z_edge should toggle to 0
+        fire_z(z_edge, clk);
+        assert ph_eng = '0'
+            report "FAIL T5: phase_eng should toggle to 0 after z_edge"
             severity failure;
 
         report "TEST 5: PASS";
         wait for 3 * CLK_PERIOD;
 
         -- --------------------------------------------------------------------
-        -- TEST 6: phase_ref_ok goes low after 3 z_edges without detection
+        -- TEST 6: phase_ref_angfac latches angle_angfac at each detection
         -- --------------------------------------------------------------------
-        report "TEST 6: phase_ref_ok drops after 3 z_edges without ref_edge";
+        report "TEST 6: phase_ref_angfac latches angle_angfac at detection";
         test_num <= 6;
 
-        do_reset(rst, ref_edge, z_edge);
+        -- Already have phase_ref_found=1 from T5 (phase_eng=0 now)
+        -- Fire in window at a specific angle
+        fire_ref(angle_angfac, ref_edge, clk, WIN_MIN_C + 1);
 
-        -- Establish ref_found
-        fire_ref(angle_deg, ref_edge, clk, 1800);
-        assert ph_ref_ok = '1'
-            report "FAIL T6 setup: phase_ref_ok not set" severity failure;
+        assert ph_angfac = WIN_MIN_C + 1
+            report "FAIL T6: phase_ref_angfac wrong after detection at WIN_MIN+1: " &
+                   integer'image(to_integer(ph_angfac))
+            severity failure;
 
-        -- Fire 4 z_edges without ref_edge (1st updates prev, next 3 are misses)
-        fire_z(z_edge, clk);
-        fire_z(z_edge, clk);
-        fire_z(z_edge, clk);
-        fire_z(z_edge, clk);
-        wait for 5 * CLK_PERIOD;
-
-        assert ph_ref_ok = '0'
-            report "FAIL T6: phase_ref_ok not cleared after 3 z_edges without detection"
+        -- Fire again at a different angle -- latch should update
+        fire_ref(angle_angfac, ref_edge, clk, WIN_MAX_C - 1);
+        assert ph_angfac = WIN_MAX_C - 1
+            report "FAIL T6: phase_ref_angfac should update on each detection"
             severity failure;
 
         report "TEST 6: PASS";
         wait for 3 * CLK_PERIOD;
 
         -- --------------------------------------------------------------------
-        -- TEST 7: phase_eng_ang with tdc_offset
-        -- With tdc_offset=300 (30 deg) and ref at 1800:
-        -- phase_eng_ang should be (1800 + 300) mod 7200 = 2100
+        -- TEST 7: phase_ref_ok clears after 3 consecutive z_edges
+        --         without a detection incrementing det_cnt
+        --         (simulates lost cam signal)
         -- --------------------------------------------------------------------
-        report "TEST 7: phase_eng_ang includes tdc_offset";
+        report "TEST 7: phase_ref_ok clears after 3 missed z_edges";
         test_num <= 7;
 
-        do_reset(rst, ref_edge, z_edge);
-        tdc_off <= to_unsigned(300, 16);   -- 30.0 degrees
-
-        fire_ref(angle_deg, ref_edge, clk, 1800);
-        wait for 2 * CLK_PERIOD;
-
-        assert to_integer(ph_ang_eng) = 2100
-            report "FAIL T7: phase_eng_ang wrong: " &
-                   integer'image(to_integer(ph_ang_eng)) &
-                   " expected 2100"
+        assert ph_ref_ok = '1'
+            report "FAIL T7 setup: phase_ref_ok should be 1"
             severity failure;
 
-        tdc_off <= (others => '0');   -- restore
+        -- Fire one sync z_edge first to align det_cnt_prev with det_cnt_int
+        -- (det_cnt may have advanced during T6 detections without an intervening
+        -- z_edge, so the first z_edge here will sync rather than count as a miss).
+        fire_z(z_edge, clk);
+        assert ph_ref_ok = '1'
+            report "FAIL T7 setup: phase_ref_ok should still be 1 after sync z_edge"
+            severity failure;
+
+        -- Now fire 3 z_edges without any detection: each is a miss.
+        -- 3rd miss clears phase_ref_ok.
+        fire_z(z_edge, clk);
+        assert ph_ref_ok = '1'
+            report "FAIL T7: phase_ref_ok should still be 1 after 1 miss"
+            severity failure;
+
+        fire_z(z_edge, clk);
+        assert ph_ref_ok = '1'
+            report "FAIL T7: phase_ref_ok should still be 1 after 2 misses"
+            severity failure;
+
+        fire_z(z_edge, clk);
+        assert ph_ref_ok = '0'
+            report "FAIL T7: phase_ref_ok should clear after 3 consecutive misses"
+            severity failure;
+
         report "TEST 7: PASS";
+        wait for 3 * CLK_PERIOD;
+
+        -- --------------------------------------------------------------------
+        -- TEST 8: phase_ref_ok recovers on next detection
+        -- --------------------------------------------------------------------
+        report "TEST 8: phase_ref_ok recovers on detection after miss";
+        test_num <= 8;
+
+        assert ph_ref_ok = '0'
+            report "FAIL T8 setup: phase_ref_ok should be 0 from T7"
+            severity failure;
+
+        fire_ref(angle_angfac, ref_edge, clk, WIN_CENTRE_C);
+
+        assert ph_ref_ok = '1'
+            report "FAIL T8: phase_ref_ok should recover on detection"
+            severity failure;
+
+        report "TEST 8: PASS";
 
         -- --------------------------------------------------------------------
         -- Done
@@ -332,13 +365,19 @@ begin
     -- -------------------------------------------------------------------------
     -- Monitor
     -- -------------------------------------------------------------------------
-    p_monitor : process(ph_ref_det, ph_ref_ok, ph_ref_found)
+    p_monitor : process(ph_ref_det, ph_ref_found, ph_eng)
     begin
         if ph_ref_det = '1' then
-            report "REF_DET: angle=" & integer'image(to_integer(angle_deg)) &
-                   " inv=" & std_logic'image(ph_inv) &
+            report "REF_DET: angfac=" & integer'image(to_integer(angle_angfac)) &
+                   " found=" & std_logic'image(ph_ref_found) &
+                   " eng=" & std_logic'image(ph_eng) &
                    " ok=" & std_logic'image(ph_ref_ok) &
+                   " cnt=" & integer'image(to_integer(ph_det_cnt)) &
                    " test=" & integer'image(test_num);
+        end if;
+        if ph_eng'event then
+            report "PHASE_ENG -> " & std_logic'image(ph_eng) &
+                   "  test=" & integer'image(test_num);
         end if;
     end process p_monitor;
 

@@ -3,201 +3,196 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 -- =============================================================================
--- phase.vhd
--- Phase detection and engine angle calculation.
+-- phase.vhd  (v3)
 --
--- phase_raw: 0 when angle_deg in [0,3599], 1 when in [3600,7199]
+-- Engine phase detection from a cam (or peak) reference edge.
+-- Internal unit: _angfac -- unsigned 32-bit fraction of one crank revolution.
+-- All degree conversion is performed in angus_regs.py on the PS side.
 --
--- Window detection on ref_edge:
---   window1 = phase_ref_ang +/- phase_ref_tol
---   window2 = (phase_ref_ang + 3600) % 7200 +/- phase_ref_tol
---   ref_edge in window1: phase_inv=0, phase_ref_det=1
---   ref_edge in window2: phase_inv=1, phase_ref_det=1
---   First phase_ref_det: latch phase_inv -> phase_inv_latch, phase_ref_found=1
+-- Window detection:
+--   ref_edge is expected when: phase_ref_min <= angle_angfac <= phase_ref_max.
+--   The window boundaries are computed in angus_regs.py from the user-configured
+--   degree values and the current nco_ab_inc scaling, then written as angfac
+--   values to the AXI registers.
 --
--- phase_ang_corr = (angle_deg + phase_inv_latch*3600) % 7200
--- phase_eng_ang  = (phase_ang_corr + tdc_offset) % 7200  [held 0 until phase_ref_found]
--- phase_eng      = phase_raw XOR phase_inv_latch
+--   Design constraint: the detection window must not span the crank Z edge
+--   (i.e., phase_ref_min > 0 and phase_ref_max < 0xFFFFFFFF).
+--   This is always satisfied on correctly designed cam profiles -- the cam
+--   distinguishing edge is placed well clear of the crank gap. angus_regs.py
+--   also clamps window boundaries to enforce this.
+--
+-- phase_eng: indicates which crank revolution (engine phase) we are in.
+--   Held at 0 until phase_ref_found = 1.
+--   On first detection: phase_eng latched to phase_ref_phase.
+--   On every z_edge thereafter: phase_eng toggles.
+--
+--   Note on simultaneous z_edge + ref_edge:
+--   If the first detection and a z_edge arrive at the same clock (which would
+--   place the cam edge at 0 deg, violating the window constraint), the toggle
+--   gate (phase_ref_found = '0') prevents the z_edge from toggling, and
+--   phase_eng is set correctly from the detection. In all subsequent cycles,
+--   z_edge fires (toggles phase_eng) before or after the ref_edge -- never at
+--   the same clock given the window constraint.
 --
 -- phase_ref_ok:
---   Set 1 when phase_ref_det=1 and phase_inv=phase_inv_latch (correct window)
---   Set 0 when phase_ref_det=1 and phase_inv/=phase_inv_latch (wrong window)
---   Set 0 if 3 z_edges pass without phase_ref_det incrementing
+--   Set 1 on each valid ref_edge detection in window.
+--   Set 0 after 3 consecutive z_edges without a new detection.
+--   The cam fires once per engine cycle (every 2 crank revolutions), so one
+--   z_edge per 2 will normally see no detection increment -- this is correct.
+--   Three consecutive non-incrementing z_edges (~1.5 missed engine cycles)
+--   indicates a lost cam signal.
+--
+-- phase_ref_angfac: latches angle_angfac at each detection (debug/diagnostics).
 -- =============================================================================
+
 entity phase is
     port (
-        clk             : in  std_logic;
-        rst             : in  std_logic;
-        ref_edge        : in  std_logic;
-        angle_deg       : in  unsigned(15 downto 0);
-        z_edge          : in  std_logic;
-        phase_ref_ang   : in  unsigned(15 downto 0);
-        phase_ref_tol   : in  unsigned(15 downto 0);
-        tdc_offset      : in  unsigned(15 downto 0);
+        clk              : in  std_logic;
+        rst              : in  std_logic;
+        -- Reference edge (from ref_sel)
+        ref_edge         : in  std_logic;
+        -- Angular position (from angle.vhd)
+        angle_angfac     : in  unsigned(31 downto 0);
+        -- Crank revolution boundary (from src_sel)
+        z_edge           : in  std_logic;
+        -- Detection window config (startup, set via AXI, computed by angus_regs.py)
+        phase_ref_min    : in  unsigned(31 downto 0);  -- window lower bound (angfac)
+        phase_ref_max    : in  unsigned(31 downto 0);  -- window upper bound (angfac)
+        phase_ref_phase  : in  std_logic;              -- expected phase_eng value at detection
         -- Outputs
-        phase_raw       : out std_logic;
-        phase_ref_det   : out std_logic;
-        phase_ref_ok    : out std_logic;
-        phase_ref_found : out std_logic;
-        phase_inv       : out std_logic;
-        phase_inv_latch : out std_logic;
-        phase_ang_corr  : out unsigned(15 downto 0);
-        phase_eng       : out std_logic;
-        phase_eng_ang   : out unsigned(15 downto 0);
-        phase_ref_det_cnt: out unsigned(15 downto 0);
-        ref_angle        : out unsigned(15 downto 0)  -- angle_deg latched at ref_edge detection
+        phase_ref_det    : out std_logic;              -- 1-clock strobe: ref detected in window
+        phase_ref_ok     : out std_logic;              -- 1 = cam detection healthy
+        phase_ref_found  : out std_logic;              -- latched 1 on first detection
+        phase_eng        : out std_logic;              -- engine phase: 0 or 1
+        phase_ref_angfac : out unsigned(31 downto 0);  -- angle_angfac at last detection
+        phase_ref_det_cnt: out unsigned(15 downto 0)   -- cumulative detection count
     );
 end entity phase;
 
 architecture rtl of phase is
-    -- Registered config inputs (break AXI register from combinatorial path)
-    signal phase_ref_ang_r  : unsigned(15 downto 0) := (others => '0');
-    signal w2_centre_r      : unsigned(15 downto 0) := (others => '0');
-    signal phase_ref_tol_r  : unsigned(15 downto 0) := to_unsigned(600, 16);
-    signal tdc_offset_r     : unsigned(15 downto 0) := (others => '0');
-    signal phase_inv_int    : std_logic := '0';
-    signal ref_angle_int    : unsigned(15 downto 0) := (others => '0');
-    signal phase_inv_l_int  : std_logic := '0';
-    signal phase_ref_found_int: std_logic := '0';
-    signal phase_ref_ok_int : std_logic := '0';
-    signal phase_ref_det_int: std_logic := '0';
-    signal det_cnt_int      : unsigned(15 downto 0) := (others => '0');
-    signal det_cnt_prev     : unsigned(15 downto 0) := (others => '0');
-    signal z_miss_cnt       : unsigned(1 downto 0) := (others => '0');
 
-    -- Window check: is val within centre +/- tol (mod 7200)?
-    function in_window(val, centre, tol : unsigned(15 downto 0)) return boolean is
-        variable lo, hi : unsigned(15 downto 0);
-        variable diff   : unsigned(15 downto 0);
+    -- =========================================================================
+    -- Registered config inputs (break AXI register from detection logic)
+    -- =========================================================================
+    signal phase_ref_min_r    : unsigned(31 downto 0) := (others => '0');
+    signal phase_ref_max_r    : unsigned(31 downto 0) := (others => '1');
+    signal phase_ref_phase_r  : std_logic             := '0';
+
+    -- =========================================================================
+    -- Internal state
+    -- =========================================================================
+    signal phase_eng_int      : std_logic             := '0';
+    signal phase_ref_found_int: std_logic             := '0';
+    signal phase_ref_ok_int   : std_logic             := '0';
+    signal phase_ref_det_int  : std_logic             := '0';
+    signal phase_ref_angfac_int : unsigned(31 downto 0) := (others => '0');
+    signal det_cnt_int        : unsigned(15 downto 0) := (others => '0');
+    signal det_cnt_prev       : unsigned(15 downto 0) := (others => '0');
+    signal z_miss_cnt         : unsigned(1 downto 0)  := (others => '0');
+
+    -- =========================================================================
+    -- Window check: true when angfac falls within the configured detection band
+    -- =========================================================================
+    function in_window(
+        angfac  : unsigned(31 downto 0);
+        win_min : unsigned(31 downto 0);
+        win_max : unsigned(31 downto 0)
+    ) return boolean is
     begin
-        if val >= centre then
-            diff := val - centre;
-        else
-            diff := centre - val;
-        end if;
-        -- Handle wrap: if diff > 3600 then wrapped distance
-        if diff > to_unsigned(3600, 16) then
-            diff := to_unsigned(7200, 16) - diff;
-        end if;
-        return diff <= tol;
+        return angfac >= win_min and angfac <= win_max;
     end function;
-
-    -- Modulo 7200
-    function mod7200(v : unsigned(16 downto 0)) return unsigned is
-    begin
-        if v >= to_unsigned(7200, 17) then
-            return v(15 downto 0) - to_unsigned(7200, 16);
-        else
-            return v(15 downto 0);
-        end if;
-    end function;
-
-    signal ang_corr_int : unsigned(15 downto 0) := (others => '0');
-    signal ang_eng_int  : unsigned(15 downto 0) := (others => '0');
 
 begin
 
-    -- w2_centre computed inside process using registered phase_ref_ang_r
-
-    -- phase_raw
-    phase_raw <= '1' when angle_deg >= to_unsigned(3600, 16) else '0';
-
-    -- phase_ang_corr
-    ang_corr_int <= mod7200(resize(angle_deg, 17) + to_unsigned(3600, 17))
-                    when phase_inv_l_int = '1' else angle_deg;
-    phase_ang_corr <= ang_corr_int;
-
-    -- phase_eng_ang (held 0 until phase_ref_found)
-    ang_eng_int <= mod7200(resize(ang_corr_int, 17) + resize(tdc_offset_r, 17))
-                   when phase_ref_found_int = '1' else (others => '0');
-    phase_eng_ang <= ang_eng_int;
-
-    -- phase_eng
-    phase_eng <= (angle_deg(12)) xor phase_inv_l_int;  -- bit 12 set when >= 4096 ~ >= 3600
-
+    -- =========================================================================
+    -- Phase detection process
+    -- =========================================================================
     p_phase : process(clk)
     begin
         if rising_edge(clk) then
             if rst = '1' then
-                phase_ref_ang_r   <= (others => '0');
-                phase_ref_tol_r   <= to_unsigned(600, 16);
-                tdc_offset_r      <= (others => '0');
-                w2_centre_r       <= to_unsigned(3600, 16);
-                phase_inv_int     <= '0';
-                ref_angle_int     <= (others => '0');
-                phase_inv_l_int   <= '0';
+                phase_ref_min_r     <= (others => '0');
+                phase_ref_max_r     <= (others => '1');
+                phase_ref_phase_r   <= '0';
+                phase_eng_int       <= '0';
                 phase_ref_found_int <= '0';
-                phase_ref_ok_int  <= '0';
-                phase_ref_det_int <= '0';
-                det_cnt_int       <= (others => '0');
-                det_cnt_prev      <= (others => '0');
-                z_miss_cnt        <= (others => '0');
+                phase_ref_ok_int    <= '0';
+                phase_ref_det_int   <= '0';
+                phase_ref_angfac_int <= (others => '0');
+                det_cnt_int         <= (others => '0');
+                det_cnt_prev        <= (others => '0');
+                z_miss_cnt          <= (others => '0');
             else
                 -- Register config inputs each clock
-                phase_ref_ang_r <= phase_ref_ang;
-                phase_ref_tol_r <= phase_ref_tol;
-                tdc_offset_r    <= tdc_offset;
-                -- w2_centre registered to break AXI reg from combinatorial path
-                w2_centre_r <= mod7200(resize(phase_ref_ang, 17) + to_unsigned(3600, 17));
-                phase_ref_det_int <= '0';
+                phase_ref_min_r   <= phase_ref_min;
+                phase_ref_max_r   <= phase_ref_max;
+                phase_ref_phase_r <= phase_ref_phase;
 
-                -- z_edge: check for missed ref detections
+                phase_ref_det_int <= '0';   -- default: strobe is 1 clock wide
+
+                -- -------------------------------------------------------
+                -- z_edge: toggle phase_eng each crank revolution, and
+                -- track missed detections for phase_ref_ok health.
+                -- -------------------------------------------------------
                 if z_edge = '1' then
+
+                    -- Toggle phase_eng once phase is established
+                    if phase_ref_found_int = '1' then
+                        phase_eng_int <= not phase_eng_int;
+                    end if;
+
+                    -- Miss counting: det_cnt should increment every 2
+                    -- z_edges (one engine cycle). Flag as a miss only when
+                    -- det_cnt has not changed since the previous z_edge.
+                    -- Three consecutive misses clear phase_ref_ok.
                     if det_cnt_int = det_cnt_prev then
-                        -- No new ref detection since last z_edge
-                        z_miss_cnt <= z_miss_cnt + 1;
-                        if z_miss_cnt >= "10" then  -- 3rd consecutive miss
+                        if z_miss_cnt = "10" then
                             phase_ref_ok_int <= '0';
-                            z_miss_cnt <= (others => '0');
+                            z_miss_cnt       <= (others => '0');
+                        else
+                            z_miss_cnt <= z_miss_cnt + 1;
                         end if;
                     else
                         z_miss_cnt   <= (others => '0');
                         det_cnt_prev <= det_cnt_int;
                     end if;
+
                 end if;
 
-                -- ref_edge detection
-                if ref_edge = '1' then
-                    if in_window(angle_deg, phase_ref_ang_r, phase_ref_tol_r) then
-                        phase_inv_int <= '0';
-                        phase_ref_det_int <= '1';
-                        det_cnt_int <= det_cnt_int + 1;
-                        ref_angle_int <= angle_deg;
-                        if phase_ref_found_int = '0' then
-                            phase_inv_l_int <= '0';
-                            phase_ref_found_int <= '1';
-                        end if;
-                        if phase_inv_l_int = '0' then
-                            phase_ref_ok_int <= '1';
-                        else
-                            phase_ref_ok_int <= '0';
-                        end if;
-                    elsif in_window(angle_deg, w2_centre_r, phase_ref_tol_r) then
-                        phase_inv_int <= '1';
-                        phase_ref_det_int <= '1';
-                        det_cnt_int <= det_cnt_int + 1;
-                        ref_angle_int <= angle_deg;
-                        if phase_ref_found_int = '0' then
-                            phase_inv_l_int <= '1';
-                            phase_ref_found_int <= '1';
-                        end if;
-                        if phase_inv_l_int = '1' then
-                            phase_ref_ok_int <= '1';
-                        else
-                            phase_ref_ok_int <= '0';
-                        end if;
+                -- -------------------------------------------------------
+                -- ref_edge: window detection.
+                -- On first detection: latch phase_eng and phase_ref_found.
+                -- Every detection: strobe phase_ref_det, latch angfac,
+                -- increment counter, assert phase_ref_ok.
+                -- -------------------------------------------------------
+                if ref_edge = '1' and
+                   in_window(angle_angfac, phase_ref_min_r, phase_ref_max_r) then
+
+                    phase_ref_det_int    <= '1';
+                    phase_ref_angfac_int <= angle_angfac;
+                    det_cnt_int          <= det_cnt_int + 1;
+                    phase_ref_ok_int     <= '1';
+                    z_miss_cnt           <= (others => '0');
+
+                    if phase_ref_found_int = '0' then
+                        phase_ref_found_int <= '1';
+                        phase_eng_int       <= phase_ref_phase_r;
                     end if;
+
                 end if;
+
             end if;
         end if;
     end process p_phase;
 
-    phase_inv       <= phase_inv_int;
-    phase_inv_latch <= phase_inv_l_int;
-    phase_ref_found <= phase_ref_found_int;
-    phase_ref_ok    <= phase_ref_ok_int;
-    phase_ref_det   <= phase_ref_det_int;
+    -- =========================================================================
+    -- Output assignments
+    -- =========================================================================
+    phase_ref_det     <= phase_ref_det_int;
+    phase_ref_ok      <= phase_ref_ok_int;
+    phase_ref_found   <= phase_ref_found_int;
+    phase_eng         <= phase_eng_int;
+    phase_ref_angfac  <= phase_ref_angfac_int;
     phase_ref_det_cnt <= det_cnt_int;
-    ref_angle         <= ref_angle_int;
 
 end architecture rtl;
