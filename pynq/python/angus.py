@@ -298,24 +298,19 @@ class Angus:
     def faults(self):
         """
         Dict of active fault flags and per-type counts.
-        Keys: 'cam', 'crank', 'ab', 'speed', 'pll', 'counts'.
+        Flags decoded via Angus.decode_faults(). Keys:
+            'cam', 'crank_tooth', 'crank_ab', 'speed', 'pll', 'counts'.
         """
-        flags = self.regs.read('FAULT_FLAGS')
-        return {
-            'cam':    bool(flags & (1 << 0)),
-            'crank':  bool(flags & (1 << 1)),
-            'ab':     bool(flags & (1 << 2)),
-            'speed':  bool(flags & (1 << 3)),
-            'pll':    bool(flags & (1 << 4)),
-            'counts': {
-                'cam':     self.regs.read('FAULT_CAM_COUNT'),
-                'crank':   self.regs.read('FAULT_CRANK_COUNT'),
-                'pll':     self.regs.read('FAULT_PLL_COUNT'),
-                'ab':      self.regs.read('FAULT_AB_COUNT'),
-                'speed':   self.regs.read('FAULT_SPEED_COUNT'),
-                'encoder': self.regs.read('FAULT_ENC_COUNT'),
-            }
+        flags = self.decode_faults(self.regs.read('FAULT_FLAGS'))
+        flags['counts'] = {
+            'cam':         self.regs.read('FAULT_CAM_COUNT'),
+            'crank_tooth': self.regs.read('FAULT_CRANK_COUNT'),
+            'crank_ab':    self.regs.read('FAULT_AB_COUNT'),
+            'speed':       self.regs.read('FAULT_SPEED_COUNT'),
+            'pll':         self.regs.read('FAULT_PLL_COUNT'),
+            'encoder':     self.regs.read('FAULT_ENC_COUNT'),
         }
+        return flags
 
     @property
     def packet_count(self):
@@ -360,6 +355,27 @@ class Angus:
                 (w[5] >> 16) & 0x0FFF,
             ),
         )
+
+    @staticmethod
+    def decode_faults(raw):
+        """
+        Decode the FAULT_FLAGS register value into a named dict.
+
+        raw: 32-bit unsigned integer read from the FAULT_FLAGS register.
+        Returns a dict of the five fault flag bits:
+            'cam'         -- cam tooth count mismatch
+            'crank_tooth' -- crank tooth count mismatch per revolution
+            'crank_ab'    -- crank ab edge count mismatch
+            'speed'       -- engine speed exceeded max_rpm
+            'pll'         -- PLL phase error exceeded threshold
+        """
+        return {
+            'cam':         bool(raw & (1 << 0)),
+            'crank_tooth': bool(raw & (1 << 1)),
+            'crank_ab':    bool(raw & (1 << 2)),
+            'speed':       bool(raw & (1 << 3)),
+            'pll':         bool(raw & (1 << 4)),
+        }
 
     @staticmethod
     def decode_buffer(buf, n_samples=None):
@@ -450,14 +466,18 @@ class Angus:
 
         print()
         print("=== Fault ===")
-        any_fault = any(f[k] for k in ('cam', 'crank', 'ab', 'speed', 'pll'))
+        flag_keys = ('cam', 'crank_tooth', 'crank_ab', 'speed', 'pll')
+        any_fault = any(f[k] for k in flag_keys)
         print(f"  flags         {'ACTIVE' if any_fault else 'none'}")
-        for name in ('cam', 'crank', 'ab', 'speed', 'pll', 'encoder'):
-            count = f['counts'][name]
+        for name in flag_keys:
+            count = f['counts'].get(name, 0)
             active = f.get(name, False)
             if count or active:
-                print(f"  {name:8s}      {'ACTIVE  ' if active else '        '}"
+                print(f"  {name:12s}  {'ACTIVE  ' if active else '        '}"
                       f"count={count}")
+        enc_count = f['counts']['encoder']
+        if enc_count:
+            print(f"  {'encoder':12s}  count={enc_count}")
 
         print()
         print("=== Pack ===")
