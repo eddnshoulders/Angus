@@ -297,6 +297,50 @@ begin
         wait for 3 * CLK_PERIOD;
 
         -- --------------------------------------------------------------------
+        -- TEST 5b: Sequential z_edge one clock AFTER ab_edge (hardware case)
+        -- In hardware, crank_ab_edge is combinatorial while crank_z_edge is
+        -- registered, so z_edge fires the clock after ab_edge at the gap.
+        -- edge_count should still advance to 1 via ab_edge_prev.
+        -- --------------------------------------------------------------------
+        report "TEST 5b: Sequential ab_edge then z_edge (hardware timing)";
+        test_num <= 5;
+
+        -- Advance to non-zero state
+        fire_ab(ab_edge_s, clk);
+        fire_ab(ab_edge_s, clk);
+        fire_ab(ab_edge_s, clk);
+        assert to_integer(angle_angfac) > 0
+            report "FAIL T5b setup: angle_angfac should be non-zero"
+            severity failure;
+
+        -- ab_edge at clock N, z_edge at clock N+1 (sequential, not simultaneous)
+        ab_edge_s <= '1';
+        wait until rising_edge(clk); wait for 1 ns;
+        ab_edge_s <= '0';
+        z_edge_s  <= '1';
+        wait until rising_edge(clk); wait for 1 ns;
+        z_edge_s  <= '0';
+        wait until rising_edge(clk); wait for 1 ns;
+
+        -- nco_accum = 0 (z_edge reset it)
+        assert to_integer(angle_angfac) = 0
+            report "FAIL T5b: nco_accum should be 0 after z_edge, got " &
+                   integer'image(to_integer(angle_angfac))
+            severity failure;
+
+        -- Next ab_edge: ab_edge_prev was '1' so edge_count = 1 -> snaps to nco_ab_inc
+        fire_ab(ab_edge_s, clk);
+        wait until rising_edge(clk); wait for 1 ns;
+        assert to_integer(angle_angfac) >= NCO_AB_INC - 2 and
+               to_integer(angle_angfac) <= NCO_AB_INC + 2
+            report "FAIL T5b: next tooth should snap to nco_ab_inc (~" &
+                   integer'image(NCO_AB_INC) & "), got " &
+                   integer'image(to_integer(angle_angfac))
+            severity failure;
+
+        report "TEST 5b: PASS";
+
+        -- --------------------------------------------------------------------
         -- TEST 6: angle_nco_clk_inc = nco_ab_inc / ab_period (with interp_en)
         -- After one ab_edge with interp_en='1', the tooth divider runs and
         -- angle_nco_clk_inc should settle to ~7158 within 60 cycles.

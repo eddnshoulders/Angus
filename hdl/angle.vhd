@@ -90,6 +90,7 @@ architecture rtl of angle is
     -- =========================================================================
     signal nco_accum        : unsigned(31 downto 0) := (others => '0');
     signal edge_count       : unsigned(7 downto 0)  := (others => '0');
+    signal ab_edge_prev     : std_logic             := '0';  -- registered ab_edge
 
 begin
 
@@ -185,11 +186,13 @@ begin
             if rst = '1' then
                 nco_accum       <= (others => '0');
                 edge_count      <= (others => '0');
+                ab_edge_prev    <= '0';
                 tooth_start     <= '0';
                 clk_inc_valid   <= '0';
                 nco_clk_inc_int <= (others => '0');
             else
-                tooth_start <= '0';
+                tooth_start  <= '0';
+                ab_edge_prev <= ab_edge;   -- register for z_edge detection
 
                 -- Latch per-clock increment when tooth divider completes
                 if tooth_valid = '1' then
@@ -199,17 +202,32 @@ begin
 
                 -- -------------------------------------------------------
                 -- z_edge: reset for new crank revolution (highest priority)
+                --
+                -- In hardware, crank_z_edge fires one clock AFTER crank_ab_edge
+                -- because crank_ab_edge is combinatorial from edge_pulse while
+                -- crank_z_edge is a registered rising-edge detector on z_int.
+                -- At the first tooth after the crank gap:
+                --   Clock N:   ab_edge='1', z_edge='0'  -- tooth snap fires
+                --   Clock N+1: ab_edge='0', z_edge='1'  -- z_edge resets
+                -- Without correction, z_edge resets edge_count to 0 and the
+                -- next tooth (tooth 1) snaps to 0*nco_ab_inc instead of
+                -- 1*nco_ab_inc -- a permanent one-tooth offset causing a gap
+                -- of one tooth period in trig_edge every revolution.
+                --
+                -- Fix: ab_edge_prev detects that z_edge followed an ab_edge
+                -- (the first-tooth-after-gap case) and advances edge_count to
+                -- 1 so the next tooth snaps to the correct position.
+                -- The simultaneous case (ab_edge='1' at same clock as z_edge,
+                -- as seen in simulation) is also handled by the nested if.
                 -- -------------------------------------------------------
                 if z_edge = '1' then
                     edge_count    <= (others => '0');
                     nco_accum     <= (others => '0');
                     clk_inc_valid <= '0';
 
-                    -- Simultaneous z_edge + ab_edge: first tooth after gap.
-                    -- nco_accum stays 0 (correct -- tooth 0 is at position 0).
-                    -- edge_count advances to 1 so the next tooth snaps correctly.
-                    -- Tooth divider starts immediately to resume interpolation.
-                    if ab_edge = '1' then
+                    -- Sequential case (hardware): z_edge one clock after ab_edge
+                    -- Simultaneous case (simulation): both high at same clock
+                    if ab_edge_prev = '1' or ab_edge = '1' then
                         edge_count <= to_unsigned(1, 8);
                         if angle_interp_en = '1' and ab_period > 0 then
                             tooth_start <= '1';
