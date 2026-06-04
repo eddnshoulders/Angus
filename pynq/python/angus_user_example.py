@@ -1,5 +1,5 @@
 """
-angus_setup_example.py
+angus_user_example.py
 
 Example setup and first-run script for Angus combustion analyser v3.
 Adjust the constants in the CONFIGURATION section for your engine and
@@ -8,7 +8,7 @@ sensor installation before running.
 Typical workflow:
   1. Edit the CONFIGURATION section for your engine
   2. Run this script in a PYNQ notebook cell
-  3. Check a.status() -- confirm FULL_SYNC and no faults
+  3. Check a.run_status() -- confirm FULL_SYNC and no faults
   4. Refine tdc_offset_deg once you have a TDC reference
   5. Start DMA and call Angus.decode_buffer() on the result
 """
@@ -32,21 +32,21 @@ a = Angus(ol.angus_0)
 
 # =============================================================================
 # STARTUP CONFIGURATION
-# Edit these constants for your engine and sensor installation.
+# Edit these for your engine and sensor installation.
 # startup_conf() resets the hardware and latches all startup parameters.
 # Only call this at initialisation or when changing hardware topology.
+# Any argument not supplied retains its previous value (or the default).
 # =============================================================================
-
 a.startup_conf(
     # Crank wheel
     crank_n_teeth   = 60,       # total teeth including missing (e.g. 60-2 wheel)
-    crank_n_missing = 2,        # number of missing teeth
+    crank_n_missing = 2,
     crank_edge      = 'rising',
 
     # Cam / phase reference
     # phase_ref_deg uses engine degrees (0-719.9):
-    #   0-359.9  = cam fires during compression stroke (phase 0)
-    #   360-719.9 = cam fires during exhaust stroke (phase 1)
+    #   0-359.9   = cam fires on compression stroke (phase 0)
+    #   360-719.9 = cam fires on exhaust stroke (phase 1)
     # The phase bit is derived automatically from this value.
     cam_n_teeth     = 1,
     phase_ref_deg   = 180.0,   # expected cam edge position in engine degrees
@@ -54,10 +54,10 @@ a.startup_conf(
     cam_edge        = 'rising',
 
     # Signal routing
-    src             = 'crank',  # angle source: 'crank' or 'encoder'
-    ref             = 'cam',    # phase reference: 'cam' or 'peak'
-    ang_sel         = 'tooth',  # angle stream: 'tooth' or 'pll'
-    angle_interp    = True,     # Bresenham interpolation between teeth
+    src             = 'crank',  # 'crank' or 'encoder'
+    ref             = 'cam',    # 'cam' or 'peak'
+    ang_sel         = 'tooth',  # 'tooth' or 'pll'
+    angle_interp    = True,
 
     # DMA
     dma_buffer_size = 2,        # engine cycles per DMA buffer
@@ -65,14 +65,13 @@ a.startup_conf(
 
 # =============================================================================
 # RUNTIME CONFIGURATION
-# These can be changed at any time without resetting the hardware.
-# runtime_conf() writes them immediately, no reset required.
+# These can be updated at any time without resetting the hardware.
+# Any argument not supplied retains its previous value.
 # =============================================================================
-
 a.runtime_conf(
     tdc_offset_deg  = 0.0,      # crank degrees from Z edge to engine TDC
-                                # Set to 0 initially -- measure and refine
-                                # once you have a TDC reference on the data.
+                                # set to 0 initially -- measure and refine
+                                # once you have a TDC reference on the data
     trig_decimation = 1,        # 1 = one sample per 0.1 crank deg equivalent
     max_rpm         = 8000,
 )
@@ -88,19 +87,12 @@ else:
     print(f"Sync not achieved -- state: {a.sync_state}")
     print("Check: crank signal present, correct edge selection, tooth count matches wheel.")
 
-a.status()
-
 # =============================================================================
-# Check faults
+# Status and config check
 # =============================================================================
-faults = a.faults
-if any(faults[k] for k in ('cam', 'crank', 'ab', 'speed', 'pll')):
-    print("\nActive faults:")
-    for name in ('cam', 'crank', 'ab', 'speed', 'pll'):
-        if faults[name]:
-            print(f"  {name:8s}  count = {faults['counts'][name]}")
-else:
-    print("\nNo faults.")
+a.run_status()
+print()
+a.config_status()
 
 # =============================================================================
 # DMA capture example
@@ -123,8 +115,7 @@ else:
 # print(f"TDC range: {tdc.min():.1f} -- {tdc.max():.1f} deg")
 
 # =============================================================================
-# Refine TDC offset
-# Once you have a TDC reference (e.g. scope trigger at known crank angle):
+# Refine TDC offset (once you have a reference)
 # =============================================================================
 # a.runtime_conf(tdc_offset_deg=92.5)
 
@@ -132,5 +123,4 @@ else:
 # Enable PLL (optional -- once basic sync is solid)
 # =============================================================================
 # a.runtime_conf(pll_kp=10, pll_ki=1, pll_corr_max=500, pll_corr_dir='add')
-# a.startup_conf(ang_sel='pll')  # switch angle stream to PLL output
-# a.pll_status()
+# a.startup_conf(ang_sel='pll')
