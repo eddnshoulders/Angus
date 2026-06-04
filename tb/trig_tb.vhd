@@ -5,46 +5,35 @@ use ieee.numeric_std.all;
 library std;
 use std.env.all;
 
+-- =============================================================================
+-- trig_tb.vhd  (v3)
+--
+-- Unit testbench for trig.vhd.
+-- STEP_SIZE = 1_193_324 angfac units = one 0.1-degree step per revolution.
+-- At decimation=1: fires 3600 times per revolution.
+-- =============================================================================
+
 entity trig_tb is
 end entity trig_tb;
 
 architecture sim of trig_tb is
 
-    -- -------------------------------------------------------------------------
-    -- Constants
-    -- Trigger fires on every change of ang_deg (every 0.1 degree step)
-    -- when decimation=1.  Pulse width is trig_pulse_width clocks.
-    -- trig_pulse_count resets on z_edge.
-    -- -------------------------------------------------------------------------
-    constant CLK_PERIOD   : time    := 10 ns;
-    constant PULSE_WIDTH  : integer := 5;
+    constant CLK_PERIOD : time    := 10 ns;
+    constant STEP_SIZE  : integer := 1_193_324;
 
-    -- -------------------------------------------------------------------------
-    -- DUT signals
-    -- -------------------------------------------------------------------------
-    signal clk      : std_logic := '0';
-    signal rst      : std_logic := '1';
-    signal ang_deg  : unsigned(15 downto 0) := (others => '0');
-    signal z_edge   : std_logic := '0';
-    signal decim    : unsigned(15 downto 0) := to_unsigned(1, 16);
-    signal pw       : unsigned(15 downto 0) := to_unsigned(PULSE_WIDTH, 16);
-    signal trig_p   : std_logic;
-    signal trig_cnt : unsigned(31 downto 0);
+    signal clk       : std_logic := '0';
+    signal rst       : std_logic := '1';
+    signal angfac    : unsigned(31 downto 0) := (others => '0');
+    signal z_edge    : std_logic := '0';
+    signal decim     : unsigned(15 downto 0) := to_unsigned(1, 16);
+    signal trig_p    : std_logic;
+    signal trig_cnt  : unsigned(31 downto 0);
 
-    -- -------------------------------------------------------------------------
-    -- Testbench control
-    -- -------------------------------------------------------------------------
     signal sim_done  : boolean := false;
     signal test_num  : integer := 0;
-    signal pulse_count: integer := 0;
+    signal pulse_count : integer := 0;
 
-    -- -------------------------------------------------------------------------
-    -- Fire a z_edge strobe
-    -- -------------------------------------------------------------------------
-    procedure fire_z(
-        signal   z   : out std_logic;
-        signal   c   : in  std_logic
-    ) is
+    procedure fire_z(signal z : out std_logic; signal c : in std_logic) is
     begin
         z <= '1'; wait until rising_edge(c);
         z <= '0'; wait until rising_edge(c);
@@ -53,9 +42,6 @@ architecture sim of trig_tb is
 
 begin
 
-    -- -------------------------------------------------------------------------
-    -- Clock generation
-    -- -------------------------------------------------------------------------
     p_clk : process
     begin
         while not sim_done loop
@@ -65,25 +51,18 @@ begin
         wait;
     end process p_clk;
 
-    -- -------------------------------------------------------------------------
-    -- DUT instantiation
-    -- -------------------------------------------------------------------------
     dut : entity work.trig
         port map (
-            clk              => clk,
-            rst              => rst,
-            ang_deg          => ang_deg,
-            z_edge           => z_edge,
-            trig_decimation  => decim,
-            trig_pulse_width => pw,
-            trig_pulse       => trig_p,
-            trig_pulse_count => trig_cnt
+            clk             => clk,
+            rst             => rst,
+            ang_angfac      => angfac,
+            z_edge          => z_edge,
+            trig_decimation => decim,
+            trig_pulse      => trig_p,
+            trig_count      => trig_cnt
         );
 
-    -- -------------------------------------------------------------------------
-    -- Pulse counter monitor
-    -- -------------------------------------------------------------------------
-    -- Count only rising edges of trig_pulse, not every high clock
+    -- Count rising edges of trig_pulse
     p_monitor : process(clk)
         variable prev : std_logic := '0';
     begin
@@ -95,114 +74,98 @@ begin
         end if;
     end process p_monitor;
 
-    -- -------------------------------------------------------------------------
-    -- Stimulus
-    -- -------------------------------------------------------------------------
     p_stim : process
         variable count_start : integer;
     begin
 
         -- --------------------------------------------------------------------
-        -- TEST 1: Reset behaviour
+        -- TEST 1: Reset -- no pulse, count = 0
         -- --------------------------------------------------------------------
         report "TEST 1: Reset behaviour";
         test_num <= 1;
 
         rst <= '1'; wait for 5 * CLK_PERIOD;
-        rst <= '0'; wait for 2 * CLK_PERIOD;
-        wait for 1 ns;
+        rst <= '0'; wait for 2 * CLK_PERIOD; wait for 1 ns;
 
         assert trig_p = '0'
             report "FAIL T1: trig_pulse should be low after reset"
             severity failure;
         assert to_integer(trig_cnt) = 0
-            report "FAIL T1: trig_pulse_count should be 0 after reset"
+            report "FAIL T1: trig_count should be 0 after reset"
             severity failure;
-
         report "TEST 1: PASS";
-        wait for 3 * CLK_PERIOD;
 
         -- --------------------------------------------------------------------
-        -- TEST 2: decimation=1, pulse fires on every ang_deg increment
+        -- TEST 2: Step boundary fires trig_pulse (decimation=1)
+        -- Advance ang_angfac past one STEP_SIZE boundary.
         -- --------------------------------------------------------------------
-        report "TEST 2: decimation=1 fires on every angle increment";
+        report "TEST 2: First step boundary fires trig_pulse";
         test_num <= 2;
 
-        decim <= to_unsigned(1, 16);
-        -- Each step must wait > PULSE_WIDTH clocks so the pulse expires before
-        -- the next increment (otherwise the pulse is restarted and no new rising edge)
-        count_start := pulse_count;
+        decim    <= to_unsigned(1, 16);
+        angfac   <= to_unsigned(STEP_SIZE + 1, 32);  -- past first boundary
+        wait for 1 * CLK_PERIOD; wait for 1 ns;  -- check at the threshold clock
 
-        ang_deg <= to_unsigned(1, 16); wait for (PULSE_WIDTH + 2) * CLK_PERIOD;
-        ang_deg <= to_unsigned(2, 16); wait for (PULSE_WIDTH + 2) * CLK_PERIOD;
-        ang_deg <= to_unsigned(3, 16); wait for (PULSE_WIDTH + 2) * CLK_PERIOD;
-        ang_deg <= to_unsigned(4, 16); wait for (PULSE_WIDTH + 2) * CLK_PERIOD;
-        ang_deg <= to_unsigned(5, 16); wait for (PULSE_WIDTH + 2) * CLK_PERIOD;
-
-        assert pulse_count - count_start = 5
-            report "FAIL T2: expected 5 pulses with decim=1, got " &
-                   integer'image(pulse_count - count_start)
+        assert trig_p = '1'
+            report "FAIL T2: trig_pulse should fire when angfac >= STEP_SIZE"
             severity failure;
-
-        report "TEST 2: PASS - " & integer'image(pulse_count - count_start) & " pulses";
+        report "TEST 2: PASS";
         wait for 3 * CLK_PERIOD;
 
         -- --------------------------------------------------------------------
-        -- TEST 3: No pulse when ang_deg unchanged
+        -- TEST 3: trig_pulse is a 1-clock strobe
         -- --------------------------------------------------------------------
-        report "TEST 3: No pulse when ang_deg unchanged";
+        report "TEST 3: trig_pulse is a 1-clock strobe";
         test_num <= 3;
 
-        -- Angle held at 5
-        count_start := pulse_count;
-        wait for 10 * CLK_PERIOD;
-        wait for 1 ns;
-
-        assert pulse_count = count_start
-            report "FAIL T3: pulse fired with no angle change"
+        wait until rising_edge(clk); wait for 1 ns;
+        assert trig_p = '0'
+            report "FAIL T3: trig_pulse should be a 1-clock strobe"
             severity failure;
-
         report "TEST 3: PASS";
 
         -- --------------------------------------------------------------------
-        -- TEST 4: Pulse width = trig_pulse_width clocks
+        -- TEST 4: z_edge resets threshold and count
         -- --------------------------------------------------------------------
-        report "TEST 4: Pulse width = trig_pulse_width clocks";
+        report "TEST 4: z_edge resets threshold and trig_count";
         test_num <= 4;
 
-        ang_deg <= to_unsigned(6, 16);
-        wait until trig_p = '1';
-        wait for 1 ns;
-
-        wait for (PULSE_WIDTH - 2) * CLK_PERIOD;
-        wait for 1 ns;
-        assert trig_p = '1'
-            report "FAIL T4: pulse ended before trig_pulse_width clocks"
+        assert to_integer(trig_cnt) > 0
+            report "FAIL T4 setup: trig_cnt should be non-zero"
             severity failure;
 
-        wait for 2 * CLK_PERIOD;
-        wait for 1 ns;
-        assert trig_p = '0'
-            report "FAIL T4: pulse did not end after trig_pulse_width clocks"
+        -- Set ang_angfac to 0 before z_edge so no threshold crossing occurs
+        -- on the clock immediately after (which would increment count again).
+        angfac <= (others => '0');
+        wait until rising_edge(clk); wait for 1 ns;
+        fire_z(z_edge, clk);
+        assert to_integer(trig_cnt) = 0
+            report "FAIL T4: trig_count should reset to 0 on z_edge, got " &
+                   integer'image(to_integer(trig_cnt))
             severity failure;
 
+        -- Restore ang_angfac past threshold to verify firing resumes after reset
+        angfac <= to_unsigned(STEP_SIZE + 1, 32);
+        wait for 1 * CLK_PERIOD; wait for 1 ns;  -- one clock fires the step
+        assert to_integer(trig_cnt) = 1
+            report "FAIL T4: trig should fire again after z_edge reset"
+            severity failure;
         report "TEST 4: PASS";
-        wait for 3 * CLK_PERIOD;
 
         -- --------------------------------------------------------------------
-        -- TEST 5: decimation=3, pulse every 3rd angle increment
+        -- TEST 5: decimation=3 fires every 3rd step
+        -- Advance ang_angfac through 9 steps; expect 3 pulses.
         -- --------------------------------------------------------------------
-        report "TEST 5: decimation=3 fires on every 3rd increment";
+        report "TEST 5: decimation=3 fires every 3rd step";
         test_num <= 5;
 
-        decim <= to_unsigned(3, 16);
-        wait for 2 * CLK_PERIOD;   -- let new decim register
+        fire_z(z_edge, clk);   -- clean start
+        decim  <= to_unsigned(3, 16);
         count_start := pulse_count;
 
-        -- Step 9 times: expect exactly 3 pulses
-        for i in 7 to 15 loop
-            ang_deg <= to_unsigned(i, 16);
-            wait for 2 * CLK_PERIOD;
+        for i in 1 to 9 loop
+            angfac <= to_unsigned(i * STEP_SIZE + 1, 32);
+            wait for 3 * CLK_PERIOD;
         end loop;
         wait for 2 * CLK_PERIOD;
 
@@ -210,55 +173,56 @@ begin
             report "FAIL T5: expected 3 pulses with decim=3 and 9 steps, got " &
                    integer'image(pulse_count - count_start)
             severity failure;
-
         report "TEST 5: PASS";
-        wait for 3 * CLK_PERIOD;
 
         -- --------------------------------------------------------------------
-        -- TEST 6: trig_pulse_count resets on z_edge
+        -- TEST 6: trig_count increments correctly over 5 fires at decim=1
         -- --------------------------------------------------------------------
-        report "TEST 6: trig_pulse_count resets on z_edge";
+        report "TEST 6: trig_count increments on each pulse";
         test_num <= 6;
 
-        -- Verify count is non-zero first
-        assert to_integer(trig_cnt) > 0
-            report "FAIL T6: trig_count should be non-zero before z_edge"
-            severity failure;
-
+        -- Reset angfac before z_edge to prevent residual T5 value
+        -- causing extra threshold crossings on the post-z_edge clock.
+        angfac <= (others => '0');
+        wait until rising_edge(clk); wait for 1 ns;
         fire_z(z_edge, clk);
+        decim <= to_unsigned(1, 16);
+        wait for 2 * CLK_PERIOD;
+
+        for i in 1 to 5 loop
+            angfac <= to_unsigned(i * STEP_SIZE + 1, 32);
+            wait for 3 * CLK_PERIOD;
+        end loop;
         wait for 1 ns;
 
-        assert to_integer(trig_cnt) = 0
-            report "FAIL T6: trig_count not reset on z_edge, got " &
+        assert to_integer(trig_cnt) = 5
+            report "FAIL T6: trig_count should be 5, got " &
                    integer'image(to_integer(trig_cnt))
             severity failure;
-
         report "TEST 6: PASS";
-        wait for 3 * CLK_PERIOD;
 
         -- --------------------------------------------------------------------
-        -- TEST 7: Angle wraparound 7199 -> 0 fires a pulse (decim=1)
+        -- TEST 7: No spurious pulse when ang_angfac stays below threshold
         -- --------------------------------------------------------------------
-        report "TEST 7: Angle wraparound 7199 -> 0 fires a pulse";
+        report "TEST 7: No pulse when ang_angfac below threshold";
         test_num <= 7;
 
-        decim <= to_unsigned(1, 16);
-        ang_deg <= to_unsigned(7199, 16);
-        wait for (PULSE_WIDTH + 2) * CLK_PERIOD;  -- let prior pulse expire
-
+        -- Zero angfac before z_edge so the z='0' extra clock sees
+        -- angfac < threshold and does not fire (avoids T6 residual state).
+        angfac <= (others => '0');
+        wait until rising_edge(clk); wait for 1 ns;
+        z_edge <= '1'; wait until rising_edge(clk); wait for 1 ns;
+        z_edge <= '0'; wait until rising_edge(clk); wait for 1 ns;  -- 0<STEP, no fire
+        -- Now set angfac just below threshold; verify no pulse for 10 clocks
+        angfac <= to_unsigned(STEP_SIZE - 1, 32);
         count_start := pulse_count;
-        ang_deg <= to_unsigned(0, 16);
-        wait for (PULSE_WIDTH + 2) * CLK_PERIOD;  -- let wraparound pulse fire
+        wait for 10 * CLK_PERIOD; wait for 1 ns;
 
-        assert pulse_count - count_start = 1
-            report "FAIL T7: should fire on 7199 -> 0 wraparound"
+        assert pulse_count = count_start
+            report "FAIL T7: pulse fired below STEP_SIZE threshold"
             severity failure;
-
         report "TEST 7: PASS";
 
-        -- --------------------------------------------------------------------
-        -- Done
-        -- --------------------------------------------------------------------
         wait for 10 * CLK_PERIOD;
         report "========================================";
         report "All trig tests complete";
