@@ -52,11 +52,6 @@ _RT_PHASE_PH   = 3
 _UNCHANGED = object()   # sentinel for "leave this parameter as-is"
 
 
-def _to_angfac(deg):
-    return max(0, min(_ANGFAC_FS, round(deg / 360.0 * (_ANGFAC_FS + 1))))
-
-def _from_angfac(v):
-    return v / (_ANGFAC_FS + 1) * 360.0
 
 
 # =============================================================================
@@ -267,7 +262,7 @@ class Angus:
     @property
     def crank_deg(self):
         """Raw crank angle in degrees (0.0-360.0, Z-referenced)."""
-        return _from_angfac(self.regs.read('ANGLE_ANGFAC'))
+        return Angus._angfac2deg(self.regs.read('ANGLE_ANGFAC'))
 
     @property
     def sync_state(self):
@@ -357,6 +352,16 @@ class Angus:
         )
 
     @staticmethod
+    def _deg2angfac(deg):
+        """Convert crank degrees (0-360) to 32-bit angfac. Clamped to valid range."""
+        return max(0, min(_ANGFAC_FS, round(deg / 360.0 * (_ANGFAC_FS + 1))))
+
+    @staticmethod
+    def _angfac2deg(v):
+        """Convert 32-bit angfac to crank degrees (0.0-360.0)."""
+        return v / (_ANGFAC_FS + 1) * 360.0
+
+    @staticmethod
     def decode_faults(raw):
         """
         Decode the FAULT_FLAGS register value into a named dict.
@@ -441,9 +446,9 @@ class Angus:
         print("=== Angle ===")
         print(f"  crank_deg     {self.crank_deg:.2f}")
         print(f"  tdc_deg       {self.tdc_deg:.1f}")
-        print(f"  nco_ab_inc    {nco_ab}  ({_from_angfac(nco_ab):.3f} deg/tooth)")
+        print(f"  nco_ab_inc    {nco_ab}  ({Angus._angfac2deg(nco_ab):.3f} deg/tooth)")
         print(f"  nco_clk_inc   {self.regs.read('ANGLE_NCO_CLK_INC')}  "
-              f"({_from_angfac(self.regs.read('ANGLE_NCO_CLK_INC')) * 1e3:.4f} mdeg/clk)")
+              f"({Angus._angfac2deg(self.regs.read('ANGLE_NCO_CLK_INC')) * 1e3:.4f} mdeg/clk)")
 
         print()
         print("=== Phase ===")
@@ -451,13 +456,13 @@ class Angus:
         print(f"  engine_phase  {self.engine_phase}")
         print(f"  det_count     {self.regs.read('PHASE_REF_DET_CNT')}")
         print(f"  ref_angfac    {self.regs.read('PHASE_REF_ANGFAC')}  "
-              f"({_from_angfac(self.regs.read('PHASE_REF_ANGFAC')):.2f} crank deg)")
+              f"({Angus._angfac2deg(self.regs.read('PHASE_REF_ANGFAC')):.2f} crank deg)")
 
         print()
         print("=== PLL ===")
         print(f"  active        {bool(self.regs.read('PLL_DIV_VALID'))}")
-        print(f"  pll_deg       {_from_angfac(self.regs.read('PLL_ANGFAC')):.3f}")
-        print(f"  error         {_from_angfac(abs(err)):.4f} deg  "
+        print(f"  pll_deg       {Angus._angfac2deg(self.regs.read('PLL_ANGFAC')):.3f}")
+        print(f"  error         {Angus._angfac2deg(abs(err)):.4f} deg  "
               f"({'ahead' if err < 0 else 'behind'})")
         print(f"  p_term        {self.regs.read_signed('PLL_P_TERM')}")
         print(f"  i_term        {self.regs.read_signed('PLL_I_TERM')}")
@@ -523,7 +528,7 @@ class Angus:
         """Write all runtime registers. No reset required."""
         r = self._runtime
 
-        self.regs.write('TDC_OFFSET',      _to_angfac(r['tdc_offset_deg']))
+        self.regs.write('TDC_OFFSET',      Angus._deg2angfac(r['tdc_offset_deg']))
         self.regs.write('TRIG_DECIMATION', r['trig_decimation'])
         self.regs.write('MAX_RPM',         r['max_rpm'])
         self.regs.write('PEAK_HYST',       r['peak_hyst'])
@@ -556,8 +561,8 @@ class Angus:
             phase_bit = 0
             crank_deg = ref_deg
 
-        centre = _to_angfac(crank_deg)
-        tol    = _to_angfac(tol_deg)
+        centre = Angus._deg2angfac(crank_deg)
+        tol    = Angus._deg2angfac(tol_deg)
         lo     = centre - tol
         hi     = centre + tol
 
