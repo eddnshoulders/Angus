@@ -156,8 +156,15 @@ begin
                     p_t := phase_err_int * signed(resize(pll_kp, 17));
                     p_term_int <= p_t(48 downto 17);
 
-                    -- I term stage 1: queue err * ab_period for next clock
-                    i_upd_pipe   <= err * signed(resize(ab_period, 32));
+                    -- I term stage 1: queue phase_err_int * ab_period for next clock.
+                    -- Uses the REGISTERED error from the previous ab_edge (same sample
+                    -- as the P term) rather than the freshly computed combinatorial err.
+                    -- This breaks the ab_count -> exp_acc -> err -> i_upd_pipe multiply
+                    -- chain that was causing a -5.981ns timing violation: two DSP
+                    -- multiplies cascaded within a single 10ns clock period. The fix
+                    -- costs one extra ab_edge of I-term latency, which is negligible
+                    -- at engine speeds and makes P and I consistent.
+                    i_upd_pipe   <= phase_err_int * signed(resize(ab_period, 32));
                     i_pipe_valid <= '1';
 
                     -- nco_inc update using registered pi_corr_int from
