@@ -150,13 +150,13 @@ begin
                     period_cnt     <= (others => '0');
                     if current_period /= (current_period'range => '0') then
                         period_valid <= '1';
-                        -- Only update filtered period for non-gap teeth.
-                        -- When z_armed='1', edge_pulse is the first tooth after
-                        -- the gap so current_period = gap period. Skip it and
-                        -- keep the last real tooth period for nco_clk_inc.
-                        if z_armed = '0' then
-                            ab_period_filt <= current_period;
-                        end if;
+                    end if;
+                    -- Update ab_period_filt with THIS tooth's period (period_cnt,
+                    -- not current_period which is the PREVIOUS tooth's period).
+                    -- Skip on the z_armed tooth where period_cnt = gap period.
+                    if z_armed = '0' and
+                       period_cnt /= (period_cnt'range => '0') then
+                        ab_period_filt <= period_cnt;
                     end if;
                 else
                     if period_cnt /= MAX_32 then
