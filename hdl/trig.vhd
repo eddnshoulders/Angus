@@ -60,11 +60,15 @@ begin
             else
                 pulse_int <= '0';   -- default: strobe is 1 clock wide
 
-                -- z_edge: reset step tracking for new revolution
+                -- z_edge: fire at 0 deg then reset step tracking for new revolution.
+                -- Firing at z_edge gives the sample at exactly 0 deg (Z edge position).
+                -- Without this, threshold starts at STEP_SIZE so ang_angfac=0 never
+                -- crosses it, losing the first 0.1-deg step every revolution.
                 if z_edge = '1' then
-                    threshold <= STEP_SIZE;
-                    decim_cnt <= (others => '0');
-                    pulse_cnt <= (others => '0');
+                    pulse_int  <= '1';
+                    pulse_cnt  <= to_unsigned(1, 32);  -- count the 0-deg pulse as sample 1
+                    threshold  <= STEP_SIZE;
+                    decim_cnt  <= (others => '0');
 
                 -- Step boundary crossed: ang_angfac has advanced past threshold
                 elsif ang_angfac >= threshold then

@@ -139,39 +139,43 @@ begin
         angfac <= (others => '0');
         wait until rising_edge(clk); wait for 1 ns;
         fire_z(z_edge, clk);
-        assert to_integer(trig_cnt) = 0
-            report "FAIL T4: trig_count should reset to 0 on z_edge, got " &
+        -- z_edge fires a pulse at 0 deg, so trig_count = 1 immediately
+        assert to_integer(trig_cnt) = 1
+            report "FAIL T4: trig_count should be 1 after z_edge (0 deg pulse), got " &
                    integer'image(to_integer(trig_cnt))
             severity failure;
 
-        -- Restore ang_angfac past threshold to verify firing resumes after reset
+        -- Advance past next threshold: trig_count should become 2
         angfac <= to_unsigned(STEP_SIZE + 1, 32);
-        wait for 1 * CLK_PERIOD; wait for 1 ns;  -- one clock fires the step
-        assert to_integer(trig_cnt) = 1
-            report "FAIL T4: trig should fire again after z_edge reset"
+        wait for 1 * CLK_PERIOD; wait for 1 ns;
+        assert to_integer(trig_cnt) = 2
+            report "FAIL T4: trig_count should be 2 after one more step"
             severity failure;
         report "TEST 4: PASS";
 
         -- --------------------------------------------------------------------
         -- TEST 5: decimation=3 fires every 3rd step
-        -- Advance ang_angfac through 9 steps; expect 3 pulses.
+        -- z_edge resets trig_cnt to 1 (the 0-deg pulse).
+        -- 9 steps with decim=3 fires at steps 3, 6, 9 = 3 more fires.
+        -- Final trig_cnt = 1 (z_edge) + 3 (loop) = 4.
         -- --------------------------------------------------------------------
         report "TEST 5: decimation=3 fires every 3rd step";
         test_num <= 5;
 
-        fire_z(z_edge, clk);   -- clean start
+        angfac <= (others => '0');
+        wait until rising_edge(clk); wait for 1 ns;
+        fire_z(z_edge, clk);
         decim  <= to_unsigned(3, 16);
-        count_start := pulse_count;
 
         for i in 1 to 9 loop
             angfac <= to_unsigned(i * STEP_SIZE + 1, 32);
             wait for 3 * CLK_PERIOD;
         end loop;
-        wait for 2 * CLK_PERIOD;
+        wait for 2 * CLK_PERIOD; wait for 1 ns;
 
-        assert pulse_count - count_start = 3
-            report "FAIL T5: expected 3 pulses with decim=3 and 9 steps, got " &
-                   integer'image(pulse_count - count_start)
+        assert to_integer(trig_cnt) = 4
+            report "FAIL T5: expected trig_cnt=4 (1 z_edge + 3 loop fires), got " &
+                   integer'image(to_integer(trig_cnt))
             severity failure;
         report "TEST 5: PASS";
 
@@ -195,8 +199,8 @@ begin
         end loop;
         wait for 1 ns;
 
-        assert to_integer(trig_cnt) = 5
-            report "FAIL T6: trig_count should be 5, got " &
+        assert to_integer(trig_cnt) = 6
+            report "FAIL T6: trig_count should be 6 (1 from z_edge + 5 from loop), got " &
                    integer'image(to_integer(trig_cnt))
             severity failure;
         report "TEST 6: PASS";

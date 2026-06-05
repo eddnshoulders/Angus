@@ -223,15 +223,20 @@ begin
                 if z_edge = '1' then
                     edge_count    <= (others => '0');
                     nco_accum     <= (others => '0');
-                    clk_inc_valid <= '0';
+                    -- clk_inc_valid is intentionally NOT reset here.
+                    -- Keeping the existing nco_clk_inc_int (from the last normal
+                    -- tooth before the gap) allows interpolation to continue
+                    -- correctly during the first crank tooth after the gap.
+                    -- Starting a new tooth divider at z_edge would use ab_period
+                    -- which holds the gap period (~3x tooth period), giving a
+                    -- nco_clk_inc ~3x too small and a wrong trig pattern during
+                    -- the first tooth. Using the pre-gap nco_clk_inc is the
+                    -- correct estimate -- speed changes little tooth-to-tooth.
 
                     -- Sequential case (hardware): z_edge one clock after ab_edge
                     -- Simultaneous case (simulation): both high at same clock
                     if ab_edge_prev = '1' or ab_edge = '1' then
                         edge_count <= to_unsigned(1, 8);
-                        if angle_interp_en = '1' and ab_period > 0 then
-                            tooth_start <= '1';
-                        end if;
                     end if;
 
                 -- -------------------------------------------------------
