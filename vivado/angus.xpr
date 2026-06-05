@@ -194,6 +194,12 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
+      <File Path="$PPRDIR/../../Angus/hdl/tdc.vhd">
+        <FileInfo>
+          <Attr Name="UsedIn" Val="synthesis"/>
+          <Attr Name="UsedIn" Val="simulation"/>
+        </FileInfo>
+      </File>
       <File Path="$PPRDIR/../../Angus/hdl/trig.vhd">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>
@@ -214,6 +220,9 @@
         </FileInfo>
         <CompFileExtendedInfo CompFileName="pynq_z2.bd" FileRelPathName="ip/pynq_z2_axi_dma_0_0/pynq_z2_axi_dma_0_0.xci">
           <Proxy FileSetName="pynq_z2_axi_dma_0_0"/>
+        </CompFileExtendedInfo>
+        <CompFileExtendedInfo CompFileName="pynq_z2.bd" FileRelPathName="ip/pynq_z2_ila_0_0/pynq_z2_ila_0_0.xci">
+          <Proxy FileSetName="pynq_z2_ila_0_0"/>
         </CompFileExtendedInfo>
         <CompFileExtendedInfo CompFileName="pynq_z2.bd" FileRelPathName="ip/pynq_z2_proc_sys_reset_0_1/pynq_z2_proc_sys_reset_0_1.xci">
           <Proxy FileSetName="pynq_z2_proc_sys_reset_0_1"/>
@@ -422,6 +431,12 @@
         <Option Name="UseBlackboxStub" Val="1"/>
       </Config>
     </FileSet>
+    <FileSet Name="pynq_z2_ila_0_0" Type="BlockSrcs" RelSrcDir="$PSRCDIR/pynq_z2_ila_0_0" RelGenDir="$PGENDIR/pynq_z2_ila_0_0">
+      <Config>
+        <Option Name="TopModule" Val="pynq_z2_ila_0_0"/>
+        <Option Name="UseBlackboxStub" Val="1"/>
+      </Config>
+    </FileSet>
     <FileSet Name="pynq_z2_top_0_0" Type="BlockSrcs" RelSrcDir="$PSRCDIR/pynq_z2_top_0_0" RelGenDir="$PGENDIR/pynq_z2_top_0_0">
       <Config>
         <Option Name="TopModule" Val="pynq_z2_top_0_0"/>
@@ -494,6 +509,18 @@
     <Run Id="pynq_z2_proc_sys_reset_0_1_synth_1" Type="Ft3:Synth" SrcSet="pynq_z2_proc_sys_reset_0_1" Part="xc7z020clg400-1" ConstrsSet="pynq_z2_proc_sys_reset_0_1" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/pynq_z2_proc_sys_reset_0_1_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/pynq_z2_proc_sys_reset_0_1_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/pynq_z2_proc_sys_reset_0_1_synth_1" ParallelReportGen="true">
       <Strategy Version="1" Minor="2">
         <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2024"/>
+        <Step Id="synth_design"/>
+      </Strategy>
+      <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
+      <ReportStrategy Name="Vivado Synthesis Default Reports" Flow="Vivado Synthesis 2024"/>
+      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
+      <RQSFiles/>
+    </Run>
+    <Run Id="pynq_z2_ila_0_0_synth_1" Type="Ft3:Synth" SrcSet="pynq_z2_ila_0_0" Part="xc7z020clg400-1" ConstrsSet="pynq_z2_ila_0_0" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/pynq_z2_ila_0_0_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/pynq_z2_ila_0_0_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/pynq_z2_ila_0_0_synth_1" ParallelReportGen="true">
+      <Strategy Version="1" Minor="2">
+        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2024">
+          <Desc>Vivado Synthesis Defaults</Desc>
+        </StratHandle>
         <Step Id="synth_design"/>
       </Strategy>
       <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
@@ -596,6 +623,25 @@
     <Run Id="pynq_z2_proc_sys_reset_0_1_impl_1" Type="Ft2:EntireDesign" Part="xc7z020clg400-1" ConstrsSet="pynq_z2_proc_sys_reset_0_1" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="pynq_z2_proc_sys_reset_0_1_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/pynq_z2_proc_sys_reset_0_1_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/pynq_z2_proc_sys_reset_0_1_impl_1" ParallelReportGen="true">
       <Strategy Version="1" Minor="2">
         <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2024"/>
+        <Step Id="init_design"/>
+        <Step Id="opt_design"/>
+        <Step Id="power_opt_design"/>
+        <Step Id="place_design"/>
+        <Step Id="post_place_power_opt_design"/>
+        <Step Id="phys_opt_design"/>
+        <Step Id="route_design"/>
+        <Step Id="post_route_phys_opt_design"/>
+        <Step Id="write_bitstream"/>
+      </Strategy>
+      <ReportStrategy Name="Vivado Implementation Default Reports" Flow="Vivado Implementation 2024"/>
+      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
+      <RQSFiles/>
+    </Run>
+    <Run Id="pynq_z2_ila_0_0_impl_1" Type="Ft2:EntireDesign" Part="xc7z020clg400-1" ConstrsSet="pynq_z2_ila_0_0" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="pynq_z2_ila_0_0_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/pynq_z2_ila_0_0_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/pynq_z2_ila_0_0_impl_1" ParallelReportGen="true">
+      <Strategy Version="1" Minor="2">
+        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2024">
+          <Desc>Default settings for Implementation.</Desc>
+        </StratHandle>
         <Step Id="init_design"/>
         <Step Id="opt_design"/>
         <Step Id="power_opt_design"/>

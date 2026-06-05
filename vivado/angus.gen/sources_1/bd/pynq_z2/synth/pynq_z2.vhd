@@ -2,7 +2,7 @@
 --Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
 ----------------------------------------------------------------------------------
 --Tool Version: Vivado v.2024.1 (lin64) Build 5076996 Wed May 22 18:36:09 MDT 2024
---Date        : Fri May 29 23:21:28 2026
+--Date        : Fri Jun  5 16:22:49 2026
 --Host        : yocto running 64-bit Ubuntu 22.04.5 LTS
 --Command     : generate_target pynq_z2.bd
 --Design      : pynq_z2
@@ -1094,12 +1094,12 @@ entity pynq_z2 is
     b_raw_0 : in STD_LOGIC;
     cam_raw_0 : in STD_LOGIC;
     crank_raw_0 : in STD_LOGIC;
-    debug_out_0 : out STD_LOGIC_VECTOR ( 13 downto 0 );
+    debug_out_0 : out STD_LOGIC_VECTOR ( 15 downto 0 );
     digital_inputs_0 : in STD_LOGIC_VECTOR ( 7 downto 0 );
     z_raw_0 : in STD_LOGIC
   );
   attribute CORE_GENERATION_INFO : string;
-  attribute CORE_GENERATION_INFO of pynq_z2 : entity is "pynq_z2,IP_Integrator,{x_ipVendor=xilinx.com,x_ipLibrary=BlockDiagram,x_ipName=pynq_z2,x_ipVersion=1.00.a,x_ipLanguage=VHDL,numBlks=13,numReposBlks=9,numNonXlnxBlks=0,numHierBlks=4,maxHierDepth=0,numSysgenBlks=0,numHlsBlks=0,numHdlrefBlks=1,numPkgbdBlks=0,bdsource=USER,da_clkrst_cnt=1,da_ps7_cnt=1,synth_mode=Hierarchical}";
+  attribute CORE_GENERATION_INFO of pynq_z2 : entity is "pynq_z2,IP_Integrator,{x_ipVendor=xilinx.com,x_ipLibrary=BlockDiagram,x_ipName=pynq_z2,x_ipVersion=1.00.a,x_ipLanguage=VHDL,numBlks=14,numReposBlks=10,numNonXlnxBlks=0,numHierBlks=4,maxHierDepth=0,numSysgenBlks=0,numHlsBlks=0,numHdlrefBlks=1,numPkgbdBlks=0,bdsource=USER,da_clkrst_cnt=1,da_ps7_cnt=1,synth_mode=Hierarchical}";
   attribute HW_HANDOFF : string;
   attribute HW_HANDOFF of pynq_z2 : entity is "pynq_z2.hwdef";
 end pynq_z2;
@@ -1373,9 +1373,82 @@ architecture STRUCTURE of pynq_z2 is
     adc_ch5 : in STD_LOGIC_VECTOR ( 11 downto 0 );
     adc_ch6 : in STD_LOGIC_VECTOR ( 11 downto 0 );
     di_ch : in STD_LOGIC_VECTOR ( 7 downto 0 );
-    debug_out : out STD_LOGIC_VECTOR ( 13 downto 0 )
+    debug_out : out STD_LOGIC_VECTOR ( 15 downto 0 );
+    ila_ab_edge : out STD_LOGIC;
+    ila_z_edge : out STD_LOGIC;
+    ila_ab_count : out STD_LOGIC_VECTOR ( 7 downto 0 );
+    ila_ppr_conf : out STD_LOGIC_VECTOR ( 7 downto 0 );
+    ila_ab_period : out STD_LOGIC_VECTOR ( 31 downto 0 );
+    ila_angle_angfac : out STD_LOGIC_VECTOR ( 31 downto 0 );
+    ila_angle_nco_ab_inc : out STD_LOGIC_VECTOR ( 31 downto 0 );
+    ila_angle_nco_clk_inc : out STD_LOGIC_VECTOR ( 31 downto 0 );
+    ila_angle_nco_clk_inc_valid : out STD_LOGIC;
+    ila_ref_edge : out STD_LOGIC;
+    ila_phase_ref_det : out STD_LOGIC;
+    ila_phase_ref_found : out STD_LOGIC;
+    ila_phase_eng : out STD_LOGIC;
+    ila_phase_ref_angfac : out STD_LOGIC_VECTOR ( 31 downto 0 );
+    ila_phase_ref_det_cnt : out STD_LOGIC_VECTOR ( 15 downto 0 );
+    ila_sync_state : out STD_LOGIC_VECTOR ( 1 downto 0 );
+    ila_sync_full : out STD_LOGIC;
+    ila_pll_angfac : out STD_LOGIC_VECTOR ( 31 downto 0 );
+    ila_pll_nco_accum : out STD_LOGIC_VECTOR ( 31 downto 0 );
+    ila_pll_err_angfac : out STD_LOGIC_VECTOR ( 31 downto 0 );
+    ila_pll_p_term : out STD_LOGIC_VECTOR ( 31 downto 0 );
+    ila_pll_i_term : out STD_LOGIC_VECTOR ( 31 downto 0 );
+    ila_pll_pi_corr : out STD_LOGIC_VECTOR ( 31 downto 0 );
+    ila_pll_div_valid : out STD_LOGIC;
+    ila_ang_angfac : out STD_LOGIC_VECTOR ( 31 downto 0 );
+    ila_tdc_deg : out STD_LOGIC_VECTOR ( 15 downto 0 );
+    ila_trig_pulse : out STD_LOGIC;
+    ila_trig_count : out STD_LOGIC_VECTOR ( 31 downto 0 );
+    ila_fault_cam_tooth : out STD_LOGIC;
+    ila_fault_crank_tooth : out STD_LOGIC;
+    ila_fault_crank_ab : out STD_LOGIC;
+    ila_fault_pll_phase : out STD_LOGIC;
+    ila_fault_speed_calc : out STD_LOGIC
   );
   end component pynq_z2_top_0_0;
+  component pynq_z2_ila_0_0 is
+  port (
+    clk : in STD_LOGIC;
+    trig_in : in STD_LOGIC;
+    trig_in_ack : out STD_LOGIC;
+    probe0 : in STD_LOGIC_VECTOR ( 0 to 0 );
+    probe1 : in STD_LOGIC_VECTOR ( 0 to 0 );
+    probe2 : in STD_LOGIC_VECTOR ( 7 downto 0 );
+    probe3 : in STD_LOGIC_VECTOR ( 7 downto 0 );
+    probe4 : in STD_LOGIC_VECTOR ( 31 downto 0 );
+    probe5 : in STD_LOGIC_VECTOR ( 31 downto 0 );
+    probe6 : in STD_LOGIC_VECTOR ( 31 downto 0 );
+    probe7 : in STD_LOGIC_VECTOR ( 31 downto 0 );
+    probe8 : in STD_LOGIC_VECTOR ( 0 to 0 );
+    probe9 : in STD_LOGIC_VECTOR ( 0 to 0 );
+    probe10 : in STD_LOGIC_VECTOR ( 0 to 0 );
+    probe11 : in STD_LOGIC_VECTOR ( 0 to 0 );
+    probe12 : in STD_LOGIC_VECTOR ( 0 to 0 );
+    probe13 : in STD_LOGIC_VECTOR ( 31 downto 0 );
+    probe14 : in STD_LOGIC_VECTOR ( 15 downto 0 );
+    probe15 : in STD_LOGIC_VECTOR ( 1 downto 0 );
+    probe16 : in STD_LOGIC_VECTOR ( 0 to 0 );
+    probe17 : in STD_LOGIC_VECTOR ( 31 downto 0 );
+    probe18 : in STD_LOGIC_VECTOR ( 31 downto 0 );
+    probe19 : in STD_LOGIC_VECTOR ( 31 downto 0 );
+    probe20 : in STD_LOGIC_VECTOR ( 31 downto 0 );
+    probe21 : in STD_LOGIC_VECTOR ( 31 downto 0 );
+    probe22 : in STD_LOGIC_VECTOR ( 31 downto 0 );
+    probe23 : in STD_LOGIC_VECTOR ( 0 to 0 );
+    probe24 : in STD_LOGIC_VECTOR ( 31 downto 0 );
+    probe25 : in STD_LOGIC_VECTOR ( 15 downto 0 );
+    probe26 : in STD_LOGIC_VECTOR ( 0 to 0 );
+    probe27 : in STD_LOGIC_VECTOR ( 31 downto 0 );
+    probe28 : in STD_LOGIC_VECTOR ( 0 to 0 );
+    probe29 : in STD_LOGIC_VECTOR ( 0 to 0 );
+    probe30 : in STD_LOGIC_VECTOR ( 0 to 0 );
+    probe31 : in STD_LOGIC_VECTOR ( 0 to 0 );
+    probe32 : in STD_LOGIC_VECTOR ( 0 to 0 )
+  );
+  end component pynq_z2_ila_0_0;
   signal CAN0_PHY_RX_0_1 : STD_LOGIC;
   signal a_raw_0_1 : STD_LOGIC;
   signal axi_dma_0_M_AXI_S2MM_AWADDR : STD_LOGIC_VECTOR ( 31 downto 0 );
@@ -1514,7 +1587,40 @@ architecture STRUCTURE of pynq_z2 is
   signal smartconnect_0_M00_AXI_WREADY : STD_LOGIC;
   signal smartconnect_0_M00_AXI_WSTRB : STD_LOGIC_VECTOR ( 7 downto 0 );
   signal smartconnect_0_M00_AXI_WVALID : STD_LOGIC;
-  signal top_0_debug_out : STD_LOGIC_VECTOR ( 13 downto 0 );
+  signal top_0_debug_out : STD_LOGIC_VECTOR ( 15 downto 0 );
+  signal top_0_ila_ab_count : STD_LOGIC_VECTOR ( 7 downto 0 );
+  signal top_0_ila_ab_edge : STD_LOGIC;
+  signal top_0_ila_ab_period : STD_LOGIC_VECTOR ( 31 downto 0 );
+  signal top_0_ila_ang_angfac : STD_LOGIC_VECTOR ( 31 downto 0 );
+  signal top_0_ila_angle_angfac : STD_LOGIC_VECTOR ( 31 downto 0 );
+  signal top_0_ila_angle_nco_ab_inc : STD_LOGIC_VECTOR ( 31 downto 0 );
+  signal top_0_ila_angle_nco_clk_inc : STD_LOGIC_VECTOR ( 31 downto 0 );
+  signal top_0_ila_angle_nco_clk_inc_valid : STD_LOGIC;
+  signal top_0_ila_fault_cam_tooth : STD_LOGIC;
+  signal top_0_ila_fault_crank_ab : STD_LOGIC;
+  signal top_0_ila_fault_crank_tooth : STD_LOGIC;
+  signal top_0_ila_fault_pll_phase : STD_LOGIC;
+  signal top_0_ila_fault_speed_calc : STD_LOGIC;
+  signal top_0_ila_phase_eng : STD_LOGIC;
+  signal top_0_ila_phase_ref_angfac : STD_LOGIC_VECTOR ( 31 downto 0 );
+  signal top_0_ila_phase_ref_det : STD_LOGIC;
+  signal top_0_ila_phase_ref_det_cnt : STD_LOGIC_VECTOR ( 15 downto 0 );
+  signal top_0_ila_phase_ref_found : STD_LOGIC;
+  signal top_0_ila_pll_angfac : STD_LOGIC_VECTOR ( 31 downto 0 );
+  signal top_0_ila_pll_div_valid : STD_LOGIC;
+  signal top_0_ila_pll_err_angfac : STD_LOGIC_VECTOR ( 31 downto 0 );
+  signal top_0_ila_pll_i_term : STD_LOGIC_VECTOR ( 31 downto 0 );
+  signal top_0_ila_pll_nco_accum : STD_LOGIC_VECTOR ( 31 downto 0 );
+  signal top_0_ila_pll_p_term : STD_LOGIC_VECTOR ( 31 downto 0 );
+  signal top_0_ila_pll_pi_corr : STD_LOGIC_VECTOR ( 31 downto 0 );
+  signal top_0_ila_ppr_conf : STD_LOGIC_VECTOR ( 7 downto 0 );
+  signal top_0_ila_ref_edge : STD_LOGIC;
+  signal top_0_ila_sync_full : STD_LOGIC;
+  signal top_0_ila_sync_state : STD_LOGIC_VECTOR ( 1 downto 0 );
+  signal top_0_ila_tdc_deg : STD_LOGIC_VECTOR ( 15 downto 0 );
+  signal top_0_ila_trig_count : STD_LOGIC_VECTOR ( 31 downto 0 );
+  signal top_0_ila_trig_pulse : STD_LOGIC;
+  signal top_0_ila_z_edge : STD_LOGIC;
   signal top_0_m_axis_TDATA : STD_LOGIC_VECTOR ( 31 downto 0 );
   signal top_0_m_axis_TLAST : STD_LOGIC;
   signal top_0_m_axis_TREADY : STD_LOGIC;
@@ -1523,6 +1629,7 @@ architecture STRUCTURE of pynq_z2 is
   signal xlconstant_1_dout : STD_LOGIC_VECTOR ( 11 downto 0 );
   signal z_raw_0_1 : STD_LOGIC;
   signal NLW_axi_dma_0_s2mm_prmry_reset_out_n_UNCONNECTED : STD_LOGIC;
+  signal NLW_ila_0_trig_in_ack_UNCONNECTED : STD_LOGIC;
   signal NLW_proc_sys_reset_0_mb_reset_UNCONNECTED : STD_LOGIC;
   signal NLW_proc_sys_reset_0_bus_struct_reset_UNCONNECTED : STD_LOGIC_VECTOR ( 0 to 0 );
   signal NLW_proc_sys_reset_0_peripheral_reset_UNCONNECTED : STD_LOGIC_VECTOR ( 0 to 0 );
@@ -1571,7 +1678,7 @@ begin
   b_raw_0_1 <= b_raw_0;
   cam_raw_0_1 <= cam_raw_0;
   crank_raw_0_1 <= crank_raw_0;
-  debug_out_0(13 downto 0) <= top_0_debug_out(13 downto 0);
+  debug_out_0(15 downto 0) <= top_0_debug_out(15 downto 0);
   digital_inputs_0_1(7 downto 0) <= digital_inputs_0(7 downto 0);
   z_raw_0_1 <= z_raw_0;
 axi_dma_0: component pynq_z2_axi_dma_0_0
@@ -1700,6 +1807,45 @@ axi_interconnect_0: entity work.pynq_z2_axi_interconnect_0_0
       S00_AXI_wready => processing_system7_0_M_AXI_GP0_WREADY,
       S00_AXI_wstrb(3 downto 0) => processing_system7_0_M_AXI_GP0_WSTRB(3 downto 0),
       S00_AXI_wvalid => processing_system7_0_M_AXI_GP0_WVALID
+    );
+ila_0: component pynq_z2_ila_0_0
+     port map (
+      clk => processing_system7_0_FCLK_CLK0,
+      probe0(0) => top_0_ila_ab_edge,
+      probe1(0) => top_0_ila_z_edge,
+      probe10(0) => top_0_ila_phase_ref_det,
+      probe11(0) => top_0_ila_phase_ref_found,
+      probe12(0) => top_0_ila_phase_eng,
+      probe13(31 downto 0) => top_0_ila_phase_ref_angfac(31 downto 0),
+      probe14(15 downto 0) => top_0_ila_phase_ref_det_cnt(15 downto 0),
+      probe15(1 downto 0) => top_0_ila_sync_state(1 downto 0),
+      probe16(0) => top_0_ila_sync_full,
+      probe17(31 downto 0) => top_0_ila_pll_angfac(31 downto 0),
+      probe18(31 downto 0) => top_0_ila_pll_nco_accum(31 downto 0),
+      probe19(31 downto 0) => top_0_ila_pll_err_angfac(31 downto 0),
+      probe2(7 downto 0) => top_0_ila_ab_count(7 downto 0),
+      probe20(31 downto 0) => top_0_ila_pll_p_term(31 downto 0),
+      probe21(31 downto 0) => top_0_ila_pll_i_term(31 downto 0),
+      probe22(31 downto 0) => top_0_ila_pll_pi_corr(31 downto 0),
+      probe23(0) => top_0_ila_pll_div_valid,
+      probe24(31 downto 0) => top_0_ila_ang_angfac(31 downto 0),
+      probe25(15 downto 0) => top_0_ila_tdc_deg(15 downto 0),
+      probe26(0) => top_0_ila_trig_pulse,
+      probe27(31 downto 0) => top_0_ila_trig_count(31 downto 0),
+      probe28(0) => top_0_ila_fault_cam_tooth,
+      probe29(0) => top_0_ila_fault_crank_tooth,
+      probe3(7 downto 0) => top_0_ila_ppr_conf(7 downto 0),
+      probe30(0) => top_0_ila_fault_crank_ab,
+      probe31(0) => top_0_ila_fault_pll_phase,
+      probe32(0) => top_0_ila_fault_speed_calc,
+      probe4(31 downto 0) => top_0_ila_ab_period(31 downto 0),
+      probe5(31 downto 0) => top_0_ila_angle_angfac(31 downto 0),
+      probe6(31 downto 0) => top_0_ila_angle_nco_ab_inc(31 downto 0),
+      probe7(31 downto 0) => top_0_ila_angle_nco_clk_inc(31 downto 0),
+      probe8(0) => top_0_ila_angle_nco_clk_inc_valid,
+      probe9(0) => top_0_ila_ref_edge,
+      trig_in => top_0_ila_trig_pulse,
+      trig_in_ack => NLW_ila_0_trig_in_ack_UNCONNECTED
     );
 proc_sys_reset_0: component pynq_z2_proc_sys_reset_0_1
      port map (
@@ -1885,8 +2031,41 @@ top_0: component pynq_z2_top_0_0
       cam_raw => cam_raw_0_1,
       clk => processing_system7_0_FCLK_CLK0,
       crank_raw => crank_raw_0_1,
-      debug_out(13 downto 0) => top_0_debug_out(13 downto 0),
+      debug_out(15 downto 0) => top_0_debug_out(15 downto 0),
       di_ch(7 downto 0) => digital_inputs_0_1(7 downto 0),
+      ila_ab_count(7 downto 0) => top_0_ila_ab_count(7 downto 0),
+      ila_ab_edge => top_0_ila_ab_edge,
+      ila_ab_period(31 downto 0) => top_0_ila_ab_period(31 downto 0),
+      ila_ang_angfac(31 downto 0) => top_0_ila_ang_angfac(31 downto 0),
+      ila_angle_angfac(31 downto 0) => top_0_ila_angle_angfac(31 downto 0),
+      ila_angle_nco_ab_inc(31 downto 0) => top_0_ila_angle_nco_ab_inc(31 downto 0),
+      ila_angle_nco_clk_inc(31 downto 0) => top_0_ila_angle_nco_clk_inc(31 downto 0),
+      ila_angle_nco_clk_inc_valid => top_0_ila_angle_nco_clk_inc_valid,
+      ila_fault_cam_tooth => top_0_ila_fault_cam_tooth,
+      ila_fault_crank_ab => top_0_ila_fault_crank_ab,
+      ila_fault_crank_tooth => top_0_ila_fault_crank_tooth,
+      ila_fault_pll_phase => top_0_ila_fault_pll_phase,
+      ila_fault_speed_calc => top_0_ila_fault_speed_calc,
+      ila_phase_eng => top_0_ila_phase_eng,
+      ila_phase_ref_angfac(31 downto 0) => top_0_ila_phase_ref_angfac(31 downto 0),
+      ila_phase_ref_det => top_0_ila_phase_ref_det,
+      ila_phase_ref_det_cnt(15 downto 0) => top_0_ila_phase_ref_det_cnt(15 downto 0),
+      ila_phase_ref_found => top_0_ila_phase_ref_found,
+      ila_pll_angfac(31 downto 0) => top_0_ila_pll_angfac(31 downto 0),
+      ila_pll_div_valid => top_0_ila_pll_div_valid,
+      ila_pll_err_angfac(31 downto 0) => top_0_ila_pll_err_angfac(31 downto 0),
+      ila_pll_i_term(31 downto 0) => top_0_ila_pll_i_term(31 downto 0),
+      ila_pll_nco_accum(31 downto 0) => top_0_ila_pll_nco_accum(31 downto 0),
+      ila_pll_p_term(31 downto 0) => top_0_ila_pll_p_term(31 downto 0),
+      ila_pll_pi_corr(31 downto 0) => top_0_ila_pll_pi_corr(31 downto 0),
+      ila_ppr_conf(7 downto 0) => top_0_ila_ppr_conf(7 downto 0),
+      ila_ref_edge => top_0_ila_ref_edge,
+      ila_sync_full => top_0_ila_sync_full,
+      ila_sync_state(1 downto 0) => top_0_ila_sync_state(1 downto 0),
+      ila_tdc_deg(15 downto 0) => top_0_ila_tdc_deg(15 downto 0),
+      ila_trig_count(31 downto 0) => top_0_ila_trig_count(31 downto 0),
+      ila_trig_pulse => top_0_ila_trig_pulse,
+      ila_z_edge => top_0_ila_z_edge,
       m_axis_tdata(31 downto 0) => top_0_m_axis_TDATA(31 downto 0),
       m_axis_tlast => top_0_m_axis_TLAST,
       m_axis_tready => top_0_m_axis_TREADY,

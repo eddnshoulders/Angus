@@ -1,7 +1,7 @@
 {
   "design": {
     "design_info": {
-      "boundary_crc": "0x2ADFC7002BC7BD13",
+      "boundary_crc": "0xFB498DC0EACE2CF",
       "device": "xc7z020clg400-1",
       "gen_directory": "../../../../angus.gen/sources_1/bd/pynq_z2",
       "name": "pynq_z2",
@@ -25,7 +25,8 @@
       "proc_sys_reset_0": "",
       "xlconstant_0": "",
       "xlconstant_1": "",
-      "top_0": ""
+      "top_0": "",
+      "ila_0": ""
     },
     "interface_ports": {
       "DDR": {
@@ -217,7 +218,7 @@
       },
       "debug_out_0": {
         "direction": "O",
-        "left": "13",
+        "left": "15",
         "right": "0"
       },
       "z_raw_0": {
@@ -2946,8 +2947,236 @@
           },
           "debug_out": {
             "direction": "O",
-            "left": "13",
+            "left": "15",
             "right": "0"
+          },
+          "ila_ab_edge": {
+            "direction": "O"
+          },
+          "ila_z_edge": {
+            "direction": "O"
+          },
+          "ila_ab_count": {
+            "direction": "O",
+            "left": "7",
+            "right": "0"
+          },
+          "ila_ppr_conf": {
+            "direction": "O",
+            "left": "7",
+            "right": "0"
+          },
+          "ila_ab_period": {
+            "direction": "O",
+            "left": "31",
+            "right": "0"
+          },
+          "ila_angle_angfac": {
+            "direction": "O",
+            "left": "31",
+            "right": "0"
+          },
+          "ila_angle_nco_ab_inc": {
+            "direction": "O",
+            "left": "31",
+            "right": "0"
+          },
+          "ila_angle_nco_clk_inc": {
+            "direction": "O",
+            "left": "31",
+            "right": "0"
+          },
+          "ila_angle_nco_clk_inc_valid": {
+            "direction": "O"
+          },
+          "ila_ref_edge": {
+            "direction": "O"
+          },
+          "ila_phase_ref_det": {
+            "direction": "O"
+          },
+          "ila_phase_ref_found": {
+            "direction": "O"
+          },
+          "ila_phase_eng": {
+            "direction": "O"
+          },
+          "ila_phase_ref_angfac": {
+            "direction": "O",
+            "left": "31",
+            "right": "0"
+          },
+          "ila_phase_ref_det_cnt": {
+            "direction": "O",
+            "left": "15",
+            "right": "0"
+          },
+          "ila_sync_state": {
+            "direction": "O",
+            "left": "1",
+            "right": "0"
+          },
+          "ila_sync_full": {
+            "direction": "O"
+          },
+          "ila_pll_angfac": {
+            "direction": "O",
+            "left": "31",
+            "right": "0"
+          },
+          "ila_pll_nco_accum": {
+            "direction": "O",
+            "left": "31",
+            "right": "0"
+          },
+          "ila_pll_err_angfac": {
+            "direction": "O",
+            "left": "31",
+            "right": "0"
+          },
+          "ila_pll_p_term": {
+            "direction": "O",
+            "left": "31",
+            "right": "0"
+          },
+          "ila_pll_i_term": {
+            "direction": "O",
+            "left": "31",
+            "right": "0"
+          },
+          "ila_pll_pi_corr": {
+            "direction": "O",
+            "left": "31",
+            "right": "0"
+          },
+          "ila_pll_div_valid": {
+            "direction": "O"
+          },
+          "ila_ang_angfac": {
+            "direction": "O",
+            "left": "31",
+            "right": "0"
+          },
+          "ila_tdc_deg": {
+            "direction": "O",
+            "left": "15",
+            "right": "0"
+          },
+          "ila_trig_pulse": {
+            "direction": "O"
+          },
+          "ila_trig_count": {
+            "direction": "O",
+            "left": "31",
+            "right": "0"
+          },
+          "ila_fault_cam_tooth": {
+            "direction": "O"
+          },
+          "ila_fault_crank_tooth": {
+            "direction": "O"
+          },
+          "ila_fault_crank_ab": {
+            "direction": "O"
+          },
+          "ila_fault_pll_phase": {
+            "direction": "O"
+          },
+          "ila_fault_speed_calc": {
+            "direction": "O"
+          }
+        }
+      },
+      "ila_0": {
+        "vlnv": "xilinx.com:ip:ila:6.2",
+        "ip_revision": "15",
+        "xci_name": "pynq_z2_ila_0_0",
+        "xci_path": "ip/pynq_z2_ila_0_0/pynq_z2_ila_0_0.xci",
+        "inst_hier_path": "ila_0",
+        "parameters": {
+          "C_ADV_TRIGGER": {
+            "value": "false"
+          },
+          "C_DATA_DEPTH": {
+            "value": "4096"
+          },
+          "C_EN_STRG_QUAL": {
+            "value": "1"
+          },
+          "C_MONITOR_TYPE": {
+            "value": "Native"
+          },
+          "C_NUM_OF_PROBES": {
+            "value": "33"
+          },
+          "C_PROBE0_WIDTH": {
+            "value": "1"
+          },
+          "C_PROBE11_WIDTH": {
+            "value": "1"
+          },
+          "C_PROBE12_WIDTH": {
+            "value": "1"
+          },
+          "C_PROBE13_WIDTH": {
+            "value": "32"
+          },
+          "C_PROBE14_WIDTH": {
+            "value": "16"
+          },
+          "C_PROBE15_WIDTH": {
+            "value": "2"
+          },
+          "C_PROBE17_WIDTH": {
+            "value": "32"
+          },
+          "C_PROBE18_WIDTH": {
+            "value": "32"
+          },
+          "C_PROBE19_WIDTH": {
+            "value": "32"
+          },
+          "C_PROBE1_WIDTH": {
+            "value": "1"
+          },
+          "C_PROBE20_WIDTH": {
+            "value": "32"
+          },
+          "C_PROBE21_WIDTH": {
+            "value": "32"
+          },
+          "C_PROBE22_WIDTH": {
+            "value": "32"
+          },
+          "C_PROBE24_WIDTH": {
+            "value": "32"
+          },
+          "C_PROBE25_WIDTH": {
+            "value": "16"
+          },
+          "C_PROBE27_WIDTH": {
+            "value": "32"
+          },
+          "C_PROBE2_WIDTH": {
+            "value": "8"
+          },
+          "C_PROBE3_WIDTH": {
+            "value": "8"
+          },
+          "C_PROBE4_WIDTH": {
+            "value": "32"
+          },
+          "C_PROBE5_WIDTH": {
+            "value": "32"
+          },
+          "C_PROBE6_WIDTH": {
+            "value": "32"
+          },
+          "C_PROBE7_WIDTH": {
+            "value": "32"
+          },
+          "C_TRIGIN_EN": {
+            "value": "true"
           }
         }
       }
@@ -3048,11 +3277,11 @@
       "proc_sys_reset_0_interconnect_aresetn": {
         "ports": [
           "proc_sys_reset_0/interconnect_aresetn",
-          "axi_interconnect_0/M01_ARESETN",
+          "smartconnect_0/aresetn",
           "axi_interconnect_0/ARESETN",
           "axi_interconnect_0/S00_ARESETN",
           "axi_interconnect_0/M00_ARESETN",
-          "smartconnect_0/aresetn"
+          "axi_interconnect_0/M01_ARESETN"
         ]
       },
       "proc_sys_reset_0_peripheral_aresetn": {
@@ -3081,6 +3310,7 @@
           "processing_system7_0/M_AXI_GP0_ACLK",
           "smartconnect_0/aclk",
           "processing_system7_0/S_AXI_HP0_ACLK",
+          "ila_0/clk",
           "top_0/clk",
           "top_0/s_axi_aclk"
         ]
@@ -3095,6 +3325,205 @@
         "ports": [
           "top_0/debug_out",
           "debug_out_0"
+        ]
+      },
+      "top_0_ila_ab_count": {
+        "ports": [
+          "top_0/ila_ab_count",
+          "ila_0/probe2"
+        ]
+      },
+      "top_0_ila_ab_edge": {
+        "ports": [
+          "top_0/ila_ab_edge",
+          "ila_0/probe0"
+        ]
+      },
+      "top_0_ila_ab_period": {
+        "ports": [
+          "top_0/ila_ab_period",
+          "ila_0/probe4"
+        ]
+      },
+      "top_0_ila_ang_angfac": {
+        "ports": [
+          "top_0/ila_ang_angfac",
+          "ila_0/probe24"
+        ]
+      },
+      "top_0_ila_angle_angfac": {
+        "ports": [
+          "top_0/ila_angle_angfac",
+          "ila_0/probe5"
+        ]
+      },
+      "top_0_ila_angle_nco_ab_inc": {
+        "ports": [
+          "top_0/ila_angle_nco_ab_inc",
+          "ila_0/probe6"
+        ]
+      },
+      "top_0_ila_angle_nco_clk_inc": {
+        "ports": [
+          "top_0/ila_angle_nco_clk_inc",
+          "ila_0/probe7"
+        ]
+      },
+      "top_0_ila_angle_nco_clk_inc_valid": {
+        "ports": [
+          "top_0/ila_angle_nco_clk_inc_valid",
+          "ila_0/probe8"
+        ]
+      },
+      "top_0_ila_fault_cam_tooth": {
+        "ports": [
+          "top_0/ila_fault_cam_tooth",
+          "ila_0/probe28"
+        ]
+      },
+      "top_0_ila_fault_crank_ab": {
+        "ports": [
+          "top_0/ila_fault_crank_ab",
+          "ila_0/probe30"
+        ]
+      },
+      "top_0_ila_fault_crank_tooth": {
+        "ports": [
+          "top_0/ila_fault_crank_tooth",
+          "ila_0/probe29"
+        ]
+      },
+      "top_0_ila_fault_pll_phase": {
+        "ports": [
+          "top_0/ila_fault_pll_phase",
+          "ila_0/probe31"
+        ]
+      },
+      "top_0_ila_fault_speed_calc": {
+        "ports": [
+          "top_0/ila_fault_speed_calc",
+          "ila_0/probe32"
+        ]
+      },
+      "top_0_ila_phase_eng": {
+        "ports": [
+          "top_0/ila_phase_eng",
+          "ila_0/probe12"
+        ]
+      },
+      "top_0_ila_phase_ref_angfac": {
+        "ports": [
+          "top_0/ila_phase_ref_angfac",
+          "ila_0/probe13"
+        ]
+      },
+      "top_0_ila_phase_ref_det": {
+        "ports": [
+          "top_0/ila_phase_ref_det",
+          "ila_0/probe10"
+        ]
+      },
+      "top_0_ila_phase_ref_det_cnt": {
+        "ports": [
+          "top_0/ila_phase_ref_det_cnt",
+          "ila_0/probe14"
+        ]
+      },
+      "top_0_ila_phase_ref_found": {
+        "ports": [
+          "top_0/ila_phase_ref_found",
+          "ila_0/probe11"
+        ]
+      },
+      "top_0_ila_pll_angfac": {
+        "ports": [
+          "top_0/ila_pll_angfac",
+          "ila_0/probe17"
+        ]
+      },
+      "top_0_ila_pll_div_valid": {
+        "ports": [
+          "top_0/ila_pll_div_valid",
+          "ila_0/probe23"
+        ]
+      },
+      "top_0_ila_pll_err_angfac": {
+        "ports": [
+          "top_0/ila_pll_err_angfac",
+          "ila_0/probe19"
+        ]
+      },
+      "top_0_ila_pll_i_term": {
+        "ports": [
+          "top_0/ila_pll_i_term",
+          "ila_0/probe21"
+        ]
+      },
+      "top_0_ila_pll_nco_accum": {
+        "ports": [
+          "top_0/ila_pll_nco_accum",
+          "ila_0/probe18"
+        ]
+      },
+      "top_0_ila_pll_p_term": {
+        "ports": [
+          "top_0/ila_pll_p_term",
+          "ila_0/probe20"
+        ]
+      },
+      "top_0_ila_pll_pi_corr": {
+        "ports": [
+          "top_0/ila_pll_pi_corr",
+          "ila_0/probe22"
+        ]
+      },
+      "top_0_ila_ppr_conf": {
+        "ports": [
+          "top_0/ila_ppr_conf",
+          "ila_0/probe3"
+        ]
+      },
+      "top_0_ila_ref_edge": {
+        "ports": [
+          "top_0/ila_ref_edge",
+          "ila_0/probe9"
+        ]
+      },
+      "top_0_ila_sync_full": {
+        "ports": [
+          "top_0/ila_sync_full",
+          "ila_0/probe16"
+        ]
+      },
+      "top_0_ila_sync_state": {
+        "ports": [
+          "top_0/ila_sync_state",
+          "ila_0/probe15"
+        ]
+      },
+      "top_0_ila_tdc_deg": {
+        "ports": [
+          "top_0/ila_tdc_deg",
+          "ila_0/probe25"
+        ]
+      },
+      "top_0_ila_trig_count": {
+        "ports": [
+          "top_0/ila_trig_count",
+          "ila_0/probe27"
+        ]
+      },
+      "top_0_ila_trig_pulse": {
+        "ports": [
+          "top_0/ila_trig_pulse",
+          "ila_0/probe26",
+          "ila_0/trig_in"
+        ]
+      },
+      "top_0_ila_z_edge": {
+        "ports": [
+          "top_0/ila_z_edge",
+          "ila_0/probe1"
         ]
       },
       "xlconstant_0_dout": {

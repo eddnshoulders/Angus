@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wave_config>
+   <wave_state>
+   </wave_state>
+   <db_ref_list>
+      <db_ref path="/mnt/hgfs/yocto/angus/vivado/angus.hw/hw_1/wave/hw_ila_data_1/hw_ila_data_1.wdb" id="1">
+         <top_modules>
+         </top_modules>
+      </db_ref>
+   </db_ref_list>
+   <zoom_setting>
+      <ZoomStartTime time="0"></ZoomStartTime>
+      <ZoomEndTime time="4,097"></ZoomEndTime>
+      <Cursor1Time time="181"></Cursor1Time>
+   </zoom_setting>
+   <column_width_setting>
+      <NameColumnWidth column_width="406"></NameColumnWidth>
+      <ValueColumnWidth column_width="82"></ValueColumnWidth>
+   </column_width_setting>
+   <WVObjectSize size="33" />
+   <wave_markers>
+   </wave_markers>
+   <wvobject type="array" fp_name="pynq_z2_i/top_0_ila_ab_count">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_ab_count[7:0]</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_ab_count[7:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="pynq_z2_i/top_0_ila_ab_edge">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_ab_edge</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_ab_edge</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="pynq_z2_i/top_0_ila_ab_period">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_ab_period[31:0]</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_ab_period[31:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="pynq_z2_i/top_0_ila_ang_angfac">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_ang_angfac[31:0]</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_ang_angfac[31:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="pynq_z2_i/top_0_ila_angle_angfac">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_angle_angfac[31:0]</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_angle_angfac[31:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="pynq_z2_i/top_0_ila_angle_nco_ab_inc">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_angle_nco_ab_inc[31:0]</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_angle_nco_ab_inc[31:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="pynq_z2_i/top_0_ila_angle_nco_clk_inc">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_angle_nco_clk_inc[31:0]</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_angle_nco_clk_inc[31:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="pynq_z2_i/top_0_ila_angle_nco_clk_inc_valid">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_angle_nco_clk_inc_valid</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_angle_nco_clk_inc_valid</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="pynq_z2_i/top_0_ila_fault_cam_tooth">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_fault_cam_tooth</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_fault_cam_tooth</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="pynq_z2_i/top_0_ila_fault_crank_ab">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_fault_crank_ab</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_fault_crank_ab</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="pynq_z2_i/top_0_ila_fault_crank_tooth">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_fault_crank_tooth</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_fault_crank_tooth</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="pynq_z2_i/top_0_ila_fault_pll_phase">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_fault_pll_phase</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_fault_pll_phase</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="pynq_z2_i/top_0_ila_fault_speed_calc">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_fault_speed_calc</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_fault_speed_calc</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="pynq_z2_i/top_0_ila_phase_eng">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_phase_eng</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_phase_eng</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="pynq_z2_i/top_0_ila_phase_ref_angfac">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_phase_ref_angfac[31:0]</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_phase_ref_angfac[31:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="pynq_z2_i/top_0_ila_phase_ref_det">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_phase_ref_det</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_phase_ref_det</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="pynq_z2_i/top_0_ila_phase_ref_det_cnt">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_phase_ref_det_cnt[15:0]</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_phase_ref_det_cnt[15:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="pynq_z2_i/top_0_ila_phase_ref_found">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_phase_ref_found</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_phase_ref_found</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="pynq_z2_i/top_0_ila_pll_angfac">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_pll_angfac[31:0]</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_pll_angfac[31:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="pynq_z2_i/top_0_ila_pll_div_valid">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_pll_div_valid</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_pll_div_valid</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="pynq_z2_i/top_0_ila_pll_err_angfac">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_pll_err_angfac[31:0]</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_pll_err_angfac[31:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="pynq_z2_i/top_0_ila_pll_i_term">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_pll_i_term[31:0]</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_pll_i_term[31:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="pynq_z2_i/top_0_ila_pll_nco_accum">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_pll_nco_accum[31:0]</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_pll_nco_accum[31:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="pynq_z2_i/top_0_ila_pll_p_term">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_pll_p_term[31:0]</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_pll_p_term[31:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="pynq_z2_i/top_0_ila_pll_pi_corr">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_pll_pi_corr[31:0]</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_pll_pi_corr[31:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="pynq_z2_i/top_0_ila_ppr_conf">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_ppr_conf[7:0]</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_ppr_conf[7:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="pynq_z2_i/top_0_ila_ref_edge">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_ref_edge</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_ref_edge</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="pynq_z2_i/top_0_ila_sync_full">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_sync_full</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_sync_full</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="pynq_z2_i/top_0_ila_sync_state">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_sync_state[1:0]</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_sync_state[1:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="pynq_z2_i/top_0_ila_tdc_deg">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_tdc_deg[15:0]</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_tdc_deg[15:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="pynq_z2_i/top_0_ila_trig_count">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_trig_count[31:0]</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_trig_count[31:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="pynq_z2_i/top_0_ila_trig_pulse">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_trig_pulse</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_trig_pulse</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="pynq_z2_i/top_0_ila_z_edge">
+      <obj_property name="DisplayName">FullPathName</obj_property>
+      <obj_property name="ElementShortName">pynq_z2_i/top_0_ila_z_edge</obj_property>
+      <obj_property name="ObjectShortName">top_0_ila_z_edge</obj_property>
+      <obj_property name="LABELRADIX">true</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
+   </wvobject>
+</wave_config>

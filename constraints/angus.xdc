@@ -83,3 +83,6 @@ set_property PACKAGE_PIN F19 [get_ports {debug_out_0[11]}]
 set_property PACKAGE_PIN W16 [get_ports {debug_out_0[12]}]
 set_property PACKAGE_PIN Y16 [get_ports {debug_out_0[13]}]
 set_property PACKAGE_PIN Y19 [get_ports {debug_out_0[15]}]
+
+
+

@@ -92,7 +92,40 @@ ENTITY pynq_z2_top_0_0 IS
     adc_ch5 : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
     adc_ch6 : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
     di_ch : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
-    debug_out : OUT STD_LOGIC_VECTOR(13 DOWNTO 0)
+    debug_out : OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
+    ila_ab_edge : OUT STD_LOGIC;
+    ila_z_edge : OUT STD_LOGIC;
+    ila_ab_count : OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
+    ila_ppr_conf : OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
+    ila_ab_period : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+    ila_angle_angfac : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+    ila_angle_nco_ab_inc : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+    ila_angle_nco_clk_inc : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+    ila_angle_nco_clk_inc_valid : OUT STD_LOGIC;
+    ila_ref_edge : OUT STD_LOGIC;
+    ila_phase_ref_det : OUT STD_LOGIC;
+    ila_phase_ref_found : OUT STD_LOGIC;
+    ila_phase_eng : OUT STD_LOGIC;
+    ila_phase_ref_angfac : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+    ila_phase_ref_det_cnt : OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
+    ila_sync_state : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+    ila_sync_full : OUT STD_LOGIC;
+    ila_pll_angfac : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+    ila_pll_nco_accum : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+    ila_pll_err_angfac : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+    ila_pll_p_term : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+    ila_pll_i_term : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+    ila_pll_pi_corr : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+    ila_pll_div_valid : OUT STD_LOGIC;
+    ila_ang_angfac : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+    ila_tdc_deg : OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
+    ila_trig_pulse : OUT STD_LOGIC;
+    ila_trig_count : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+    ila_fault_cam_tooth : OUT STD_LOGIC;
+    ila_fault_crank_tooth : OUT STD_LOGIC;
+    ila_fault_crank_ab : OUT STD_LOGIC;
+    ila_fault_pll_phase : OUT STD_LOGIC;
+    ila_fault_speed_calc : OUT STD_LOGIC
   );
 END pynq_z2_top_0_0;
 
@@ -138,7 +171,40 @@ ARCHITECTURE pynq_z2_top_0_0_arch OF pynq_z2_top_0_0 IS
       adc_ch5 : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
       adc_ch6 : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
       di_ch : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
-      debug_out : OUT STD_LOGIC_VECTOR(13 DOWNTO 0)
+      debug_out : OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
+      ila_ab_edge : OUT STD_LOGIC;
+      ila_z_edge : OUT STD_LOGIC;
+      ila_ab_count : OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
+      ila_ppr_conf : OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
+      ila_ab_period : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+      ila_angle_angfac : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+      ila_angle_nco_ab_inc : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+      ila_angle_nco_clk_inc : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+      ila_angle_nco_clk_inc_valid : OUT STD_LOGIC;
+      ila_ref_edge : OUT STD_LOGIC;
+      ila_phase_ref_det : OUT STD_LOGIC;
+      ila_phase_ref_found : OUT STD_LOGIC;
+      ila_phase_eng : OUT STD_LOGIC;
+      ila_phase_ref_angfac : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+      ila_phase_ref_det_cnt : OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
+      ila_sync_state : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+      ila_sync_full : OUT STD_LOGIC;
+      ila_pll_angfac : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+      ila_pll_nco_accum : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+      ila_pll_err_angfac : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+      ila_pll_p_term : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+      ila_pll_i_term : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+      ila_pll_pi_corr : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+      ila_pll_div_valid : OUT STD_LOGIC;
+      ila_ang_angfac : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+      ila_tdc_deg : OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
+      ila_trig_pulse : OUT STD_LOGIC;
+      ila_trig_count : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+      ila_fault_cam_tooth : OUT STD_LOGIC;
+      ila_fault_crank_tooth : OUT STD_LOGIC;
+      ila_fault_crank_ab : OUT STD_LOGIC;
+      ila_fault_pll_phase : OUT STD_LOGIC;
+      ila_fault_speed_calc : OUT STD_LOGIC
     );
   END COMPONENT top;
   ATTRIBUTE X_INTERFACE_INFO : STRING;
@@ -213,6 +279,39 @@ BEGIN
       adc_ch5 => adc_ch5,
       adc_ch6 => adc_ch6,
       di_ch => di_ch,
-      debug_out => debug_out
+      debug_out => debug_out,
+      ila_ab_edge => ila_ab_edge,
+      ila_z_edge => ila_z_edge,
+      ila_ab_count => ila_ab_count,
+      ila_ppr_conf => ila_ppr_conf,
+      ila_ab_period => ila_ab_period,
+      ila_angle_angfac => ila_angle_angfac,
+      ila_angle_nco_ab_inc => ila_angle_nco_ab_inc,
+      ila_angle_nco_clk_inc => ila_angle_nco_clk_inc,
+      ila_angle_nco_clk_inc_valid => ila_angle_nco_clk_inc_valid,
+      ila_ref_edge => ila_ref_edge,
+      ila_phase_ref_det => ila_phase_ref_det,
+      ila_phase_ref_found => ila_phase_ref_found,
+      ila_phase_eng => ila_phase_eng,
+      ila_phase_ref_angfac => ila_phase_ref_angfac,
+      ila_phase_ref_det_cnt => ila_phase_ref_det_cnt,
+      ila_sync_state => ila_sync_state,
+      ila_sync_full => ila_sync_full,
+      ila_pll_angfac => ila_pll_angfac,
+      ila_pll_nco_accum => ila_pll_nco_accum,
+      ila_pll_err_angfac => ila_pll_err_angfac,
+      ila_pll_p_term => ila_pll_p_term,
+      ila_pll_i_term => ila_pll_i_term,
+      ila_pll_pi_corr => ila_pll_pi_corr,
+      ila_pll_div_valid => ila_pll_div_valid,
+      ila_ang_angfac => ila_ang_angfac,
+      ila_tdc_deg => ila_tdc_deg,
+      ila_trig_pulse => ila_trig_pulse,
+      ila_trig_count => ila_trig_count,
+      ila_fault_cam_tooth => ila_fault_cam_tooth,
+      ila_fault_crank_tooth => ila_fault_crank_tooth,
+      ila_fault_crank_ab => ila_fault_crank_ab,
+      ila_fault_pll_phase => ila_fault_pll_phase,
+      ila_fault_speed_calc => ila_fault_speed_calc
     );
 END pynq_z2_top_0_0_arch;

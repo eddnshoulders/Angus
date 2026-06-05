@@ -1,6 +1,6 @@
 <mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.7.17 Chrome/128.0.6613.36 Electron/32.0.1 Safari/537.36" version="24.7.17">
   <diagram name="Page-1" id="wGPmRfUXcyOe4DKrnu0U">
-    <mxGraphModel dx="2314" dy="1204" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2336" pageHeight="1654" math="0" shadow="0">
+    <mxGraphModel dx="2298" dy="1188" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2336" pageHeight="1654" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -71,7 +71,12 @@
         <mxCell id="xHGwVRYdVDuLed40r8cg-24" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;" parent="1" source="VFG3uWGqevGxW-QDW_db-18" target="xHGwVRYdVDuLed40r8cg-22" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="VFG3uWGqevGxW-QDW_db-18" value="&lt;div&gt;&lt;b&gt;phase:&lt;/b&gt;&lt;/div&gt;&lt;div&gt;windowing&lt;br&gt;phase offsetting&lt;/div&gt;&lt;div&gt;engine_angle&lt;/div&gt;" style="shape=step;perimeter=stepPerimeter;whiteSpace=wrap;html=1;fixedSize=1;" parent="1" vertex="1">
+        <mxCell id="s4FXi5mFHU7bcTvQTYTb-1" value="phase_eng" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="xHGwVRYdVDuLed40r8cg-24" vertex="1" connectable="0">
+          <mxGeometry x="-0.3979" relative="1" as="geometry">
+            <mxPoint x="5" y="-8" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="VFG3uWGqevGxW-QDW_db-18" value="&lt;div&gt;&lt;b&gt;phase:&lt;/b&gt;&lt;/div&gt;&lt;div&gt;windowing&lt;br&gt;phase flag&lt;/div&gt;" style="shape=step;perimeter=stepPerimeter;whiteSpace=wrap;html=1;fixedSize=1;" parent="1" vertex="1">
           <mxGeometry x="1109" y="533.75" width="136" height="86" as="geometry" />
         </mxCell>
         <mxCell id="VFG3uWGqevGxW-QDW_db-21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" parent="1" source="VFG3uWGqevGxW-QDW_db-19" target="VFG3uWGqevGxW-QDW_db-20" edge="1">
@@ -372,7 +377,7 @@
         <mxCell id="K9V0m1dPuLlB6RcstLMN-27" value="enc_ab_edge&lt;div&gt;enc_z_edge&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;enc_ppr_conf&lt;/span&gt;&lt;/div&gt;&lt;div&gt;enc_ab_period&lt;/div&gt;&lt;div&gt;enc_&lt;span style=&quot;background-color: initial;&quot;&gt;ab_count&lt;/span&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;&lt;br&gt;&lt;/span&gt;&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
           <mxGeometry x="629" y="850" width="60" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="K9V0m1dPuLlB6RcstLMN-30" value="crank_ab_edge&lt;div&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;crank_z_edge&lt;br&gt;&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;crank_ppr_conf&lt;/span&gt;&lt;/div&gt;&lt;div&gt;crank_tooth_period&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;crank_ab_count&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+        <mxCell id="K9V0m1dPuLlB6RcstLMN-30" value="crank_ab_edge&lt;div&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;crank_z_edge&lt;br&gt;&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;crank_ppr_conf&lt;/span&gt;&lt;/div&gt;&lt;div&gt;crank_ab_period&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;crank_ab_count&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
           <mxGeometry x="607" y="632.5" width="104" height="80" as="geometry" />
         </mxCell>
         <mxCell id="K9V0m1dPuLlB6RcstLMN-45" value="&lt;b&gt;ref_sel&lt;/b&gt;&lt;br&gt;&lt;div&gt;&lt;b&gt;config:&lt;/b&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;&lt;br&gt;ref_sel&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
