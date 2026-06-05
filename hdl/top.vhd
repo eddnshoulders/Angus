@@ -74,29 +74,50 @@ entity top is
         di_ch              : in  std_logic_vector(7 downto 0);
         debug_out          : out std_logic_vector(15 downto 0);
         -- =====================================================================
-        -- ILA debug outputs (connect to ILA probes in block diagram)
+        -- ILA debug outputs -- connect each directly to an ILA probe
+        -- (w) = 10us widened pulse via p_debug
         -- =====================================================================
-        -- src_sel: [49]=ab_edge(w) [48]=z_edge(w) [47:40]=ab_count
-        --          [39:32]=ppr_conf [31:0]=ab_period
-        ila_src            : out std_logic_vector(49 downto 0);
-        -- angle:   [96:65]=angle_angfac [64:33]=angle_nco_ab_inc
-        --          [32:1]=angle_nco_clk_inc [0]=angle_nco_clk_inc_valid
-        ila_angle          : out std_logic_vector(96 downto 0);
-        -- phase:   [51]=ref_edge(w) [50]=phase_ref_det [49]=phase_ref_found
-        --          [48]=phase_eng [47:16]=phase_ref_angfac [15:0]=phase_ref_det_cnt
-        ila_phase          : out std_logic_vector(51 downto 0);
-        -- sync:    [2:1]=sync_state [0]=sync_full
-        ila_sync           : out std_logic_vector(2 downto 0);
-        -- pll:     [192:161]=pll_angfac [160:129]=pll_nco_accum
-        --          [128:97]=pll_err_angfac [96:65]=pll_p_term
-        --          [64:33]=pll_i_term [32:1]=pll_pi_corr [0]=pll_div_valid
-        ila_pll            : out std_logic_vector(192 downto 0);
-        -- out:     [80:49]=ang_angfac [48:33]=tdc_deg
-        --          [32]=trig_pulse(w) [31:0]=trig_count
-        ila_out            : out std_logic_vector(80 downto 0);
-        -- fault:   [4]=fault_cam_tooth [3]=fault_crank_tooth [2]=fault_crank_ab
-        --          [1]=fault_pll_phase [0]=fault_speed_calc
-        ila_fault          : out std_logic_vector(4 downto 0)
+        -- src_sel
+        ila_ab_edge                  : out std_logic;
+        ila_z_edge                   : out std_logic;
+        ila_ab_count                 : out std_logic_vector(7 downto 0);
+        ila_ppr_conf                 : out std_logic_vector(7 downto 0);
+        ila_ab_period                : out std_logic_vector(31 downto 0);
+        -- angle
+        ila_angle_angfac             : out std_logic_vector(31 downto 0);
+        ila_angle_nco_ab_inc         : out std_logic_vector(31 downto 0);
+        ila_angle_nco_clk_inc        : out std_logic_vector(31 downto 0);
+        ila_angle_nco_clk_inc_valid  : out std_logic;
+        -- ref_sel
+        ila_ref_edge                 : out std_logic;
+        -- phase
+        ila_phase_ref_det            : out std_logic;
+        ila_phase_ref_found          : out std_logic;
+        ila_phase_eng                : out std_logic;
+        ila_phase_ref_angfac         : out std_logic_vector(31 downto 0);
+        ila_phase_ref_det_cnt        : out std_logic_vector(15 downto 0);
+        -- sync
+        ila_sync_state               : out std_logic_vector(1 downto 0);
+        ila_sync_full                : out std_logic;
+        -- pll
+        ila_pll_angfac               : out std_logic_vector(31 downto 0);
+        ila_pll_nco_accum            : out std_logic_vector(31 downto 0);
+        ila_pll_err_angfac           : out std_logic_vector(31 downto 0);
+        ila_pll_p_term               : out std_logic_vector(31 downto 0);
+        ila_pll_i_term               : out std_logic_vector(31 downto 0);
+        ila_pll_pi_corr              : out std_logic_vector(31 downto 0);
+        ila_pll_div_valid            : out std_logic;
+        -- ang_sel / tdc / trig
+        ila_ang_angfac               : out std_logic_vector(31 downto 0);
+        ila_tdc_deg                  : out std_logic_vector(15 downto 0);
+        ila_trig_pulse               : out std_logic;
+        ila_trig_count               : out std_logic_vector(31 downto 0);
+        -- fault
+        ila_fault_cam_tooth          : out std_logic;
+        ila_fault_crank_tooth        : out std_logic;
+        ila_fault_crank_ab           : out std_logic;
+        ila_fault_pll_phase          : out std_logic;
+        ila_fault_speed_calc         : out std_logic
     );
 end entity top;
 
@@ -294,11 +315,6 @@ architecture rtl of top is
     signal dbg_ref_edge    : unsigned(15 downto 0) := (others => '0');
     signal dbg_trig_pulse  : unsigned(15 downto 0) := (others => '0');
 
-    -- 1-bit std_logic versions of widened pulses (for ILA bus concatenation)
-    signal ila_ab_edge_w   : std_logic;
-    signal ila_z_edge_w    : std_logic;
-    signal ila_ref_edge_w  : std_logic;
-    signal ila_trig_w      : std_logic;
 
 begin
 
@@ -650,50 +666,49 @@ begin
     debug_out(15) <= crank_signal_ok;
 
     -- =========================================================================
-    -- ILA debug bus assignments
+    -- ILA debug output assignments
+    -- (w) signals use p_debug widened versions for scope visibility
     -- =========================================================================
-    ila_ab_edge_w  <= '1' when dbg_ab_edge    > 0 else '0';
-    ila_z_edge_w   <= '1' when dbg_z_edge     > 0 else '0';
-    ila_ref_edge_w <= '1' when dbg_ref_edge   > 0 else '0';
-    ila_trig_w     <= '1' when dbg_trig_pulse > 0 else '0';
-
-    ila_src   <= ila_ab_edge_w &
-                 ila_z_edge_w  &
-                 std_logic_vector(ab_count) &
-                 std_logic_vector(ppr_conf) &
-                 std_logic_vector(ab_period);
-
-    ila_angle <= std_logic_vector(angle_angfac)     &
-                 std_logic_vector(angle_nco_ab_inc)  &
-                 std_logic_vector(angle_nco_clk_inc) &
-                 angle_nco_clk_inc_valid;
-
-    ila_phase <= ila_ref_edge_w &
-                 phase_ref_det  &
-                 phase_ref_found &
-                 phase_eng      &
-                 std_logic_vector(phase_ref_angfac)  &
-                 std_logic_vector(phase_ref_det_cnt);
-
-    ila_sync  <= std_logic_vector(sync_state) & sync_full;
-
-    ila_pll   <= std_logic_vector(pll_angfac)   &
-                 std_logic_vector(pll_nco_accum) &
-                 std_logic_vector(pll_err_angfac) &
-                 std_logic_vector(pll_p_term)    &
-                 std_logic_vector(pll_i_term)    &
-                 std_logic_vector(pll_pi_corr)   &
-                 pll_div_valid;
-
-    ila_out   <= std_logic_vector(ang_angfac) &
-                 std_logic_vector(tdc_deg)    &
-                 ila_trig_w     &
-                 std_logic_vector(trig_count);
-
-    ila_fault <= fault_cam_tooth   &
-                 fault_crank_tooth &
-                 fault_crank_ab    &
-                 fault_pll_phase   &
-                 fault_speed_calc;
+    -- src_sel
+    ila_ab_edge                 <= '1' when dbg_ab_edge    > 0 else '0';
+    ila_z_edge                  <= '1' when dbg_z_edge     > 0 else '0';
+    ila_ab_count                <= std_logic_vector(ab_count);
+    ila_ppr_conf                <= std_logic_vector(ppr_conf);
+    ila_ab_period               <= std_logic_vector(ab_period);
+    -- angle
+    ila_angle_angfac            <= std_logic_vector(angle_angfac);
+    ila_angle_nco_ab_inc        <= std_logic_vector(angle_nco_ab_inc);
+    ila_angle_nco_clk_inc       <= std_logic_vector(angle_nco_clk_inc);
+    ila_angle_nco_clk_inc_valid <= angle_nco_clk_inc_valid;
+    -- ref_sel
+    ila_ref_edge                <= '1' when dbg_ref_edge   > 0 else '0';
+    -- phase
+    ila_phase_ref_det           <= phase_ref_det;
+    ila_phase_ref_found         <= phase_ref_found;
+    ila_phase_eng               <= phase_eng;
+    ila_phase_ref_angfac        <= std_logic_vector(phase_ref_angfac);
+    ila_phase_ref_det_cnt       <= std_logic_vector(phase_ref_det_cnt);
+    -- sync
+    ila_sync_state              <= std_logic_vector(sync_state);
+    ila_sync_full               <= sync_full;
+    -- pll
+    ila_pll_angfac              <= std_logic_vector(pll_angfac);
+    ila_pll_nco_accum           <= std_logic_vector(pll_nco_accum);
+    ila_pll_err_angfac          <= std_logic_vector(pll_err_angfac);
+    ila_pll_p_term              <= std_logic_vector(pll_p_term);
+    ila_pll_i_term              <= std_logic_vector(pll_i_term);
+    ila_pll_pi_corr             <= std_logic_vector(pll_pi_corr);
+    ila_pll_div_valid           <= pll_div_valid;
+    -- ang_sel / tdc / trig
+    ila_ang_angfac              <= std_logic_vector(ang_angfac);
+    ila_tdc_deg                 <= std_logic_vector(tdc_deg);
+    ila_trig_pulse              <= '1' when dbg_trig_pulse > 0 else '0';
+    ila_trig_count              <= std_logic_vector(trig_count);
+    -- fault
+    ila_fault_cam_tooth         <= fault_cam_tooth;
+    ila_fault_crank_tooth       <= fault_crank_tooth;
+    ila_fault_crank_ab          <= fault_crank_ab;
+    ila_fault_pll_phase         <= fault_pll_phase;
+    ila_fault_speed_calc        <= fault_speed_calc;
 
 end architecture rtl;
