@@ -151,9 +151,14 @@ begin
                     if current_period /= (current_period'range => '0') then
                         period_valid <= '1';
                     end if;
-                    -- Update ab_period_filt with THIS tooth's period (period_cnt,
-                    -- not current_period which is the PREVIOUS tooth's period).
-                    -- Skip on the z_armed tooth where period_cnt = gap period.
+                    -- ab_period_filt: last valid non-gap tooth period.
+                    -- Gate on z_armed='0': when z_armed='1' the current tooth
+                    -- is the first tooth after the gap, so period_cnt holds
+                    -- the gap period (NOT a valid tooth period). Skip the
+                    -- update and keep the pre-gap period frozen.
+                    -- Use period_cnt (THIS tooth's period) not current_period
+                    -- (the PREVIOUS tooth's period) to avoid a one-tooth lag
+                    -- where the gap period propagates into tooth 1's update.
                     if z_armed = '0' and
                        period_cnt /= (period_cnt'range => '0') then
                         ab_period_filt <= period_cnt;

@@ -363,6 +363,94 @@ begin
                integer'image(z_count - z_count_start) & " times in 3 cycles";
 
         -- --------------------------------------------------------------------
+        -- TEST 10: ab_period_filt frozen correctly across gap boundary
+        --
+        -- crank_tooth_period (= ab_period_filt) must hold the pre-gap tooth
+        -- period across the whole gap crossing, not the gap period itself.
+        -- Three sub-checks:
+        --   T10a: frozen during gap (no edge_pulse fires, so always true)
+        --   T10b: tooth 0 (z_armed tooth) -- must NOT update to gap period
+        --   T10c: tooth 1 (first post-gap tooth) -- must resume at tooth period
+        --         (NOT the gap period, which was current_period at tooth 0)
+        --
+        -- T10b catches: ab_period_filt NOT gated at z_armed tooth
+        -- T10c catches: one-tooth lag where gap period propagates to tooth 1
+        --               via current_period (the original fix bug)
+        -- --------------------------------------------------------------------
+        report "TEST 10: tooth_period frozen across gap (ab_period_filt fix)";
+        test_num <= 10;
+
+        rst <= '1'; wait for 5 * CLK_PERIOD;
+        rst <= '0';
+        edge_sel <= '0';    -- falling edge mode
+
+        -- Prime with 2 complete revolutions for stable period measurement
+        gen_crank_cycle(clean, PERIOD_1000_RPM, true);
+        gen_crank_cycle(clean, PERIOD_1000_RPM, true);
+        wait for 10 * CLK_PERIOD;
+
+        period_error := abs(to_integer(tooth_per) - EXP_PERIOD_1000);
+        assert period_error <= PERIOD_TOL
+            report "FAIL T10 setup: tooth_per not stable, got " &
+                   integer'image(to_integer(tooth_per))
+            severity failure;
+
+        -- Cycle 3: generate all 58 real teeth manually (same timing as gen_crank_cycle)
+        for i in 1 to TEETH_REAL loop
+            clean <= '1'; wait for PERIOD_1000_RPM / 2;
+            clean <= '0'; wait for PERIOD_1000_RPM / 2;
+        end loop;
+
+        -- Gap: hold inactive (high in fall mode) for N_MISSING tooth periods
+        -- gap_det fires at ~1.5x tooth period into the gap
+        clean <= '1';
+        wait for PERIOD_1000_RPM;    -- 1 tooth period into gap
+
+        -- T10a: tooth_per frozen during gap (no edge_pulse fires)
+        period_error := abs(to_integer(tooth_per) - EXP_PERIOD_1000);
+        assert period_error <= PERIOD_TOL
+            report "FAIL T10a: tooth_per mid-gap = " &
+                   integer'image(to_integer(tooth_per)) &
+                   " expected frozen at " & integer'image(EXP_PERIOD_1000)
+            severity failure;
+
+        wait for PERIOD_1000_RPM;    -- complete N_MISSING tooth periods of gap
+
+        -- Tooth 0: z_armed tooth (first tooth after gap)
+        -- period_cnt at this point = gap period (~3x EXP_PERIOD_1000)
+        -- ab_period_filt must NOT update here
+        clean <= '1'; wait for PERIOD_1000_RPM / 2;
+        clean <= '0'; wait for 5 * CLK_PERIOD;   -- falling edge fires
+
+        -- T10b: tooth_per must still hold pre-gap period, not gap period
+        period_error := abs(to_integer(tooth_per) - EXP_PERIOD_1000);
+        assert period_error <= PERIOD_TOL
+            report "FAIL T10b: tooth_per at z_armed tooth = " &
+                   integer'image(to_integer(tooth_per)) &
+                   " expected " & integer'image(EXP_PERIOD_1000) &
+                   " (gap period ~3000 means z_armed gate missing)"
+            severity failure;
+
+        -- Tooth 1: first normal tooth after gap
+        -- current_period is still gap period at this point if not fixed
+        -- ab_period_filt must use period_cnt (tooth 1's own period), not current_period
+        wait for PERIOD_1000_RPM / 2 - 5 * CLK_PERIOD;
+        clean <= '1'; wait for PERIOD_1000_RPM / 2;
+        clean <= '0'; wait for 5 * CLK_PERIOD;
+
+        -- T10c: tooth_per must resume at EXP_PERIOD_1000, not gap period
+        period_error := abs(to_integer(tooth_per) - EXP_PERIOD_1000);
+        assert period_error <= PERIOD_TOL
+            report "FAIL T10c: tooth_per at tooth 1 (post-gap) = " &
+                   integer'image(to_integer(tooth_per)) &
+                   " expected " & integer'image(EXP_PERIOD_1000) &
+                   " (gap period ~3000 means one-tooth lag in ab_period_filt)"
+            severity failure;
+
+        report "TEST 10: PASS - tooth_per frozen at gap: " &
+               integer'image(to_integer(tooth_per));
+
+        -- --------------------------------------------------------------------
         -- Done
         -- --------------------------------------------------------------------
         wait for 10 * CLK_PERIOD;
