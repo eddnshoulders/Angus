@@ -56,7 +56,8 @@ entity angle is
         -- Outputs
         angle_angfac      : out unsigned(31 downto 0);  -- angular position, 0 = 0 deg, full-scale = 360 deg
         angle_nco_ab_inc  : out unsigned(31 downto 0);  -- angfac per tooth edge
-        angle_nco_clk_inc : out unsigned(31 downto 0)   -- angfac per clock (interpolation increment)
+        angle_nco_clk_inc : out unsigned(31 downto 0);  -- angfac per clock (interpolation increment)
+        angle_nco_clk_inc_valid : out std_logic             -- 1 when nco_clk_inc is valid and interpolation running
     );
 end entity angle;
 
@@ -271,8 +272,9 @@ begin
     -- Output assignments
     -- nco_accum is a registered signal; these are combinatorial pass-throughs.
     -- =========================================================================
-    angle_angfac      <= nco_accum;
-    angle_nco_ab_inc  <= nco_ab_inc_int;
-    angle_nco_clk_inc <= nco_clk_inc_int;
+    angle_angfac        <= nco_accum;
+    angle_nco_ab_inc    <= nco_ab_inc_int;
+    angle_nco_clk_inc   <= nco_clk_inc_int;
+    angle_nco_clk_inc_valid <= clk_inc_valid;
 
 end architecture rtl;

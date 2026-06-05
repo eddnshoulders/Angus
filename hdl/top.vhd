@@ -72,7 +72,31 @@ entity top is
         adc_ch5            : in  unsigned(11 downto 0);
         adc_ch6            : in  unsigned(11 downto 0);
         di_ch              : in  std_logic_vector(7 downto 0);
-        debug_out          : out std_logic_vector(15 downto 0)
+        debug_out          : out std_logic_vector(15 downto 0);
+        -- =====================================================================
+        -- ILA debug outputs (connect to ILA probes in block diagram)
+        -- =====================================================================
+        -- src_sel: [49]=ab_edge(w) [48]=z_edge(w) [47:40]=ab_count
+        --          [39:32]=ppr_conf [31:0]=ab_period
+        ila_src            : out std_logic_vector(49 downto 0);
+        -- angle:   [96:65]=angle_angfac [64:33]=angle_nco_ab_inc
+        --          [32:1]=angle_nco_clk_inc [0]=angle_nco_clk_inc_valid
+        ila_angle          : out std_logic_vector(96 downto 0);
+        -- phase:   [51]=ref_edge(w) [50]=phase_ref_det [49]=phase_ref_found
+        --          [48]=phase_eng [47:16]=phase_ref_angfac [15:0]=phase_ref_det_cnt
+        ila_phase          : out std_logic_vector(51 downto 0);
+        -- sync:    [2:1]=sync_state [0]=sync_full
+        ila_sync           : out std_logic_vector(2 downto 0);
+        -- pll:     [192:161]=pll_angfac [160:129]=pll_nco_accum
+        --          [128:97]=pll_err_angfac [96:65]=pll_p_term
+        --          [64:33]=pll_i_term [32:1]=pll_pi_corr [0]=pll_div_valid
+        ila_pll            : out std_logic_vector(192 downto 0);
+        -- out:     [80:49]=ang_angfac [48:33]=tdc_deg
+        --          [32]=trig_pulse(w) [31:0]=trig_count
+        ila_out            : out std_logic_vector(80 downto 0);
+        -- fault:   [4]=fault_cam_tooth [3]=fault_crank_tooth [2]=fault_crank_ab
+        --          [1]=fault_pll_phase [0]=fault_speed_calc
+        ila_fault          : out std_logic_vector(4 downto 0)
     );
 end entity top;
 
@@ -186,6 +210,7 @@ architecture rtl of top is
     signal angle_angfac      : unsigned(31 downto 0);
     signal angle_nco_ab_inc  : unsigned(31 downto 0);
     signal angle_nco_clk_inc : unsigned(31 downto 0);
+    signal angle_nco_clk_inc_valid : std_logic;
 
     -- =========================================================================
     -- Phase block
@@ -246,6 +271,11 @@ architecture rtl of top is
     -- =========================================================================
     -- Fault block
     -- =========================================================================
+    signal fault_cam_tooth   : std_logic;
+    signal fault_crank_tooth : std_logic;
+    signal fault_crank_ab    : std_logic;
+    signal fault_pll_phase   : std_logic;
+    signal fault_speed_calc  : std_logic;
     signal fault_flags     : std_logic_vector(31 downto 0);
     signal cam_fault_count : unsigned(15 downto 0);
     signal crank_fault_count: unsigned(15 downto 0);
@@ -263,6 +293,12 @@ architecture rtl of top is
     signal dbg_cam_edge    : unsigned(15 downto 0) := (others => '0');
     signal dbg_ref_edge    : unsigned(15 downto 0) := (others => '0');
     signal dbg_trig_pulse  : unsigned(15 downto 0) := (others => '0');
+
+    -- 1-bit std_logic versions of widened pulses (for ILA bus concatenation)
+    signal ila_ab_edge_w   : std_logic;
+    signal ila_z_edge_w    : std_logic;
+    signal ila_ref_edge_w  : std_logic;
+    signal ila_trig_w      : std_logic;
 
 begin
 
@@ -450,7 +486,9 @@ begin
         port map (clk=>clk, rst=>rst, ab_edge=>ab_edge, z_edge=>z_edge,
                   ab_period=>ab_period, ppr_conf=>ppr_conf,
                   angle_interp_en=>angle_interp_en, angle_angfac=>angle_angfac,
-                  angle_nco_ab_inc=>angle_nco_ab_inc, angle_nco_clk_inc=>angle_nco_clk_inc);
+                  angle_nco_ab_inc=>angle_nco_ab_inc,
+                  angle_nco_clk_inc=>angle_nco_clk_inc,
+                  angle_nco_clk_inc_valid=>angle_nco_clk_inc_valid);
 
     -- =========================================================================
     -- Phase
@@ -541,6 +579,9 @@ begin
                   max_rpm=>max_rpm, pll_phase_err=>pll_err_angfac,
                   pll_phase_err_thresh=>pll_phase_err_thresh, sync_full=>sync_full,
                   phase_fault_drop=>phase_fault_drop, phase_ref_ok=>phase_ref_ok,
+                  fault_cam_tooth=>fault_cam_tooth, fault_crank_tooth=>fault_crank_tooth,
+                  fault_crank_ab=>fault_crank_ab, fault_pll_phase=>fault_pll_phase,
+                  fault_speed_calc=>fault_speed_calc,
                   fault_flags=>fault_flags, cam_fault_count=>cam_fault_count,
                   crank_fault_count=>crank_fault_count, phase_fault_count=>phase_fault_count,
                   ab_fault_count=>ab_fault_count, speed_fault_count=>speed_fault_count,
@@ -607,5 +648,52 @@ begin
     debug_out(13) <= '1' when dbg_trig_pulse > 0 else '0';
     debug_out(14) <= pll_div_valid;
     debug_out(15) <= crank_signal_ok;
+
+    -- =========================================================================
+    -- ILA debug bus assignments
+    -- =========================================================================
+    ila_ab_edge_w  <= '1' when dbg_ab_edge    > 0 else '0';
+    ila_z_edge_w   <= '1' when dbg_z_edge     > 0 else '0';
+    ila_ref_edge_w <= '1' when dbg_ref_edge   > 0 else '0';
+    ila_trig_w     <= '1' when dbg_trig_pulse > 0 else '0';
+
+    ila_src   <= ila_ab_edge_w &
+                 ila_z_edge_w  &
+                 std_logic_vector(ab_count) &
+                 std_logic_vector(ppr_conf) &
+                 std_logic_vector(ab_period);
+
+    ila_angle <= std_logic_vector(angle_angfac)     &
+                 std_logic_vector(angle_nco_ab_inc)  &
+                 std_logic_vector(angle_nco_clk_inc) &
+                 angle_nco_clk_inc_valid;
+
+    ila_phase <= ila_ref_edge_w &
+                 phase_ref_det  &
+                 phase_ref_found &
+                 phase_eng      &
+                 std_logic_vector(phase_ref_angfac)  &
+                 std_logic_vector(phase_ref_det_cnt);
+
+    ila_sync  <= std_logic_vector(sync_state) & sync_full;
+
+    ila_pll   <= std_logic_vector(pll_angfac)   &
+                 std_logic_vector(pll_nco_accum) &
+                 std_logic_vector(pll_err_angfac) &
+                 std_logic_vector(pll_p_term)    &
+                 std_logic_vector(pll_i_term)    &
+                 std_logic_vector(pll_pi_corr)   &
+                 pll_div_valid;
+
+    ila_out   <= std_logic_vector(ang_angfac) &
+                 std_logic_vector(tdc_deg)    &
+                 ila_trig_w     &
+                 std_logic_vector(trig_count);
+
+    ila_fault <= fault_cam_tooth   &
+                 fault_crank_tooth &
+                 fault_crank_ab    &
+                 fault_pll_phase   &
+                 fault_speed_calc;
 
 end architecture rtl;

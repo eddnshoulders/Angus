@@ -44,7 +44,13 @@ entity fault is
         -- Phase fault
         phase_fault_drop   : in  std_logic;
         phase_ref_ok       : in  std_logic;
-        -- Outputs
+        -- Outputs -- instantaneous fault flags
+        fault_cam_tooth    : out std_logic;              -- cam tooth count mismatch
+        fault_crank_tooth  : out std_logic;              -- crank tooth count mismatch
+        fault_crank_ab     : out std_logic;              -- crank ab count mismatch
+        fault_pll_phase    : out std_logic;              -- PLL phase error exceeded threshold
+        fault_speed_calc   : out std_logic;              -- speed out of valid range
+        -- Outputs -- combined flags and counts
         fault_flags        : out std_logic_vector(31 downto 0);
         cam_fault_count    : out unsigned(15 downto 0);
         crank_fault_count  : out unsigned(15 downto 0);
@@ -183,6 +189,12 @@ begin
             end if;
         end if;
     end process p_fault;
+
+    fault_cam_tooth   <= cam_fault_int;
+    fault_crank_tooth <= crank_tooth_fault;
+    fault_crank_ab    <= crank_ab_fault;
+    fault_pll_phase   <= pll_err_int;
+    fault_speed_calc  <= speed_fault_int;
 
     fault_flags(0)  <= cam_fault_int;
     fault_flags(1)  <= crank_tooth_fault;
