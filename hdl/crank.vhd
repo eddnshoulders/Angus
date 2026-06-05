@@ -69,6 +69,7 @@ architecture rtl of crank is
     signal period_cnt     : unsigned(31 downto 0) := (others => '0');
     signal current_period : unsigned(31 downto 0) := (others => '0');
     signal last_period    : unsigned(31 downto 0) := (others => '0');
+    signal ab_period_filt : unsigned(31 downto 0) := (others => '0');  -- last non-gap tooth period
     signal edge_seen      : std_logic := '0';
     signal period_valid   : std_logic := '0';
 
@@ -149,6 +150,13 @@ begin
                     period_cnt     <= (others => '0');
                     if current_period /= (current_period'range => '0') then
                         period_valid <= '1';
+                        -- Only update filtered period for non-gap teeth.
+                        -- When z_armed='1', edge_pulse is the first tooth after
+                        -- the gap so current_period = gap period. Skip it and
+                        -- keep the last real tooth period for nco_clk_inc.
+                        if z_armed = '0' then
+                            ab_period_filt <= current_period;
+                        end if;
                     end if;
                 else
                     if period_cnt /= MAX_32 then
@@ -362,7 +370,7 @@ begin
     crank_z            <= z_int;
     crank_z_edge       <= '1' when (z_int = '1' and z_int_prev = '0') else '0';
     crank_ab_edge      <= edge_pulse or interp_pulse;
-    crank_tooth_period <= current_period;
+    crank_tooth_period <= ab_period_filt;  -- last non-gap tooth period (safe for nco_clk_inc)
     crank_tooth_count  <= tooth_cnt;
     crank_ab_count     <= ab_count_int;
     crank_gap_det      <= gap_det;
