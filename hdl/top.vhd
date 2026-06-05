@@ -149,7 +149,6 @@ architecture rtl of top is
     signal crank_tooth_count : unsigned(7 downto 0);
     signal crank_ab_count   : unsigned(7 downto 0);
     signal crank_gap_det    : std_logic;
-    signal crank_gap_period : unsigned(31 downto 0);
     signal crank_signal_ok  : std_logic;
     signal crank_ab         : std_logic;
     signal crank_z          : std_logic;
@@ -203,7 +202,6 @@ architecture rtl of top is
     -- =========================================================================
     signal sync_state      : unsigned(1 downto 0);
     signal sync_full       : std_logic;
-    signal sync_fault_count: unsigned(15 downto 0);
 
     -- =========================================================================
     -- Speed block
@@ -409,7 +407,7 @@ begin
                   crank_n_teeth=>crank_n_teeth, crank_n_missing=>crank_n_missing,
                   crank_ab_edge=>crank_ab_edge, crank_z_edge=>crank_z_edge,
                   crank_ppr_conf=>crank_ppr_conf, crank_tooth_period=>crank_tooth_period,
-                  crank_gap_period=>crank_gap_period, crank_tooth_count=>crank_tooth_count,
+                  crank_gap_period=>open, crank_tooth_count=>crank_tooth_count,
                   crank_ab_count=>crank_ab_count, crank_gap_det=>crank_gap_det,
                   crank_signal_ok=>crank_signal_ok, crank_ab=>crank_ab, crank_z=>crank_z);
 
@@ -472,7 +470,7 @@ begin
         port map (clk=>clk, rst=>rst, ab_edge=>ab_edge, z_edge=>z_edge,
                   ppr_conf=>ppr_conf, ab_count=>ab_count, phase_ref_found=>phase_ref_found,
                   sync_state=>sync_state, sync_full=>sync_full,
-                  sync_fault_count=>sync_fault_count);
+                  sync_fault_count=>open);
 
     -- =========================================================================
     -- Speed
