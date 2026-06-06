@@ -73,6 +73,7 @@ entity top is
         xadc_busy          : in  std_logic;
         xadc_alarm         : in  std_logic;
         xadc_ot            : in  std_logic;
+        xadc_drp_state     : out std_logic_vector(1 downto 0);
         xadc_convst        : out std_logic;
         xadc_dclk          : out std_logic;
         xadc_den           : out std_logic;
@@ -616,6 +617,7 @@ begin
             xadc_di          => xadc_di,
             sample_pulse     => trig_pulse,
             adc_data         => adc_data,
+            drp_state_out    => xadc_drp_state,
             conversion_count => open);
 
     -- Extract 12-bit result: DO format [15:4] = result, [3:0] = 0

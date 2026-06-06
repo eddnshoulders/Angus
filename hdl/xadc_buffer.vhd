@@ -58,6 +58,10 @@ entity xadc_buffer is
         -- Trigger input
         sample_pulse     : in  std_logic;
 
+        -- Debug: DRP FSM state for ILA visibility
+        -- "00"=IDLE, "01"=ISSUE_READ, "10"=WAIT_DRDY
+        drp_state_out    : out std_logic_vector(1 downto 0);
+
         -- Output: NUM_CHANNELS x 16-bit words, latched on eos
         adc_data         : out std_logic_vector(NUM_CHANNELS * 16 - 1 downto 0);
 
@@ -100,6 +104,10 @@ begin
     -- convst: trigger xADC conversion on each sample_pulse
     -- -------------------------------------------------------------------------
     xadc_convst <= sample_pulse;
+
+    drp_state_out <= "00" when drp_state = IDLE       else
+                     "01" when drp_state = ISSUE_READ  else
+                     "10"; -- WAIT_DRDY
 
     -- -------------------------------------------------------------------------
     -- Decode xADC channel number, registered to align with eoc
