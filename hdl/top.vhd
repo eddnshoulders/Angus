@@ -65,6 +65,12 @@ entity top is
         b_raw              : in  std_logic;
         z_raw              : in  std_logic;
         adc_ch0            : in  unsigned(11 downto 0);  -- reserved: peak detector direct input
+        adc_ch1            : in  unsigned(11 downto 0);
+        adc_ch2            : in  unsigned(11 downto 0);
+        adc_ch3            : in  unsigned(11 downto 0);
+        adc_ch4            : in  unsigned(11 downto 0);
+        adc_ch5            : in  unsigned(11 downto 0);
+        adc_ch6            : in  unsigned(11 downto 0);
         -- XADC Wizard IP interface (event-triggered via trig_pulse)
         xadc_do            : in  std_logic_vector(15 downto 0);
         xadc_channel       : in  std_logic_vector(4 downto 0);
@@ -322,17 +328,11 @@ architecture rtl of top is
     signal dbg_trig_pulse  : unsigned(15 downto 0) := (others => '0');
 
     -- =========================================================================
-    -- XADC buffer outputs: 6 channels (VAUX1-VAUX6) -> pack
-    -- xadc_buffer latches all channels simultaneously on eos.
+    -- XADC buffer output: 6 channels latched on eos
     -- Format per channel: [15:4] = 12-bit ADC result, [3:0] = 0
+    -- adc_ch1-6 ports wired directly from adc_data in the port map below.
     -- =========================================================================
     signal adc_data        : std_logic_vector(6 * 16 - 1 downto 0);
-    signal adc_ch1         : unsigned(11 downto 0);
-    signal adc_ch2         : unsigned(11 downto 0);
-    signal adc_ch3         : unsigned(11 downto 0);
-    signal adc_ch4         : unsigned(11 downto 0);
-    signal adc_ch5         : unsigned(11 downto 0);
-    signal adc_ch6         : unsigned(11 downto 0);
 
 
 begin
@@ -616,12 +616,9 @@ begin
             conversion_count => open);
 
     -- Extract 12-bit values: xADC DO format [15:4] = result, [3:0] = 0
-    adc_ch1 <= unsigned(adc_data(1*16-1 downto 0*16+4));
-    adc_ch2 <= unsigned(adc_data(2*16-1 downto 1*16+4));
-    adc_ch3 <= unsigned(adc_data(3*16-1 downto 2*16+4));
-    adc_ch4 <= unsigned(adc_data(4*16-1 downto 3*16+4));
-    adc_ch5 <= unsigned(adc_data(5*16-1 downto 4*16+4));
-    adc_ch6 <= unsigned(adc_data(6*16-1 downto 5*16+4));
+    -- These override the top-level adc_ch1-6 input ports once the block
+    -- diagram is rewired to connect the XADC Wizard to the xadc_* ports.
+    -- Until then, adc_ch1-6 ports still feed pack directly from the BD.
 
     -- =========================================================================
     -- Pack
