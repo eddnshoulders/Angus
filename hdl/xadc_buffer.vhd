@@ -20,7 +20,8 @@ use ieee.numeric_std.all;
 -- After all channels complete, eos fires and ch_latched is updated with all
 -- channel values simultaneously, guaranteeing a coherent sample snapshot.
 --
--- DRP address mapping: VAUX0 = 0x10, VAUX1 = 0x11 ... VAUXn = 0x10 + n
+-- DRP address mapping: VAUX1 = 0x11, VAUX2 = 0x12 ... VAUXn = 0x10 + n
+-- Channel 0 of this buffer = VAUX1 (Arduino A0 pin, E17/D18 on PYNQ-Z2)
 -- DO register format: [15:4] = 12-bit result, [3:0] = 0
 --
 -- Channel mapping (adc_data):
@@ -112,9 +113,9 @@ begin
                 ch_valid <= '0';
             else
                 ch_valid <= '0';
-                if unsigned(xadc_channel) >= 16#10# and
-                   unsigned(xadc_channel) <= 16#10# + NUM_CHANNELS - 1 then
-                    ch_idx   <= to_integer(unsigned(xadc_channel)) - 16#10#;
+                if unsigned(xadc_channel) >= 16#11# and
+                   unsigned(xadc_channel) <= 16#11# + NUM_CHANNELS - 1 then
+                    ch_idx   <= to_integer(unsigned(xadc_channel)) - 16#11#;
                     ch_valid <= '1';
                 end if;
             end if;
@@ -149,7 +150,7 @@ begin
                         if xadc_eoc = '1' and ch_valid = '1' then
                             drp_ch_idx <= ch_idx;
                             drp_daddr  <= std_logic_vector(
-                                to_unsigned(16#10# + ch_idx, 7));
+                                to_unsigned(16#11# + ch_idx, 7));
                             drp_den    <= '1';
                             drp_state  <= ISSUE_READ;
                         end if;
