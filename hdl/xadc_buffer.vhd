@@ -83,6 +83,7 @@ architecture rtl of xadc_buffer is
 
     signal ch_idx     : integer range 0 to NUM_CHANNELS - 1 := 0;
     signal ch_valid   : std_logic := '0';
+    signal xadc_eoc_d : std_logic := '0';  -- eoc delayed 1 clock to align with ch_valid
 
     signal drp_state  : drp_state_t := IDLE;
     signal drp_den    : std_logic := '0';
@@ -120,7 +121,8 @@ begin
                 ch_idx   <= 0;
                 ch_valid <= '0';
             else
-                ch_valid <= '0';
+                ch_valid   <= '0';
+                xadc_eoc_d <= xadc_eoc;  -- align eoc with ch_valid (both 1 clock delayed)
                 if unsigned(xadc_channel) >= 16#11# and
                    unsigned(xadc_channel) <= 16#11# + NUM_CHANNELS - 1 then
                     ch_idx   <= to_integer(unsigned(xadc_channel)) - 16#11#;
@@ -148,6 +150,7 @@ begin
                 drp_daddr  <= (others => '0');
                 drp_ch_idx <= 0;
                 ch_regs    <= (others => (others => '0'));
+                ch_latched <= (others => (others => '0'));
                 conv_count <= (others => '0');
             else
                 drp_den <= '0';     -- default: de-assert after one clock
@@ -155,7 +158,7 @@ begin
                 case drp_state is
 
                     when IDLE =>
-                        if xadc_eoc = '1' and ch_valid = '1' then
+                        if xadc_eoc_d = '1' and ch_valid = '1' then
                             drp_ch_idx <= ch_idx;
                             drp_daddr  <= std_logic_vector(
                                 to_unsigned(16#11# + ch_idx, 7));
@@ -169,7 +172,8 @@ begin
 
                     when WAIT_DRDY =>
                         if xadc_drdy = '1' then
-                            ch_regs(drp_ch_idx) <= xadc_do;
+                            ch_regs(drp_ch_idx)    <= xadc_do;
+                            ch_latched(drp_ch_idx) <= xadc_do;  -- direct latch on drdy
                             if conv_count /= (conv_count'range => '1') then
                                 conv_count <= conv_count + 1;
                             end if;
@@ -180,22 +184,6 @@ begin
             end if;
         end if;
     end process p_drp;
-
-    -- -------------------------------------------------------------------------
-    -- Latch all channels simultaneously on eos
-    -- -------------------------------------------------------------------------
-    p_latch : process(clk)
-    begin
-        if rising_edge(clk) then
-            if rst = '1' then
-                ch_latched <= (others => (others => '0'));
-            else
-                if xadc_eos = '1' then
-                    ch_latched <= ch_regs;
-                end if;
-            end if;
-        end if;
-    end process p_latch;
 
     -- -------------------------------------------------------------------------
     -- Output: pack latched channels into flat vector
