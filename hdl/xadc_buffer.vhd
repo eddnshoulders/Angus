@@ -75,7 +75,10 @@ architecture rtl of xadc_buffer is
     type channel_regs_t is array (0 to NUM_CHANNELS - 1) of
         std_logic_vector(15 downto 0);
 
-    type drp_state_t is (IDLE, ISSUE_READ, WAIT_DRDY);
+    type drp_state_t is (
+        INIT_WRITE1, INIT_WAIT1,   -- startup: write SEQ_REG1 (enable VAUX1)
+        INIT_WRITE2, INIT_WAIT2,   -- startup: write CFG_REG1 (One Pass mode)
+        IDLE, ISSUE_READ, WAIT_DRDY);
 
     signal ch_regs    : channel_regs_t := (others => (others => '0'));
     signal ch_latched : channel_regs_t := (others => (others => '0'));
@@ -83,11 +86,13 @@ architecture rtl of xadc_buffer is
 
     signal ch_idx     : integer range 0 to NUM_CHANNELS - 1 := 0;
     signal ch_valid   : std_logic := '0';
-    signal xadc_eoc_d : std_logic := '0';  -- eoc delayed 1 clock to align with ch_valid
+    signal xadc_eoc_d : std_logic := '0';
 
-    signal drp_state  : drp_state_t := IDLE;
+    signal drp_state  : drp_state_t := INIT_WRITE1;
     signal drp_den    : std_logic := '0';
+    signal drp_dwe    : std_logic := '0';
     signal drp_daddr  : std_logic_vector(6 downto 0) := (others => '0');
+    signal drp_di     : std_logic_vector(15 downto 0) := (others => '0');
     signal drp_ch_idx : integer range 0 to NUM_CHANNELS - 1 := 0;
 
 begin
@@ -95,10 +100,10 @@ begin
     -- -------------------------------------------------------------------------
     -- Static DRP outputs
     -- -------------------------------------------------------------------------
-    xadc_dclk <= clk;
-    xadc_dwe  <= '0';       -- read only, never write
-    xadc_di   <= (others => '0');
-    xadc_den  <= drp_den;
+    xadc_dclk  <= clk;
+    xadc_dwe   <= drp_dwe;
+    xadc_di    <= drp_di;
+    xadc_den   <= drp_den;
     xadc_daddr <= drp_daddr;
 
     -- -------------------------------------------------------------------------
@@ -108,7 +113,8 @@ begin
 
     drp_state_out <= "00" when drp_state = IDLE       else
                      "01" when drp_state = ISSUE_READ  else
-                     "10"; -- WAIT_DRDY
+                     "10" when drp_state = WAIT_DRDY   else
+                     "11"; -- INIT states
 
     -- -------------------------------------------------------------------------
     -- Decode xADC channel number, registered to align with eoc
@@ -145,17 +151,46 @@ begin
     begin
         if rising_edge(clk) then
             if rst = '1' then
-                drp_state  <= IDLE;
+                drp_state  <= INIT_WRITE1;
                 drp_den    <= '0';
+                drp_dwe    <= '0';
                 drp_daddr  <= (others => '0');
+                drp_di     <= (others => '0');
                 drp_ch_idx <= 0;
                 ch_regs    <= (others => (others => '0'));
                 ch_latched <= (others => (others => '0'));
                 conv_count <= (others => '0');
             else
                 drp_den <= '0';     -- default: de-assert after one clock
+                drp_dwe <= '0';     -- default: read mode
 
                 case drp_state is
+
+                    -- Startup init: write SEQ_REG1 = 0x0002 (enable VAUX1)
+                    when INIT_WRITE1 =>
+                        drp_daddr <= std_logic_vector(to_unsigned(16#49#, 7));
+                        drp_di    <= x"0002";
+                        drp_den   <= '1';
+                        drp_dwe   <= '1';
+                        drp_state <= INIT_WAIT1;
+
+                    when INIT_WAIT1 =>
+                        if xadc_drdy = '1' then
+                            drp_state <= INIT_WRITE2;
+                        end if;
+
+                    -- Startup init: write CFG_REG1 = 0x3000 (One Pass, ch sequencer)
+                    when INIT_WRITE2 =>
+                        drp_daddr <= std_logic_vector(to_unsigned(16#41#, 7));
+                        drp_di    <= x"3000";
+                        drp_den   <= '1';
+                        drp_dwe   <= '1';
+                        drp_state <= INIT_WAIT2;
+
+                    when INIT_WAIT2 =>
+                        if xadc_drdy = '1' then
+                            drp_state <= IDLE;
+                        end if;
 
                     when IDLE =>
                         if xadc_eoc_d = '1' and ch_valid = '1' then
