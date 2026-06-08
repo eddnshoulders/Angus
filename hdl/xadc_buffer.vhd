@@ -1,33 +1,32 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+library unisim;
+use unisim.vcomponents.all;
 
 -- =============================================================================
 -- xadc_buffer
 --
--- Interfaces between Xilinx xADC Wizard IP and pack.
+-- Instantiates the Zynq-7000 XADC hard primitive directly, bypassing the
+-- XADC Wizard IP to avoid Vivado IP caching and PS-XADC interface issues.
 --
--- xADC configured in event mode (one-pass sequencer) with convst trigger
--- driven by trig_pulse (crank-angle-synchronised sampling).
+-- Configuration (baked into bitstream via INIT registers):
+--   CFG_REG0 (0x40) = 0x0000 -- unipolar, no averaging
+--   CFG_REG1 (0x41) = 0x2EF0 -- continuous sequencer, disable alarms
+--   CFG_REG2 (0x42) = 0x0400 -- DCLK/4 = 25MHz ADCCLK at 100MHz DCLK
+--   CHSEL1   (0x48) = 0x0001 -- calibration channel enabled
+--   CHSEL2   (0x49) = 0x0002 -- VAUX1 enabled (Arduino A0 on PYNQ-Z2)
 --
--- On each convst trigger the xADC converts all enabled channels sequentially.
--- After each channel conversion eoc fires. A DRP read cycle is then issued
--- to retrieve the result from the xADC's internal register:
---   1. Assert den=1 with the channel's DRP address for one clock
---   2. Wait for drdy=1 (typically 2 clocks)
---   3. Latch do into the per-channel register
+-- Timing: continuous sequencer + event mode (CONVST = sample_pulse).
+-- Each rising edge of sample_pulse triggers one VAUX1 conversion.
+-- EOC fires after each conversion. DRP FSM reads result via DRP.
 --
--- After all channels complete, eos fires and ch_latched is updated with all
--- channel values simultaneously, guaranteeing a coherent sample snapshot.
+-- DRP read sequence:
+--   IDLE: wait for eoc_d='1' and ch_valid='1' (eoc_d registered to align)
+--   ISSUE_READ: assert DEN=1, DADDR=0x11 for one clock
+--   WAIT_DRDY: wait for DRDY=1, latch DO into ch_latched
 --
--- DRP address mapping: VAUX1 = 0x11, VAUX2 = 0x12 ... VAUXn = 0x10 + n
--- Channel 0 of this buffer = VAUX1 (Arduino A0 pin, E17/D18 on PYNQ-Z2)
--- DO register format: [15:4] = 12-bit result, [3:0] = 0
---
--- Channel mapping (adc_data):
---   adc_data[15:0]   = VAUX0
---   adc_data[31:16]  = VAUX1  (if NUM_CHANNELS > 1)
---   ...
+-- ILA outputs: eoc, eos, busy, channel, drdy, do, den, drp_state
 -- =============================================================================
 
 entity xadc_buffer is
@@ -39,96 +38,175 @@ entity xadc_buffer is
         clk              : in  std_logic;
         rst              : in  std_logic;
 
-        -- From xADC Wizard IP
-        xadc_do          : in  std_logic_vector(15 downto 0);
-        xadc_drdy        : in  std_logic;   -- DRP read data valid
-        xadc_channel     : in  std_logic_vector(4 downto 0);
-        xadc_eoc         : in  std_logic;   -- end of single channel conversion
-        xadc_eos         : in  std_logic;   -- end of sequence (all channels done)
-        xadc_busy        : in  std_logic;   -- conversion in progress
+        -- Analog inputs (VAUX1 = Arduino A0, E17/D18 on PYNQ-Z2)
+        vauxp1           : in  std_logic;
+        vauxn1           : in  std_logic;
 
-        -- To xADC Wizard IP
-        xadc_convst      : out std_logic;   -- triggers conversion = sample_pulse
-        xadc_dclk        : out std_logic;
-        xadc_den         : out std_logic;
-        xadc_dwe         : out std_logic;
-        xadc_daddr       : out std_logic_vector(6 downto 0);
-        xadc_di          : out std_logic_vector(15 downto 0);
-
-        -- Trigger input
+        -- Conversion trigger (crank-angle synchronised)
         sample_pulse     : in  std_logic;
 
-        -- Debug: DRP FSM state for ILA visibility
-        -- "00"=IDLE, "01"=ISSUE_READ, "10"=WAIT_DRDY
-        drp_state_out    : out std_logic_vector(1 downto 0);
-
-        -- Output: NUM_CHANNELS x 16-bit words, latched on eos
+        -- ADC result: NUM_CHANNELS x 16-bit words
+        -- Format: [15:4] = 12-bit result, [3:0] = don't care
         adc_data         : out std_logic_vector(NUM_CHANNELS * 16 - 1 downto 0);
 
-        -- Status
-        conversion_count : out unsigned(31 downto 0)
+        -- Conversion counter
+        conversion_count : out unsigned(31 downto 0);
+
+        -- ILA debug outputs
+        drp_state_out    : out std_logic_vector(1 downto 0);
+        xadc_eoc_out     : out std_logic;
+        xadc_eos_out     : out std_logic;
+        xadc_busy_out    : out std_logic;
+        xadc_channel_out : out std_logic_vector(4 downto 0);
+        xadc_drdy_out    : out std_logic;
+        xadc_do_out      : out std_logic_vector(15 downto 0);
+        xadc_den_out     : out std_logic
     );
 end entity xadc_buffer;
 
 architecture rtl of xadc_buffer is
 
-    type channel_regs_t is array (0 to NUM_CHANNELS - 1) of
-        std_logic_vector(15 downto 0);
+    -- -------------------------------------------------------------------------
+    -- XADC primitive internal signals
+    -- -------------------------------------------------------------------------
+    signal xadc_do      : std_logic_vector(15 downto 0);
+    signal xadc_drdy    : std_logic;
+    signal xadc_channel : std_logic_vector(4 downto 0);
+    signal xadc_eoc     : std_logic;
+    signal xadc_eos     : std_logic;
+    signal xadc_busy    : std_logic;
 
-    type drp_state_t is (
-        INIT_WRITE1, INIT_WAIT1,   -- startup: write SEQ_REG1 (enable VAUX1)
-        INIT_WRITE2, INIT_WAIT2,   -- startup: write CFG_REG1 (One Pass mode)
-        IDLE, ISSUE_READ, WAIT_DRDY);
+    signal vauxp_vec    : std_logic_vector(15 downto 0) := (others => '0');
+    signal vauxn_vec    : std_logic_vector(15 downto 0) := (others => '0');
 
-    signal ch_regs    : channel_regs_t := (others => (others => '0'));
-    signal ch_latched : channel_regs_t := (others => (others => '0'));
-    signal conv_count : unsigned(31 downto 0) := (others => '0');
+    -- -------------------------------------------------------------------------
+    -- DRP FSM
+    -- -------------------------------------------------------------------------
+    type drp_state_t is (IDLE, ISSUE_READ, WAIT_DRDY);
 
-    signal ch_idx     : integer range 0 to NUM_CHANNELS - 1 := 0;
-    signal ch_valid   : std_logic := '0';
-    signal xadc_eoc_d : std_logic := '0';
-
-    signal drp_state  : drp_state_t := INIT_WRITE1;
+    signal drp_state  : drp_state_t := IDLE;
     signal drp_den    : std_logic := '0';
     signal drp_dwe    : std_logic := '0';
     signal drp_daddr  : std_logic_vector(6 downto 0) := (others => '0');
     signal drp_di     : std_logic_vector(15 downto 0) := (others => '0');
     signal drp_ch_idx : integer range 0 to NUM_CHANNELS - 1 := 0;
 
+    -- -------------------------------------------------------------------------
+    -- Channel decode
+    -- -------------------------------------------------------------------------
+    signal ch_idx     : integer range 0 to NUM_CHANNELS - 1 := 0;
+    signal ch_valid   : std_logic := '0';
+    signal xadc_eoc_d : std_logic := '0';  -- registered to align with ch_valid
+
+    -- -------------------------------------------------------------------------
+    -- Output registers
+    -- -------------------------------------------------------------------------
+    type channel_regs_t is array (0 to NUM_CHANNELS - 1) of
+        std_logic_vector(15 downto 0);
+    signal ch_latched : channel_regs_t := (others => (others => '0'));
+    signal conv_count : unsigned(31 downto 0) := (others => '0');
+
 begin
 
     -- -------------------------------------------------------------------------
-    -- Static DRP outputs
+    -- VAUX input vector -- only VAUX1 connected
     -- -------------------------------------------------------------------------
-    xadc_dclk  <= clk;
-    xadc_dwe   <= drp_dwe;
-    xadc_di    <= drp_di;
-    xadc_den   <= drp_den;
-    xadc_daddr <= drp_daddr;
+    vauxp_vec(1) <= vauxp1;
+    vauxn_vec(1) <= vauxn1;
 
     -- -------------------------------------------------------------------------
-    -- convst: trigger xADC conversion on each sample_pulse
+    -- XADC primitive instantiation
+    --
+    -- INIT_41 = 0x2EF0: bits[15:12]=0x2 (continuous seq), bits[11:4]=0xEF
+    --           (disable alarms), bit[3:0]=0 (calibration enable)
+    -- INIT_42 = 0x0400: bits[9:8]=4 -- DCLK divider = 4 (25MHz ADCCLK)
+    -- INIT_48 = 0x0001: bit[0] = calibration channel enable
+    -- INIT_49 = 0x0002: bit[1] = VAUX1 enable
     -- -------------------------------------------------------------------------
-    xadc_convst <= sample_pulse;
+    U_XADC : XADC
+        generic map (
+            INIT_40           => X"0000",   -- CFG_REG0: unipolar, no averaging
+            INIT_41           => X"2EF0",   -- CFG_REG1: continuous seq, disable alarms
+            INIT_42           => X"0400",   -- CFG_REG2: DCLK/4 = 25MHz ADCCLK
+            INIT_43           => X"0000",
+            INIT_44           => X"0000",
+            INIT_45           => X"0000",
+            INIT_46           => X"0000",
+            INIT_47           => X"0000",
+            INIT_48           => X"0001",   -- CHSEL1: calibration enabled
+            INIT_49           => X"0002",   -- CHSEL2: VAUX1 enabled
+            INIT_4A           => X"0000",   -- no averaging
+            INIT_4B           => X"0000",
+            INIT_4C           => X"0000",   -- unipolar mode
+            INIT_4D           => X"0000",
+            INIT_4E           => X"0000",   -- default acquisition time
+            INIT_4F           => X"0000",
+            INIT_50           => X"B5ED",   -- OT upper alarm 125C (default)
+            INIT_51           => X"5999",   -- VCCINT upper alarm 1.05V
+            INIT_52           => X"A147",   -- VCCAUX upper alarm 1.89V
+            INIT_53           => X"DDDD",   -- OT reset 70C
+            INIT_54           => X"A93A",   -- temp lower alarm reset 60C
+            INIT_55           => X"5111",   -- VCCINT lower 0.95V
+            INIT_56           => X"91EB",   -- VCCAUX lower 1.71V
+            INIT_57           => X"AE4E",   -- OT lower reset 70C
+            INIT_58           => X"5999",   -- VCCBRAM upper 1.05V
+            INIT_5C           => X"5111",   -- VCCBRAM lower 0.95V
+            SIM_MONITOR_FILE  => "design.txt"
+        )
+        port map (
+            DCLK      => clk,
+            RESET     => rst,
+            CONVST    => sample_pulse,
+            CONVSTCLK => '0',
+            VAUXP     => vauxp_vec,
+            VAUXN     => vauxn_vec,
+            VP        => '0',
+            VN        => '0',
+            DO        => xadc_do,
+            DRDY      => xadc_drdy,
+            CHANNEL   => xadc_channel,
+            EOC       => xadc_eoc,
+            EOS       => xadc_eos,
+            BUSY      => xadc_busy,
+            OT        => open,
+            ALM       => open,
+            DEN       => drp_den,
+            DWE       => drp_dwe,
+            DADDR     => drp_daddr,
+            DI        => drp_di,
+            MUXADDR   => open
+        );
+
+    -- -------------------------------------------------------------------------
+    -- ILA outputs
+    -- -------------------------------------------------------------------------
+    xadc_eoc_out     <= xadc_eoc;
+    xadc_eos_out     <= xadc_eos;
+    xadc_busy_out    <= xadc_busy;
+    xadc_channel_out <= xadc_channel;
+    xadc_drdy_out    <= xadc_drdy;
+    xadc_do_out      <= xadc_do;
+    xadc_den_out     <= drp_den;
 
     drp_state_out <= "00" when drp_state = IDLE       else
                      "01" when drp_state = ISSUE_READ  else
-                     "10" when drp_state = WAIT_DRDY   else
-                     "11"; -- INIT states
+                     "10"; -- WAIT_DRDY
 
     -- -------------------------------------------------------------------------
-    -- Decode xADC channel number, registered to align with eoc
-    -- Auxiliary channels: 0x10 = VAUX0 ... 0x1F = VAUX15
+    -- Channel decode: registered to align with eoc
+    -- VAUX1 = channel address 0x11. ch_valid delayed 1 clock from channel.
+    -- xadc_eoc_d also delayed 1 clock to align with ch_valid.
     -- -------------------------------------------------------------------------
     p_ch_decode : process(clk)
     begin
         if rising_edge(clk) then
             if rst = '1' then
-                ch_idx   <= 0;
-                ch_valid <= '0';
+                ch_idx     <= 0;
+                ch_valid   <= '0';
+                xadc_eoc_d <= '0';
             else
                 ch_valid   <= '0';
-                xadc_eoc_d <= xadc_eoc;  -- align eoc with ch_valid (both 1 clock delayed)
+                xadc_eoc_d <= xadc_eoc;
                 if unsigned(xadc_channel) >= 16#11# and
                    unsigned(xadc_channel) <= 16#11# + NUM_CHANNELS - 1 then
                     ch_idx   <= to_integer(unsigned(xadc_channel)) - 16#11#;
@@ -140,57 +218,25 @@ begin
 
     -- -------------------------------------------------------------------------
     -- DRP read FSM
-    -- On each eoc (aligned with ch_valid/ch_idx), issue a DRP read to
-    -- retrieve the conversion result from the xADC internal register.
-    --
-    -- IDLE       : wait for eoc with valid channel
-    -- ISSUE_READ : assert den=1, daddr=0x10+ch_idx for one clock
-    -- WAIT_DRDY  : wait for drdy; latch do into ch_regs when drdy fires
+    -- Reads conversion result from XADC status register after each EOC.
     -- -------------------------------------------------------------------------
     p_drp : process(clk)
     begin
         if rising_edge(clk) then
             if rst = '1' then
-                drp_state  <= INIT_WRITE1;
+                drp_state  <= IDLE;
                 drp_den    <= '0';
                 drp_dwe    <= '0';
                 drp_daddr  <= (others => '0');
                 drp_di     <= (others => '0');
                 drp_ch_idx <= 0;
-                ch_regs    <= (others => (others => '0'));
                 ch_latched <= (others => (others => '0'));
                 conv_count <= (others => '0');
             else
-                drp_den <= '0';     -- default: de-assert after one clock
-                drp_dwe <= '0';     -- default: read mode
+                drp_den <= '0';
+                drp_dwe <= '0';
 
                 case drp_state is
-
-                    -- Startup init: write SEQ_REG1 = 0x0002 (enable VAUX1)
-                    when INIT_WRITE1 =>
-                        drp_daddr <= std_logic_vector(to_unsigned(16#49#, 7));
-                        drp_di    <= x"0002";
-                        drp_den   <= '1';
-                        drp_dwe   <= '1';
-                        drp_state <= INIT_WAIT1;
-
-                    when INIT_WAIT1 =>
-                        if xadc_drdy = '1' then
-                            drp_state <= INIT_WRITE2;
-                        end if;
-
-                    -- Startup init: write CFG_REG1 = 0x3000 (One Pass, ch sequencer)
-                    when INIT_WRITE2 =>
-                        drp_daddr <= std_logic_vector(to_unsigned(16#41#, 7));
-                        drp_di    <= x"3000";
-                        drp_den   <= '1';
-                        drp_dwe   <= '1';
-                        drp_state <= INIT_WAIT2;
-
-                    when INIT_WAIT2 =>
-                        if xadc_drdy = '1' then
-                            drp_state <= IDLE;
-                        end if;
 
                     when IDLE =>
                         if xadc_eoc_d = '1' and ch_valid = '1' then
@@ -202,13 +248,11 @@ begin
                         end if;
 
                     when ISSUE_READ =>
-                        -- den was asserted last clock; deassert and wait
                         drp_state <= WAIT_DRDY;
 
                     when WAIT_DRDY =>
                         if xadc_drdy = '1' then
-                            ch_regs(drp_ch_idx)    <= xadc_do;
-                            ch_latched(drp_ch_idx) <= xadc_do;  -- direct latch on drdy
+                            ch_latched(drp_ch_idx) <= xadc_do;
                             if conv_count /= (conv_count'range => '1') then
                                 conv_count <= conv_count + 1;
                             end if;

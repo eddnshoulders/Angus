@@ -64,22 +64,19 @@ entity top is
         a_raw              : in  std_logic;
         b_raw              : in  std_logic;
         z_raw              : in  std_logic;
-        -- XADC Wizard IP interface (event-triggered via trig_pulse)
-        xadc_do            : in  std_logic_vector(15 downto 0);
-        xadc_drdy          : in  std_logic;
-        xadc_channel       : in  std_logic_vector(4 downto 0);
-        xadc_eoc           : in  std_logic;
-        xadc_eos           : in  std_logic;
-        xadc_busy          : in  std_logic;
-        xadc_alarm         : in  std_logic;
-        xadc_ot            : in  std_logic;
+        -- XADC analog inputs (direct pin, VAUX1 = Arduino A0, E17/D18)
+        vauxp1             : in  std_logic;
+        vauxn1             : in  std_logic;
+
+        -- XADC ILA debug outputs
         xadc_drp_state     : out std_logic_vector(1 downto 0);
-        xadc_convst        : out std_logic;
-        xadc_dclk          : out std_logic;
-        xadc_den           : out std_logic;
-        xadc_dwe           : out std_logic;
-        xadc_daddr         : out std_logic_vector(6 downto 0);
-        xadc_di            : out std_logic_vector(15 downto 0);
+        xadc_eoc_out       : out std_logic;
+        xadc_eos_out       : out std_logic;
+        xadc_busy_out      : out std_logic;
+        xadc_channel_out   : out std_logic_vector(4 downto 0);
+        xadc_drdy_out      : out std_logic;
+        xadc_do_out        : out std_logic_vector(15 downto 0);
+        xadc_den_out       : out std_logic;
         di_ch              : in  std_logic_vector(7 downto 0);
         debug_out          : out std_logic_vector(15 downto 0);
         -- =====================================================================
@@ -325,8 +322,7 @@ architecture rtl of top is
     signal dbg_trig_pulse  : unsigned(15 downto 0) := (others => '0');
 
     -- =========================================================================
-    -- XADC buffer: single channel (VAUX0 = pressure sensor)
-    -- DO format: [15:4] = 12-bit result, [3:0] = 0
+    -- XADC buffer: direct XADC primitive, single channel (VAUX1)
     -- adc_ch0 drives peak_detector; adc_ch1-6 unused (single cylinder)
     -- =========================================================================
     signal adc_data  : std_logic_vector(15 downto 0);
@@ -594,31 +590,27 @@ begin
                   trig_count=>trig_count);
 
     -- =========================================================================
-    -- XADC buffer: single channel (VAUX0 = pressure sensor)
+    -- XADC buffer: direct XADC primitive, single channel (VAUX1)
     -- Triggered by trig_pulse (crank-angle-synchronised sampling).
-    -- DRP FSM inside xadc_buffer reads result after each eoc.
     -- =========================================================================
     u_xadc_buffer : entity work.xadc_buffer
         generic map (NUM_CHANNELS => 1)
         port map (
             clk              => clk,
             rst              => rst,
-            xadc_do          => xadc_do,
-            xadc_drdy        => xadc_drdy,
-            xadc_channel     => xadc_channel,
-            xadc_eoc         => xadc_eoc,
-            xadc_eos         => xadc_eos,
-            xadc_busy        => xadc_busy,
-            xadc_convst      => xadc_convst,
-            xadc_dclk        => xadc_dclk,
-            xadc_den         => xadc_den,
-            xadc_dwe         => xadc_dwe,
-            xadc_daddr       => xadc_daddr,
-            xadc_di          => xadc_di,
+            vauxp1           => vauxp1,
+            vauxn1           => vauxn1,
             sample_pulse     => trig_pulse,
             adc_data         => adc_data,
+            conversion_count => open,
             drp_state_out    => xadc_drp_state,
-            conversion_count => open);
+            xadc_eoc_out     => xadc_eoc_out,
+            xadc_eos_out     => xadc_eos_out,
+            xadc_busy_out    => xadc_busy_out,
+            xadc_channel_out => xadc_channel_out,
+            xadc_drdy_out    => xadc_drdy_out,
+            xadc_do_out      => xadc_do_out,
+            xadc_den_out     => xadc_den_out);
 
     -- Extract 12-bit result: DO format [15:4] = result, [3:0] = 0
     adc_ch0 <= unsigned(adc_data(15 downto 4));
