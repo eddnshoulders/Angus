@@ -11,8 +11,8 @@ use unisim.vcomponents.all;
 -- XADC Wizard IP to avoid Vivado IP caching and PS-XADC interface issues.
 --
 -- Configuration (baked into bitstream via INIT registers):
---   CFG_REG0 (0x40) = 0x0011 -- channel=VAUX1, unipolar
---   CFG_REG1 (0x41) = 0x3EF0 -- single channel mode, disable alarms
+--   CFG_REG0 (0x40) = 0x0211 -- channel=VAUX1 (0x11), ACQ=1, unipolar
+--   CFG_REG1 (0x41) = 0x3FFF -- single channel mode, all alarms disabled
 --   CFG_REG2 (0x42) = 0x0400 -- DCLK/4 = 25MHz ADCCLK at 100MHz DCLK
 --
 -- Timing: single channel mode + event mode (CONVST = sample_pulse).
@@ -125,8 +125,8 @@ begin
     -- -------------------------------------------------------------------------
     U_XADC : XADC
         generic map (
-            INIT_40           => X"0011",   -- CFG_REG0: channel=VAUX1 (0x11), unipolar
-            INIT_41           => X"3EF0",   -- CFG_REG1: single channel mode, disable alarms
+            INIT_40           => X"0211",   -- CFG_REG0: channel=VAUX1, ACQ=1, unipolar
+            INIT_41           => X"3FFF",   -- CFG_REG1: single channel mode, all alarms disabled
             INIT_42           => X"0400",   -- CFG_REG2: DCLK/4 = 25MHz ADCCLK
             INIT_43           => X"0000",
             INIT_44           => X"0000",
