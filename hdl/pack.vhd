@@ -9,17 +9,15 @@ use ieee.numeric_std.all;
 -- On each trig_pulse, packs one 3-word sample into the AXI stream:
 --
 --   Word 0: [31:16] speed_rpm_slow    [15:0]  speed_rpm_fast
---   Word 1: [31:16] reserved(0)       [15:0]  tdc_deg[15:0]
---   Word 2: [31:24] DI[7:0]           [23:12] adc_ch0[11:0]  [11:0] reserved(0)
+--   Word 1: [31:0]  tdc_deg (0-7199 = 0.0-719.99 deg, x0.1 deg LSB)
+--   Word 2: [31:24] DI[7:0]  [23:16] 0x00  [15:4] adc_ch0[11:0]  [3:0] 0x0
 --
 -- Python unpacking:
 --   word0 = buf[0]; rpm_slow = word0 >> 16; rpm_fast = word0 & 0xFFFF
---   word1 = buf[1]; tdc = word1 & 0xFFFF
---   word2 = buf[2]; di = word2 >> 24; pressure = (word2 >> 12) & 0xFFF
+--   word1 = buf[1]; tdc = word1  (degrees x10, divide by 10 for float)
+--   word2 = buf[2]; di = word2 >> 24; pressure = (word2 >> 4) & 0xFFF
 --
--- tlast is asserted on Word 2 of every dma_buffer_size engine cycles (z_edges).
--- z_edge resets the DMA cycle counter.
--- ovf_count increments when trig_pulse arrives while a packet is in progress.
+-- tlast is asserted on Word 2 every dma_buffer_size engine cycles (z_edges).
 -- =============================================================================
 
 entity pack is
@@ -109,13 +107,14 @@ begin
                         if m_axis_tready = '1' then state <= WORD1; end if;
 
                     when WORD1 =>
-                        tdata_int <= x"0000" & std_logic_vector(s_tdc);
+                        tdata_int <= std_logic_vector(resize(s_tdc, 32));
                         if m_axis_tready = '1' then state <= WORD2; end if;
 
                     when WORD2 =>
                         tdata_int <= s_di &
+                                     x"00" &
                                      std_logic_vector(s_adc0) &
-                                     x"000";
+                                     x"0";
                         tlast_int <= last_sample;
                         if m_axis_tready = '1' then
                             pkt_cnt <= pkt_cnt + 1;

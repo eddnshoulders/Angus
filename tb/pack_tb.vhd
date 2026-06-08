@@ -171,12 +171,9 @@ begin
         wait until tvalid = '1'; wait for 1 ns;    -- Word 0
         wait until rising_edge(clk); wait for 1 ns; -- Word 1
 
-        assert tdata(15 downto 0) = std_logic_vector(to_unsigned(1234, 16))
-            report "FAIL T3: W1[15:0] tdc_deg expected 1234 got " &
-                   integer'image(to_integer(unsigned(tdata(15 downto 0))))
-            severity failure;
-        assert tdata(31 downto 16) = x"0000"
-            report "FAIL T3: W1[31:16] should be zero"
+        assert tdata = std_logic_vector(to_unsigned(1234, 32))
+            report "FAIL T3: W1 tdc_deg expected 1234 got " &
+                   integer'image(to_integer(unsigned(tdata)))
             severity failure;
         report "TEST 3: PASS";
         wait_packet(5);
@@ -196,12 +193,15 @@ begin
             report "FAIL T4: W2[31:24] DI expected 0xA5 got " &
                    integer'image(to_integer(unsigned(tdata(31 downto 24))))
             severity failure;
-        assert to_integer(unsigned(tdata(23 downto 12))) = 512
-            report "FAIL T4: W2[23:12] adc_ch0 expected 512 got " &
-                   integer'image(to_integer(unsigned(tdata(23 downto 12))))
+        assert tdata(23 downto 16) = x"00"
+            report "FAIL T4: W2[23:16] should be 0x00"
             severity failure;
-        assert tdata(11 downto 0) = x"000"
-            report "FAIL T4: W2[11:0] should be zero"
+        assert to_integer(unsigned(tdata(15 downto 4))) = 512
+            report "FAIL T4: W2[15:4] adc_ch0 expected 512 got " &
+                   integer'image(to_integer(unsigned(tdata(15 downto 4))))
+            severity failure;
+        assert tdata(3 downto 0) = x"0"
+            report "FAIL T4: W2[3:0] should be 0x0"
             severity failure;
         report "TEST 4: PASS";
         wait_packet(5);
