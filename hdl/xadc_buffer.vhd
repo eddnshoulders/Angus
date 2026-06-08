@@ -11,15 +11,14 @@ use unisim.vcomponents.all;
 -- XADC Wizard IP to avoid Vivado IP caching and PS-XADC interface issues.
 --
 -- Configuration (baked into bitstream via INIT registers):
---   CFG_REG0 (0x40) = 0x0000 -- unipolar, no averaging
---   CFG_REG1 (0x41) = 0x2EF0 -- continuous sequencer, disable alarms
+--   CFG_REG0 (0x40) = 0x0011 -- channel=VAUX1, unipolar
+--   CFG_REG1 (0x41) = 0x3EF0 -- single channel mode, disable alarms
 --   CFG_REG2 (0x42) = 0x0400 -- DCLK/4 = 25MHz ADCCLK at 100MHz DCLK
---   CHSEL1   (0x48) = 0x0001 -- calibration channel enabled
---   CHSEL2   (0x49) = 0x0002 -- VAUX1 enabled (Arduino A0 on PYNQ-Z2)
 --
--- Timing: continuous sequencer + event mode (CONVST = sample_pulse).
--- Each rising edge of sample_pulse triggers one VAUX1 conversion.
--- EOC fires after each conversion. DRP FSM reads result via DRP.
+-- Timing: single channel mode + event mode (CONVST = sample_pulse).
+-- Each rising edge of sample_pulse triggers exactly one VAUX1 conversion.
+-- One trig_pulse = one pressure sample at that crank angle.
+-- EOC fires after each conversion. DRP FSM reads result from address 0x11.
 --
 -- DRP read sequence:
 --   IDLE: wait for eoc_d='1' and ch_valid='1' (eoc_d registered to align)
@@ -126,8 +125,8 @@ begin
     -- -------------------------------------------------------------------------
     U_XADC : XADC
         generic map (
-            INIT_40           => X"0000",   -- CFG_REG0: unipolar, no averaging
-            INIT_41           => X"2EF0",   -- CFG_REG1: continuous seq, disable alarms
+            INIT_40           => X"0011",   -- CFG_REG0: channel=VAUX1 (0x11), unipolar
+            INIT_41           => X"3EF0",   -- CFG_REG1: single channel mode, disable alarms
             INIT_42           => X"0400",   -- CFG_REG2: DCLK/4 = 25MHz ADCCLK
             INIT_43           => X"0000",
             INIT_44           => X"0000",
@@ -195,9 +194,9 @@ begin
                      "10"; -- WAIT_DRDY
 
     -- -------------------------------------------------------------------------
-    -- Channel decode: registered to align with eoc
-    -- VAUX1 = channel address 0x11. ch_valid delayed 1 clock from channel.
-    -- xadc_eoc_d also delayed 1 clock to align with ch_valid.
+    -- Channel decode: in single channel mode every EOC is VAUX1 (0x11).
+    -- ch_valid is always '1' one clock after EOC (registered to align
+    -- with xadc_eoc_d for FSM trigger condition).
     -- -------------------------------------------------------------------------
     p_ch_decode : process(clk)
     begin
@@ -207,13 +206,9 @@ begin
                 ch_valid   <= '0';
                 xadc_eoc_d <= '0';
             else
-                ch_valid   <= '0';
                 xadc_eoc_d <= xadc_eoc;
-                if unsigned(xadc_channel) >= 16#11# and
-                   unsigned(xadc_channel) <= 16#11# + NUM_CHANNELS - 1 then
-                    ch_idx   <= to_integer(unsigned(xadc_channel)) - 16#11#;
-                    ch_valid <= '1';
-                end if;
+                ch_valid   <= '1';  -- single channel mode: every EOC is VAUX1
+                ch_idx     <= 0;
             end if;
         end if;
     end process p_ch_decode;
