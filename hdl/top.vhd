@@ -327,13 +327,7 @@ architecture rtl of top is
     -- adc_ch0 drives peak_detector; adc_ch1-6 unused (single cylinder)
     -- =========================================================================
     signal adc_data  : std_logic_vector(15 downto 0);
-    signal adc_ch0   : unsigned(11 downto 0);
-    signal adc_ch1   : unsigned(11 downto 0) := (others => '0');
-    signal adc_ch2   : unsigned(11 downto 0) := (others => '0');
-    signal adc_ch3   : unsigned(11 downto 0) := (others => '0');
-    signal adc_ch4   : unsigned(11 downto 0) := (others => '0');
-    signal adc_ch5   : unsigned(11 downto 0) := (others => '0');
-    signal adc_ch6   : unsigned(11 downto 0) := (others => '0');
+    signal adc_ch0   : unsigned(11 downto 0);  -- XADC VAUX1 = pressure sensor
 
 
 begin
@@ -623,8 +617,7 @@ begin
     u_pack : entity work.pack
         port map (clk=>clk, rst=>rst, trig_pulse=>trig_pulse, tdc_deg=>tdc_deg,
                   speed_rpm_slow=>speed_rpm_slow, speed_rpm_fast=>speed_rpm_fast,
-                  di_ch=>di_ch, adc_ch1=>adc_ch1, adc_ch2=>adc_ch2, adc_ch3=>adc_ch3,
-                  adc_ch4=>adc_ch4, adc_ch5=>adc_ch5, adc_ch6=>adc_ch6, z_edge=>z_edge,
+                  di_ch=>di_ch, adc_ch0=>adc_ch0, z_edge=>z_edge,
                   dma_buffer_size=>dma_buffer_size, m_axis_tdata=>m_axis_tdata,
                   m_axis_tvalid=>m_axis_tvalid, m_axis_tready=>m_axis_tready,
                   m_axis_tlast=>m_axis_tlast, pkt_count=>pkt_count, ovf_count=>ovf_count);

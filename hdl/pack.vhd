@@ -6,18 +6,18 @@ use ieee.numeric_std.all;
 -- pack.vhd  (v3)
 --
 -- AXI-Stream DMA sample packer.
--- On each trig_pulse, packs one 6-word sample into the AXI stream:
+-- On each trig_pulse, packs one 3-word sample into the AXI stream:
 --
 --   Word 0: [31:16] speed_rpm_slow    [15:0]  speed_rpm_fast
 --   Word 1: [31:16] reserved(0)       [15:0]  tdc_deg[15:0]
---   Word 2: [31:24] DI[7:0]           [23:16] reserved(0)   [15:4] reserved(0) [3:0] adc_ch1[11:8]
---          (more precisely: x"00" & di_ch & x"0" & adc_ch1)
---   Word 3: [31:20] adc_ch2[11:0]     [19:16] 0   [15:4] adc_ch3[11:0]  [3:0] 0
---          (more precisely: x"0" & adc_ch2 & x"0" & adc_ch3)
---   Word 4: [31:16] (x"0"&adc_ch4)   [15:0]  (x"0"&adc_ch5)
---   Word 5: [31:16] (x"0"&adc_ch6)   [15:0]  reserved(0)
+--   Word 2: [31:24] DI[7:0]           [23:12] adc_ch0[11:0]  [11:0] reserved(0)
 --
--- tlast is asserted on Word 5 of every dma_buffer_size engine cycles (z_edges).
+-- Python unpacking:
+--   word0 = buf[0]; rpm_slow = word0 >> 16; rpm_fast = word0 & 0xFFFF
+--   word1 = buf[1]; tdc = word1 & 0xFFFF
+--   word2 = buf[2]; di = word2 >> 24; pressure = (word2 >> 12) & 0xFFF
+--
+-- tlast is asserted on Word 2 of every dma_buffer_size engine cycles (z_edges).
 -- z_edge resets the DMA cycle counter.
 -- ovf_count increments when trig_pulse arrives while a packet is in progress.
 -- =============================================================================
@@ -29,19 +29,14 @@ entity pack is
         -- Trigger
         trig_pulse      : in  std_logic;
         -- Sample data
-        tdc_deg         : in  unsigned(15 downto 0);   -- TDC-referenced angle, 0-7199
+        tdc_deg         : in  unsigned(15 downto 0);
         speed_rpm_slow  : in  unsigned(15 downto 0);
         speed_rpm_fast  : in  unsigned(15 downto 0);
         di_ch           : in  std_logic_vector(7 downto 0);
-        adc_ch1         : in  unsigned(11 downto 0);
-        adc_ch2         : in  unsigned(11 downto 0);
-        adc_ch3         : in  unsigned(11 downto 0);
-        adc_ch4         : in  unsigned(11 downto 0);
-        adc_ch5         : in  unsigned(11 downto 0);
-        adc_ch6         : in  unsigned(11 downto 0);
+        adc_ch0         : in  unsigned(11 downto 0);  -- pressure (XADC VAUX1)
         -- DMA control
         z_edge          : in  std_logic;
-        dma_buffer_size : in  unsigned(3 downto 0);   -- engine cycles per DMA buffer
+        dma_buffer_size : in  unsigned(3 downto 0);
         -- AXI-Stream master
         m_axis_tdata    : out std_logic_vector(31 downto 0);
         m_axis_tvalid   : out std_logic;
@@ -55,7 +50,7 @@ end entity pack;
 
 architecture rtl of pack is
 
-    type t_state is (IDLE, WORD0, WORD1, WORD2, WORD3, WORD4, WORD5);
+    type t_state is (IDLE, WORD0, WORD1, WORD2);
     signal state        : t_state := IDLE;
     signal pkt_cnt      : unsigned(31 downto 0) := (others => '0');
     signal ovf_cnt      : unsigned(15 downto 0) := (others => '0');
@@ -68,12 +63,7 @@ architecture rtl of pack is
     signal s_rpm_slow   : unsigned(15 downto 0) := (others => '0');
     signal s_rpm_fast   : unsigned(15 downto 0) := (others => '0');
     signal s_di         : std_logic_vector(7 downto 0) := (others => '0');
-    signal s_adc1       : unsigned(11 downto 0) := (others => '0');
-    signal s_adc2       : unsigned(11 downto 0) := (others => '0');
-    signal s_adc3       : unsigned(11 downto 0) := (others => '0');
-    signal s_adc4       : unsigned(11 downto 0) := (others => '0');
-    signal s_adc5       : unsigned(11 downto 0) := (others => '0');
-    signal s_adc6       : unsigned(11 downto 0) := (others => '0');
+    signal s_adc0       : unsigned(11 downto 0) := (others => '0');
 
     -- DMA buffer boundary tracking
     signal last_sample  : std_logic := '0';
@@ -102,18 +92,12 @@ begin
                         tvalid_int <= '0';
                         tlast_int  <= '0';
                         if trig_pulse = '1' then
-                            -- Latch sample data and buffer boundary flag
                             last_sample <= next_is_last;
                             s_tdc       <= tdc_deg;
                             s_rpm_slow  <= speed_rpm_slow;
                             s_rpm_fast  <= speed_rpm_fast;
                             s_di        <= di_ch;
-                            s_adc1      <= adc_ch1;
-                            s_adc2      <= adc_ch2;
-                            s_adc3      <= adc_ch3;
-                            s_adc4      <= adc_ch4;
-                            s_adc5      <= adc_ch5;
-                            s_adc6      <= adc_ch6;
+                            s_adc0      <= adc_ch0;
                             state       <= WORD0;
                         end if;
 
@@ -129,21 +113,9 @@ begin
                         if m_axis_tready = '1' then state <= WORD2; end if;
 
                     when WORD2 =>
-                        tdata_int <= x"00" & s_di & x"0" & std_logic_vector(s_adc1);
-                        if m_axis_tready = '1' then state <= WORD3; end if;
-
-                    when WORD3 =>
-                        tdata_int <= x"0" & std_logic_vector(s_adc2) &
-                                     x"0" & std_logic_vector(s_adc3);
-                        if m_axis_tready = '1' then state <= WORD4; end if;
-
-                    when WORD4 =>
-                        tdata_int <= x"0" & std_logic_vector(s_adc4) &
-                                     x"0" & std_logic_vector(s_adc5);
-                        if m_axis_tready = '1' then state <= WORD5; end if;
-
-                    when WORD5 =>
-                        tdata_int <= x"0" & std_logic_vector(s_adc6) & x"0000";
+                        tdata_int <= s_di &
+                                     std_logic_vector(s_adc0) &
+                                     x"000";
                         tlast_int <= last_sample;
                         if m_axis_tready = '1' then
                             pkt_cnt <= pkt_cnt + 1;
@@ -168,7 +140,6 @@ begin
 
     -- =========================================================================
     -- DMA cycle counter: flags the last sample of each DMA buffer
-    -- Counts z_edges (engine cycles); next_is_last set when count expires.
     -- =========================================================================
     p_cycle : process(clk)
     begin
@@ -186,8 +157,7 @@ begin
                         next_is_last <= '0';
                     end if;
                 end if;
-                -- Clear flag after tlast is transmitted
-                if state = WORD5 and m_axis_tready = '1' and last_sample = '1' then
+                if state = WORD2 and m_axis_tready = '1' and last_sample = '1' then
                     next_is_last <= '0';
                 end if;
             end if;
