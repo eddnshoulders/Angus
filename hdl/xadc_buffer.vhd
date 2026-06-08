@@ -60,7 +60,8 @@ entity xadc_buffer is
         xadc_channel_out : out std_logic_vector(4 downto 0);
         xadc_drdy_out    : out std_logic;
         xadc_do_out      : out std_logic_vector(15 downto 0);
-        xadc_den_out     : out std_logic
+        xadc_den_out     : out std_logic;
+        xadc_convst_out  : out std_logic
     );
 end entity xadc_buffer;
 
@@ -187,6 +188,7 @@ begin
     xadc_drdy_out    <= xadc_drdy;
     xadc_do_out      <= xadc_do;
     xadc_den_out     <= drp_den;
+    xadc_convst_out  <= sample_pulse;
 
     drp_state_out <= "00" when drp_state = IDLE       else
                      "01" when drp_state = ISSUE_READ  else

@@ -77,6 +77,7 @@ entity top is
         xadc_drdy_out      : out std_logic;
         xadc_do_out        : out std_logic_vector(15 downto 0);
         xadc_den_out       : out std_logic;
+        xadc_convst_out    : out std_logic;
         di_ch              : in  std_logic_vector(7 downto 0);
         debug_out          : out std_logic_vector(15 downto 0);
         -- =====================================================================
@@ -610,7 +611,8 @@ begin
             xadc_channel_out => xadc_channel_out,
             xadc_drdy_out    => xadc_drdy_out,
             xadc_do_out      => xadc_do_out,
-            xadc_den_out     => xadc_den_out);
+            xadc_den_out     => xadc_den_out,
+            xadc_convst_out  => xadc_convst_out);
 
     -- Extract 12-bit result: DO format [15:4] = result, [3:0] = 0
     adc_ch0 <= unsigned(adc_data(15 downto 4));
