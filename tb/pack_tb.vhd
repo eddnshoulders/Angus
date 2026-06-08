@@ -9,13 +9,10 @@ use std.env.all;
 -- pack_tb.vhd  (v3)
 --
 -- Unit testbench for pack.vhd.
--- 6-word packet format:
---   W0: speed_rpm_slow | speed_rpm_fast
---   W1: 0x0000         | tdc_deg
---   W2: DI[7:0]        | 0x0 | adc_ch1[11:0]
---   W3: 0x0|adc_ch2    | 0x0|adc_ch3
---   W4: 0x0|adc_ch4    | 0x0|adc_ch5
---   W5: 0x0|adc_ch6    | 0x0000 (reserved)
+-- 3-word packet format:
+--   W0: speed_rpm_slow[15:0] | speed_rpm_fast[15:0]
+--   W1: 0x0000               | tdc_deg[15:0]
+--   W2: DI[7:0]              | adc_ch0[11:0] | 0x000
 -- =============================================================================
 
 entity pack_tb is
@@ -24,7 +21,7 @@ end entity pack_tb;
 architecture sim of pack_tb is
 
     constant CLK_PERIOD : time    := 10 ns;
-    constant N_WORDS    : integer := 6;
+    constant N_WORDS    : integer := 3;
 
     signal clk        : std_logic := '0';
     signal rst        : std_logic := '1';
@@ -33,12 +30,7 @@ architecture sim of pack_tb is
     signal rpm_slow   : unsigned(15 downto 0) := to_unsigned(3000, 16);
     signal rpm_fast   : unsigned(15 downto 0) := to_unsigned(3100, 16);
     signal di_ch      : std_logic_vector(7 downto 0) := x"A5";
-    signal adc1       : unsigned(11 downto 0) := to_unsigned(100, 12);
-    signal adc2       : unsigned(11 downto 0) := to_unsigned(200, 12);
-    signal adc3       : unsigned(11 downto 0) := to_unsigned(300, 12);
-    signal adc4       : unsigned(11 downto 0) := to_unsigned(400, 12);
-    signal adc5       : unsigned(11 downto 0) := to_unsigned(500, 12);
-    signal adc6       : unsigned(11 downto 0) := to_unsigned(600, 12);
+    signal adc0       : unsigned(11 downto 0) := to_unsigned(512, 12);
     signal z_edge     : std_logic := '0';
     signal buf_size   : unsigned(3 downto 0) := to_unsigned(2, 4);
     signal tdata      : std_logic_vector(31 downto 0);
@@ -51,7 +43,6 @@ architecture sim of pack_tb is
     signal sim_done   : boolean := false;
     signal test_num   : integer := 0;
 
-    -- Captured packet words
     type packet_t is array (0 to N_WORDS - 1) of std_logic_vector(31 downto 0);
     signal rx_words   : packet_t := (others => (others => '0'));
     signal rx_idx     : integer := 0;
@@ -95,12 +86,7 @@ begin
             speed_rpm_slow  => rpm_slow,
             speed_rpm_fast  => rpm_fast,
             di_ch           => di_ch,
-            adc_ch1         => adc1,
-            adc_ch2         => adc2,
-            adc_ch3         => adc3,
-            adc_ch4         => adc4,
-            adc_ch5         => adc5,
-            adc_ch6         => adc6,
+            adc_ch0         => adc0,
             z_edge          => z_edge,
             dma_buffer_size => buf_size,
             m_axis_tdata    => tdata,
@@ -120,13 +106,12 @@ begin
                 rx_done <= '0';
                 rx_tlast <= '0';
             else
-                rx_done <= '0';
                 if tvalid = '1' and tready = '1' then
                     rx_words(rx_idx) <= tdata;
+                    rx_tlast         <= tlast;
                     if tlast = '1' then
-                        rx_done  <= '1';
-                        rx_tlast <= '1';
-                        rx_idx   <= 0;
+                        rx_done <= '1';
+                        rx_idx  <= 0;
                     elsif rx_idx < N_WORDS - 1 then
                         rx_idx <= rx_idx + 1;
                     end if;
@@ -138,9 +123,9 @@ begin
     p_stim : process
     begin
 
-        -- --------------------------------------------------------------------
-        -- TEST 1: Reset -- tvalid low, counters zero
-        -- --------------------------------------------------------------------
+        -- ----------------------------------------------------------------
+        -- T1: Reset -- tvalid low, counters zero
+        -- ----------------------------------------------------------------
         report "TEST 1: Reset behaviour";
         test_num <= 1;
 
@@ -155,10 +140,10 @@ begin
             severity failure;
         report "TEST 1: PASS";
 
-        -- --------------------------------------------------------------------
-        -- TEST 2: Word 0 content -- speed_rpm_slow | speed_rpm_fast
-        -- --------------------------------------------------------------------
-        report "TEST 2: Word 0 content (speed_rpm_slow | speed_rpm_fast)";
+        -- ----------------------------------------------------------------
+        -- T2: Word 0 content -- speed_rpm_slow | speed_rpm_fast
+        -- ----------------------------------------------------------------
+        report "TEST 2: Word 0 content (rpm_slow=3000 | rpm_fast=3100)";
         test_num <= 2;
 
         tready <= '1';
@@ -166,107 +151,132 @@ begin
         wait until tvalid = '1'; wait for 1 ns;
 
         assert tdata(31 downto 16) = std_logic_vector(to_unsigned(3000, 16))
-            report "FAIL T2: Word 0 [31:16] should be rpm_slow (3000), got " &
+            report "FAIL T2: W0[31:16] rpm_slow expected 3000 got " &
                    integer'image(to_integer(unsigned(tdata(31 downto 16))))
             severity failure;
         assert tdata(15 downto 0) = std_logic_vector(to_unsigned(3100, 16))
-            report "FAIL T2: Word 0 [15:0] should be rpm_fast (3100), got " &
+            report "FAIL T2: W0[15:0] rpm_fast expected 3100 got " &
                    integer'image(to_integer(unsigned(tdata(15 downto 0))))
             severity failure;
         report "TEST 2: PASS";
+        wait_packet(5);
 
-        -- Drain rest of packet (5 more words at 1 clock/word with tready=1)
-        wait_packet(8);
-
-        -- --------------------------------------------------------------------
-        -- TEST 3: Word 1 content -- tdc_deg
-        -- --------------------------------------------------------------------
-        report "TEST 3: Word 1 content (tdc_deg = 1234)";
+        -- ----------------------------------------------------------------
+        -- T3: Word 1 content -- tdc_deg
+        -- ----------------------------------------------------------------
+        report "TEST 3: Word 1 content (tdc_deg=1234)";
         test_num <= 3;
 
         fire_trig(trig_pulse, clk);
-        wait until tvalid = '1'; wait for 1 ns;  -- Word 0
+        wait until tvalid = '1'; wait for 1 ns;    -- Word 0
+        wait until rising_edge(clk); wait for 1 ns; -- Word 1
 
-        wait until rising_edge(clk); wait for 1 ns;  -- Word 1
         assert tdata(15 downto 0) = std_logic_vector(to_unsigned(1234, 16))
-            report "FAIL T3: Word 1 [15:0] should be tdc_deg (1234), got " &
+            report "FAIL T3: W1[15:0] tdc_deg expected 1234 got " &
                    integer'image(to_integer(unsigned(tdata(15 downto 0))))
             severity failure;
+        assert tdata(31 downto 16) = x"0000"
+            report "FAIL T3: W1[31:16] should be zero"
+            severity failure;
         report "TEST 3: PASS";
-        wait_packet(8);
+        wait_packet(5);
 
-        -- --------------------------------------------------------------------
-        -- TEST 4: pkt_count increments after each complete packet
-        -- --------------------------------------------------------------------
-        report "TEST 4: pkt_count increments";
+        -- ----------------------------------------------------------------
+        -- T4: Word 2 content -- DI + adc_ch0
+        -- ----------------------------------------------------------------
+        report "TEST 4: Word 2 content (DI=0xA5 | adc_ch0=512)";
         test_num <= 4;
 
-        wait for 1 ns;
-        assert to_integer(pkt_cnt) = 2
-            report "FAIL T4: pkt_count should be 2 after 2 packets, got " &
-                   integer'image(to_integer(pkt_cnt))
+        fire_trig(trig_pulse, clk);
+        wait until tvalid = '1'; wait for 1 ns;    -- Word 0
+        wait until rising_edge(clk); wait for 1 ns; -- Word 1
+        wait until rising_edge(clk); wait for 1 ns; -- Word 2
+
+        assert tdata(31 downto 24) = x"A5"
+            report "FAIL T4: W2[31:24] DI expected 0xA5 got " &
+                   integer'image(to_integer(unsigned(tdata(31 downto 24))))
+            severity failure;
+        assert to_integer(unsigned(tdata(23 downto 12))) = 512
+            report "FAIL T4: W2[23:12] adc_ch0 expected 512 got " &
+                   integer'image(to_integer(unsigned(tdata(23 downto 12))))
+            severity failure;
+        assert tdata(11 downto 0) = x"000"
+            report "FAIL T4: W2[11:0] should be zero"
             severity failure;
         report "TEST 4: PASS";
+        wait_packet(5);
 
-        -- --------------------------------------------------------------------
-        -- TEST 5: Back-pressure -- tvalid held high while tready=0
-        -- --------------------------------------------------------------------
-        report "TEST 5: Back-pressure -- tvalid held while tready=0";
+        -- ----------------------------------------------------------------
+        -- T5: pkt_count increments after each complete packet
+        -- ----------------------------------------------------------------
+        report "TEST 5: pkt_count increments";
         test_num <= 5;
+
+        wait for 1 ns;
+        assert to_integer(pkt_cnt) = 3
+            report "FAIL T5: pkt_count should be 3 after 3 packets, got " &
+                   integer'image(to_integer(pkt_cnt))
+            severity failure;
+        report "TEST 5: PASS";
+
+        -- ----------------------------------------------------------------
+        -- T6: Back-pressure -- tvalid held while tready=0
+        -- ----------------------------------------------------------------
+        report "TEST 6: Back-pressure";
+        test_num <= 6;
 
         tready <= '0';
         fire_trig(trig_pulse, clk);
         wait for 5 * CLK_PERIOD; wait for 1 ns;
 
         assert tvalid = '1'
-            report "FAIL T5: tvalid should remain high during back-pressure"
+            report "FAIL T6: tvalid should remain high during back-pressure"
             severity failure;
-
         tready <= '1';
-        wait_packet(10);
-        report "TEST 5: PASS";
+        wait_packet(8);
+        report "TEST 6: PASS";
 
-        -- --------------------------------------------------------------------
-        -- TEST 6: Overflow when trig fires during packet transmission
-        -- --------------------------------------------------------------------
-        report "TEST 6: Overflow counter increments on busy trig";
-        test_num <= 6;
+        -- ----------------------------------------------------------------
+        -- T7: Overflow counter increments on busy trig
+        -- ----------------------------------------------------------------
+        report "TEST 7: Overflow counter";
+        test_num <= 7;
 
         tready <= '0';
-        fire_trig(trig_pulse, clk);   -- start packet (stalled)
+        fire_trig(trig_pulse, clk);
         wait for 3 * CLK_PERIOD;
-        fire_trig(trig_pulse, clk);   -- overflow
+        fire_trig(trig_pulse, clk);
         wait for 3 * CLK_PERIOD; wait for 1 ns;
 
         assert to_integer(ovf_cnt) = 1
-            report "FAIL T6: ovf_count should be 1, got " &
+            report "FAIL T7: ovf_count expected 1 got " &
                    integer'image(to_integer(ovf_cnt))
             severity failure;
         tready <= '1';
-        wait_packet(10);
-        report "TEST 6: PASS";
+        wait_packet(8);
+        report "TEST 7: PASS";
 
-        -- --------------------------------------------------------------------
-        -- TEST 7: tlast fires after dma_buffer_size z_edges (= 2)
-        -- --------------------------------------------------------------------
-        report "TEST 7: tlast asserts at dma_buffer_size z_edge boundary";
-        test_num <= 7;
+        -- ----------------------------------------------------------------
+        -- T8: tlast fires after dma_buffer_size z_edges
+        -- ----------------------------------------------------------------
+        report "TEST 8: tlast at dma_buffer_size boundary";
+        test_num <= 8;
 
         fire_z(z_edge, clk);
         fire_z(z_edge, clk);   -- 2nd z_edge: next_is_last set
         wait for 2 * CLK_PERIOD;
         fire_trig(trig_pulse, clk);
-        wait_packet(10);
+        wait_packet(8);
         wait for 1 ns;
 
         assert rx_tlast = '1'
-            report "FAIL T7: tlast should have been asserted at buffer boundary"
+            report "FAIL T8: tlast should be asserted at buffer boundary"
             severity failure;
-        report "TEST 7: PASS";
+        report "TEST 8: PASS";
 
         wait for 10 * CLK_PERIOD;
         report "========================================";
-        report "All pack tests complete";
+        report "All pack tests PASS";
         report "========================================";
 
         sim_done <= true;
