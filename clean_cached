@@ -1,0 +1,7 @@
+cd /home/yocto/Angus/vivado
+rm -rf angus.gen
+rm -rf angus.runs
+rm -rf angus.cache
+rm -rf angus.hw
+rm -rf angus.ip_user_files
+rm -rf angus.sim

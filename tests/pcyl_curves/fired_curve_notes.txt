@@ -1,0 +1,8 @@
+SOC:  358.0 deg
+CA10: 364.0 deg
+CA50: 372.0 deg
+CA90: 386.0 deg
+Peak pressure: 375.1 deg
+Resolution: 0.1 deg
+Samples: 7200
+DAC range: 150 to 3900 counts
