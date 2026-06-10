@@ -616,7 +616,6 @@ begin
     -- =========================================================================
     u_pack : entity work.pack
         port map (clk=>clk, rst=>rst, trig_pulse=>trig_pulse, tdc_deg=>tdc_deg,
-                  speed_rpm_slow=>speed_rpm_slow, speed_rpm_fast=>speed_rpm_fast,
                   di_ch=>di_ch, adc_ch0=>adc_ch0, z_edge=>z_edge,
                   dma_buffer_size=>dma_buffer_size, m_axis_tdata=>m_axis_tdata,
                   m_axis_tvalid=>m_axis_tvalid, m_axis_tready=>m_axis_tready,

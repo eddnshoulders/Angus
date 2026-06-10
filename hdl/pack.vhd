@@ -6,18 +6,20 @@ use ieee.numeric_std.all;
 -- pack.vhd  (v3)
 --
 -- AXI-Stream DMA sample packer.
--- On each trig_pulse, packs one 3-word sample into the AXI stream:
+-- On each trig_pulse, packs one 2-word sample into the AXI stream:
 --
---   Word 0: [31:16] speed_rpm_slow    [15:0]  speed_rpm_fast
---   Word 1: [31:0]  tdc_deg (0-7199 = 0.0-719.99 deg, x0.1 deg LSB)
---   Word 2: [31:24] DI[7:0]  [23:16] 0x00  [15:4] adc_ch0[11:0]  [3:0] 0x0
+--   Word 0: [31:0]  tdc_deg (0-7199 = 0.0-719.9 deg, 0.1 deg/LSB)
+--   Word 1: [31:24] DI[7:0]  [23:16] 0x00  [15:4] pressure[11:0]  [3:0] 0x0
+--
+-- RPM is available via AXI-Lite registers (SPEED_RPM_SLOW / SPEED_RPM_FAST)
+-- and does not need to be streamed at 0.1 deg sample intervals.
 --
 -- Python unpacking:
---   word0 = buf[0]; rpm_slow = word0 >> 16; rpm_fast = word0 & 0xFFFF
---   word1 = buf[1]; tdc = word1  (degrees x10, divide by 10 for float)
---   word2 = buf[2]; di = word2 >> 24; pressure = (word2 >> 4) & 0xFFF
+--   tdc_deg  = buf[0] * 0.1          # degrees (0.0-719.9)
+--   di       = (buf[1] >> 24) & 0xFF
+--   pressure = (buf[1] >>  4) & 0xFFF
 --
--- tlast is asserted on Word 2 every dma_buffer_size engine cycles (z_edges).
+-- tlast is asserted on Word 1 every dma_buffer_size engine cycles (z_edges).
 -- =============================================================================
 
 entity pack is
@@ -28,10 +30,8 @@ entity pack is
         trig_pulse      : in  std_logic;
         -- Sample data
         tdc_deg         : in  unsigned(15 downto 0);
-        speed_rpm_slow  : in  unsigned(15 downto 0);
-        speed_rpm_fast  : in  unsigned(15 downto 0);
         di_ch           : in  std_logic_vector(7 downto 0);
-        adc_ch0         : in  unsigned(11 downto 0);  -- pressure (XADC VAUX1)
+        adc_ch0         : in  unsigned(11 downto 0);
         -- DMA control
         z_edge          : in  std_logic;
         dma_buffer_size : in  unsigned(3 downto 0);
@@ -48,7 +48,7 @@ end entity pack;
 
 architecture rtl of pack is
 
-    type t_state is (IDLE, WORD0, WORD1, WORD2);
+    type t_state is (IDLE, WORD0, WORD1);
     signal state        : t_state := IDLE;
     signal pkt_cnt      : unsigned(31 downto 0) := (others => '0');
     signal ovf_cnt      : unsigned(15 downto 0) := (others => '0');
@@ -58,8 +58,6 @@ architecture rtl of pack is
 
     -- Latched sample data (captured at trig_pulse)
     signal s_tdc        : unsigned(15 downto 0) := (others => '0');
-    signal s_rpm_slow   : unsigned(15 downto 0) := (others => '0');
-    signal s_rpm_fast   : unsigned(15 downto 0) := (others => '0');
     signal s_di         : std_logic_vector(7 downto 0) := (others => '0');
     signal s_adc0       : unsigned(11 downto 0) := (others => '0');
 
@@ -92,8 +90,6 @@ begin
                         if trig_pulse = '1' then
                             last_sample <= next_is_last;
                             s_tdc       <= tdc_deg;
-                            s_rpm_slow  <= speed_rpm_slow;
-                            s_rpm_fast  <= speed_rpm_fast;
                             s_di        <= di_ch;
                             s_adc0      <= adc_ch0;
                             state       <= WORD0;
@@ -102,15 +98,10 @@ begin
                     when WORD0 =>
                         tvalid_int <= '1';
                         tlast_int  <= '0';
-                        tdata_int  <= std_logic_vector(s_rpm_slow) &
-                                      std_logic_vector(s_rpm_fast);
+                        tdata_int  <= std_logic_vector(resize(s_tdc, 32));
                         if m_axis_tready = '1' then state <= WORD1; end if;
 
                     when WORD1 =>
-                        tdata_int <= std_logic_vector(resize(s_tdc, 32));
-                        if m_axis_tready = '1' then state <= WORD2; end if;
-
-                    when WORD2 =>
                         tdata_int <= s_di &
                                      x"00" &
                                      std_logic_vector(s_adc0) &
@@ -156,7 +147,7 @@ begin
                         next_is_last <= '0';
                     end if;
                 end if;
-                if state = WORD2 and m_axis_tready = '1' and last_sample = '1' then
+                if state = WORD1 and m_axis_tready = '1' and last_sample = '1' then
                     next_is_last <= '0';
                 end if;
             end if;

@@ -92,21 +92,20 @@ READ_REGS = {
 ALL_REGS = {**WRITE_REGS, **READ_REGS}
 
 # =============================================================================
-# DMA packet format (3 x 32-bit words per sample, packed by pack.vhd)
+# DMA packet format (2 x 32-bit words per sample, packed by pack.vhd)
 #
-#   Word 0: [31:16] speed_rpm_slow   [15:0]  speed_rpm_fast
-#   Word 1: [31:0]  tdc_deg          (0-7199, 0.1 deg/LSB, 0.0-719.9 deg)
-#   Word 2: [31:24] DI[7:0]          [23:16] 0x00
-#            [15:4] pressure[11:0]   [3:0]   0x0
+#   Word 0: [31:0]  tdc_deg (0-7199, 0.1 deg/LSB = 0.0-719.9 deg)
+#   Word 1: [31:24] DI[7:0]  [23:16] 0x00
+#            [15:4] pressure[11:0]  [3:0] 0x0
+#
+# RPM available via AXI-Lite: SPEED_RPM_SLOW, SPEED_RPM_FAST
 #
 # Python unpacking:
-#   rpm_slow  = (buf[0] >> 16) & 0xFFFF
-#   rpm_fast  =  buf[0]        & 0xFFFF
-#   tdc_deg   =  buf[1]        * 0.1        # degrees
-#   di        = (buf[2] >> 24) & 0xFF
-#   pressure  = (buf[2] >>  4) & 0xFFF     # 12-bit XADC VAUX1
+#   tdc_deg  = buf[0] * 0.1          # degrees (0.0-719.9)
+#   di       = (buf[1] >> 24) & 0xFF
+#   pressure = (buf[1] >>  4) & 0xFFF
 # =============================================================================
-DMA_WORDS_PER_SAMPLE = 3
+DMA_WORDS_PER_SAMPLE = 2
 
 
 class AngusRegs:

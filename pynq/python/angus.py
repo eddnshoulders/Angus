@@ -57,7 +57,7 @@ _UNCHANGED = object()   # sentinel for "leave this parameter as-is"
 # =============================================================================
 # Sample namedtuple returned by Angus.decode()
 # =============================================================================
-Sample = namedtuple('Sample', ['tdc_deg', 'rpm_slow', 'rpm_fast', 'di', 'pressure'])
+Sample = namedtuple('Sample', ['tdc_deg', 'di', 'pressure'])
 
 
 # =============================================================================
@@ -323,25 +323,23 @@ class Angus:
     @staticmethod
     def decode(words):
         """
-        Decode one 3-word DMA sample.
+        Decode one 2-word DMA sample.
 
-        words: sequence of 3 unsigned 32-bit integers.
+        words: sequence of 2 unsigned 32-bit integers.
         Returns a Sample namedtuple:
             .tdc_deg   -- engine angle, 0.0-719.9 degrees (0.1 deg/LSB)
-            .rpm_slow  -- z-period RPM
-            .rpm_fast  -- ab-period RPM
             .di        -- digital inputs byte
             .pressure  -- 12-bit XADC VAUX1 raw count (pressure sensor)
+
+        RPM is available via AXI-Lite registers (SPEED_RPM_SLOW / SPEED_RPM_FAST).
         """
-        if len(words) < 3:
-            raise ValueError(f"Expected 3 words, got {len(words)}")
-        w = [int(words[i]) & 0xFFFF_FFFF for i in range(3)]
+        if len(words) < 2:
+            raise ValueError(f"Expected 2 words, got {len(words)}")
+        w = [int(words[i]) & 0xFFFF_FFFF for i in range(2)]
         return Sample(
-            tdc_deg  = w[1] * _TDC_LSB,
-            rpm_slow = (w[0] >> 16) & 0xFFFF,
-            rpm_fast = (w[0] >>  0) & 0xFFFF,
-            di       = (w[2] >> 24) & 0xFF,
-            pressure = (w[2] >>  4) & 0x0FFF,
+            tdc_deg  = w[0] * _TDC_LSB,
+            di       = (w[1] >> 24) & 0xFF,
+            pressure = (w[1] >>  4) & 0x0FFF,
         )
 
     @staticmethod
@@ -380,13 +378,13 @@ class Angus:
         """
         Decode an entire DMA buffer.
 
-        buf:       flat array/list of 32-bit words (3 words per sample).
+        buf:       flat array/list of 32-bit words (2 words per sample).
         n_samples: number of samples to decode (default: all complete samples).
         Returns list of Sample namedtuples.
         """
-        total = len(buf) // 3
+        total = len(buf) // 2
         n = total if n_samples is None else min(n_samples, total)
-        return [Angus.decode(buf[i * 3 : i * 3 + 3]) for i in range(n)]
+        return [Angus.decode(buf[i * 2 : i * 2 + 2]) for i in range(n)]
 
     # -------------------------------------------------------------------------
     # Diagnostics
