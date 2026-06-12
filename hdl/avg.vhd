@@ -208,7 +208,6 @@ begin
                 acc_bank    <= '0';
             else
                 acc_we   <= '0';
-                swap_ack <= '0';
 
                 case acc_state is
 
@@ -283,9 +282,11 @@ begin
                 out_bin       <= (others => '0');
                 clr_bin       <= (others => '0');
                 out_we        <= '0';
+                swap_ack      <= '0';
                 frame_out_cnt <= (others => '0');
             else
                 out_we   <= '0';
+                swap_ack <= '0';  -- default low, pulsed for one cycle only
 
                 case out_state is
 
@@ -293,7 +294,7 @@ begin
                         out_valid <= '0';
                         tlast_int <= '0';
                         if bank_full = '1' then
-                            swap_ack  <= '1';   -- acknowledge swap to acc FSM
+                            swap_ack  <= '1';   -- one-cycle pulse to acc FSM
                             lat_n     <= avg_n;
                             lat_rpm   <= rpm;
                             out_bin   <= (others => '0');
@@ -372,7 +373,7 @@ begin
     m_axis_tlast  <= s_axis_tlast              when bypass_active = '1'
                      else tlast_int;
     s_axis_tready <= m_axis_tready             when bypass_active = '1'
-                     else '1';
+                     else '1' when acc_state = ACC_IDLE else '0';
 
     frame_count   <= frame_out_cnt;
 
