@@ -120,8 +120,8 @@ architecture rtl of avg is
     -- =========================================================================
     -- Output generator FSM
     -- =========================================================================
-    type t_out_state is (OUT_IDLE, OUT_HDR0, OUT_HDR1, OUT_RDREQ,
-                         OUT_RDWAIT, OUT_STREAM, OUT_CLR);
+    type t_out_state is (OUT_IDLE, OUT_HDR0, OUT_HDR1, OUT_RDWAIT,
+                         OUT_STREAM, OUT_CLR);
     signal out_state    : t_out_state := OUT_IDLE;
 
     signal out_bin      : unsigned(12 downto 0) := (others => '0');
@@ -315,41 +315,47 @@ begin
                     when OUT_HDR1 =>
                         out_data  <= resize(lat_n, 32);
                         if m_axis_tready = '1' then
+                            -- Issue read for bin 0 now, result available in 2 cycles
                             out_addr  <= (others => '0');
-                            out_state <= OUT_RDREQ;
+                            out_bin   <= (others => '0');
+                            out_state <= OUT_RDWAIT;
                         end if;
 
-                    when OUT_RDREQ =>
-                        out_valid <= '0';
-                        out_addr  <= out_bin;
-                        out_state <= OUT_RDWAIT;
-
                     when OUT_RDWAIT =>
+                        -- Issue read for bin 0+1 while waiting for bin 0 data
+                        out_addr  <= out_bin + 1;
                         out_state <= OUT_STREAM;
 
                     when OUT_STREAM =>
+                        -- Present current bin (out_rdata from 2 cycles ago)
                         out_valid <= '1';
                         out_data  <= shift_right(out_rdata, to_integer(lat_n));
+                        -- Set tlast when presenting second-to-last bin
+                        if out_bin = BINS - 2 then
+                            tlast_int <= '1';
+                        end if;
                         if m_axis_tready = '1' then
                             if out_bin = BINS - 1 then
-                                -- Last bin presented with tlast already asserted
+                                -- Last bin: tlast already asserted, move to CLR
+                                -- Don't clear tlast here - clear it in OUT_CLR
                                 out_valid     <= '0';
-                                tlast_int     <= '0';
                                 frame_out_cnt <= frame_out_cnt + 1;
                                 clr_bin       <= (others => '0');
                                 out_state     <= OUT_CLR;
                             else
-                                out_bin   <= out_bin + 1;
-                                -- Assert tlast one cycle early so it is
-                                -- registered and stable when bin 7199 is presented
-                                if out_bin = BINS - 2 then
-                                    tlast_int <= '1';
+                                -- Issue read for bin+2 while presenting bin
+                                -- Clamp address to BINS-1 to avoid out-of-bounds
+                                out_bin  <= out_bin + 1;
+                                if to_integer(out_bin) + 2 < BINS then
+                                    out_addr <= out_bin + 2;
+                                else
+                                    out_addr <= to_unsigned(BINS - 1, 13);
                                 end if;
-                                out_state <= OUT_RDREQ;
                             end if;
                         end if;
 
                     when OUT_CLR =>
+                        tlast_int <= '0';  -- clear tlast here, one cycle after last bin
                         out_addr  <= clr_bin;
                         out_wdata <= (others => '0');
                         out_we    <= '1';

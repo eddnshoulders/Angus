@@ -125,7 +125,8 @@ architecture sim of avg_tb is
 
     -- =========================================================================
     -- Helper: receive and discard n_words output words
-    -- Uses clocked loop to properly detect AXI handshakes
+    -- With pipelined BRAM reads, tvalid is continuous during streaming
+    -- so we simply count rising edges where tvalid is high
     -- =========================================================================
     procedure drain_words (
         constant n_words    : in  integer;
@@ -285,24 +286,22 @@ begin
                    integer'image(to_integer(unsigned(m_axis_tdata)))
             severity failure;
 
-        -- Bin 0: expect 100
-        -- tvalid goes low during RDREQ/RDWAIT, must wait for it to go high again
-        wait until m_axis_tvalid = '0';   -- wait for RDREQ to drop tvalid
-        wait until m_axis_tvalid = '1';   -- wait for STREAM to raise tvalid
+        -- After HDR1, BRAM pipeline takes 2 cycles (RDWAIT + first STREAM)
+        -- then tvalid is continuously high for all 7200 bins.
+        -- Skip 2 startup cycles then sample bin 0:
+        wait until rising_edge(clk); -- RDWAIT
+        wait until rising_edge(clk); -- first STREAM cycle (bin 0 presented)
         wait for 1 ns;
         assert to_integer(unsigned(m_axis_tdata)) = 100
             report "FAIL T3: bin 0 averaged value wrong, expected 100, got " &
                    integer'image(to_integer(unsigned(m_axis_tdata)))
             severity failure;
 
-        -- Drain bins 1..7198 (BINS-2 bins)
+        -- Drain bins 1..7198 (tvalid continuous, one bin per clock)
         drain_words(BINS - 2, m_axis_tvalid, m_axis_tready, clk);
 
-        -- Last bin (7199): expect 100, tlast asserted
-        -- Sample immediately after tvalid rises to catch tlast before it clears
-        wait until m_axis_tvalid = '0';   -- wait for RDREQ gap
-        wait until m_axis_tvalid = '1';   -- wait for bin 7199 STREAM
-        wait for 1 ns;
+        -- Last bin (7199): next rising edge, tlast should be asserted
+        wait until rising_edge(clk); wait for 1 ns;
         assert to_integer(unsigned(m_axis_tdata)) = 100
             report "FAIL T3: bin 7199 averaged value wrong, expected 100, got " &
                    integer'image(to_integer(unsigned(m_axis_tdata)))
