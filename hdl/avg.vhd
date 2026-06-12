@@ -291,27 +291,28 @@ begin
                 case out_state is
 
                     when OUT_IDLE =>
-                        out_valid <= '0';
                         tlast_int <= '0';
                         if bank_full = '1' then
                             swap_ack  <= '1';
                             lat_n     <= avg_n;
                             lat_rpm   <= rpm;
-                            out_data  <= resize(rpm, 32);  -- pre-load for HDR0
                             out_bin   <= (others => '0');
+                            out_valid <= '1';  -- pre-assert so HDR0 first cycle is valid
                             out_state <= OUT_HDR0;
+                        else
+                            out_valid <= '0';
                         end if;
 
                     when OUT_HDR0 =>
-                        out_valid <= '1';
+                        -- out_valid already '1' from OUT_IDLE
+                        -- m_axis_tdata driven combinatorially from lat_rpm
                         tlast_int <= '0';
-                        out_data  <= resize(lat_rpm, 32);  -- stable every cycle
                         if m_axis_tready = '1' then
                             out_state <= OUT_HDR1;
                         end if;
 
                     when OUT_HDR1 =>
-                        out_data  <= resize(lat_n, 32);    -- stable every cycle
+                        -- m_axis_tdata driven combinatorially from lat_n
                         if m_axis_tready = '1' then
                             out_addr  <= (others => '0');
                             out_state <= OUT_RDREQ;
@@ -370,8 +371,8 @@ begin
     -- registered out_data (BRAM output, already has read latency accounted for).
     -- =========================================================================
     m_axis_tdata  <= s_axis_tdata                        when bypass_active = '1'
-                     else std_logic_vector(resize(lat_rpm, 32)) when out_state = OUT_HDR0
-                     else std_logic_vector(resize(lat_n,  32))  when out_state = OUT_HDR1
+                     else std_logic_vector(resize(rpm,   32)) when out_state = OUT_HDR0
+                     else std_logic_vector(resize(lat_n, 32)) when out_state = OUT_HDR1
                      else std_logic_vector(out_data);
     m_axis_tvalid <= s_axis_tvalid             when bypass_active = '1'
                      else out_valid;
