@@ -297,7 +297,7 @@ begin
                             swap_ack  <= '1';
                             lat_n     <= avg_n;
                             lat_rpm   <= rpm;
-                            out_data  <= resize(rpm, 32);  -- pre-load HDR0 data
+                            out_data  <= resize(rpm, 32);  -- pre-load for HDR0
                             out_bin   <= (others => '0');
                             out_state <= OUT_HDR0;
                         end if;
@@ -305,15 +305,15 @@ begin
                     when OUT_HDR0 =>
                         out_valid <= '1';
                         tlast_int <= '0';
-                        out_data  <= resize(lat_rpm, 32);
+                        -- out_data already holds lat_rpm, loaded in OUT_IDLE
                         if m_axis_tready = '1' then
+                            out_data  <= resize(lat_n, 32);  -- pre-load for HDR1
                             out_state <= OUT_HDR1;
                         end if;
 
                     when OUT_HDR1 =>
-                        out_data  <= resize(lat_n, 32);
+                        -- out_data holds lat_n, pre-loaded in HDR0
                         if m_axis_tready = '1' then
-                            -- Issue first BRAM read
                             out_addr  <= (others => '0');
                             out_state <= OUT_RDREQ;
                         end if;
