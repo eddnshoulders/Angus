@@ -283,11 +283,17 @@ begin
                 clr_bin       <= (others => '0');
                 out_we        <= '0';
                 frame_out_cnt <= (others => '0');
+                swap_ack      <= '0';
             else
                 out_we   <= '0';
-                -- swap_ack held high while bank_full is asserted
-                -- (acc FSM may still be in READ/WRITE when bank_full first appears)
-                swap_ack <= bank_full;
+                -- swap_ack: set when OUT_IDLE first sees bank_full, hold
+                -- until bank_full clears (acc FSM clears it after processing).
+                -- This gives the acc 2+ cycles to reach ACC_WAIT_SWAP.
+                if bank_full = '0' then
+                    swap_ack <= '0';
+                elsif out_state = OUT_IDLE then
+                    swap_ack <= '1';
+                end if;
 
                 case out_state is
 
@@ -298,8 +304,6 @@ begin
                             lat_n     <= avg_n;
                             lat_rpm   <= rpm;
                             out_bin   <= (others => '0');
-                            -- Pre-load out_data with rpm so it is stable
-                            -- for the full HDR0 cycle when out_valid goes high
                             out_data  <= resize(rpm, 32);
                             out_state <= OUT_HDR0;
                         end if;

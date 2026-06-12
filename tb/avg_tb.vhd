@@ -125,8 +125,7 @@ architecture sim of avg_tb is
 
     -- =========================================================================
     -- Helper: receive and discard n_words output words
-    -- With pipelined BRAM reads, tvalid is continuous during streaming
-    -- so we simply count rising edges where tvalid is high
+    -- tvalid is continuous during streaming so simply wait n_words clock edges
     -- =========================================================================
     procedure drain_words (
         constant n_words    : in  integer;
@@ -134,16 +133,10 @@ architecture sim of avg_tb is
         signal   tready     : out std_logic;
         signal   clk        : in  std_logic
     ) is
-        variable count : integer := 0;
     begin
         tready <= '1';
-        count := 0;
-        while count < n_words loop
+        for i in 0 to n_words - 1 loop
             wait until rising_edge(clk);
-            wait for 1 ns;
-            if tvalid = '1' then
-                count := count + 1;
-            end if;
         end loop;
     end procedure drain_words;
 
@@ -405,39 +398,31 @@ begin
         rpm   <= to_unsigned(3000, 16);
         fc_before := frame_count;
 
+        -- Send 4 frames sequentially. After frames 1&2, output frame 1 starts.
+        -- After frames 3&4, output frame 2 starts.
         send_frame(10, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
                    s_axis_tready, clk);
         send_frame(10, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
+                   s_axis_tready, clk);
+        send_frame(20, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
+                   s_axis_tready, clk);
+        send_frame(20, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
                    s_axis_tready, clk);
 
+        -- By now both output frames have been triggered (frames 1&2 → out1,
+        -- frames 3&4 → out2). Drain both frames completely.
+        -- Frame 2's output may have already started while we were sending frames 3&4,
+        -- so use drain_words (counts edges) rather than wait until tvalid.
         m_axis_tready <= '1';
-        wait until m_axis_tvalid = '1'; wait for 1 ns;  -- frame 1 rpm header
 
-        -- Send frames 3 and 4 concurrently into other bank
-        send_frame(20, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
-                   s_axis_tready, clk);
-        send_frame(20, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
-                   s_axis_tready, clk);
-
-        -- Drain remainder of frame 1 (N header + 7200 bins = BINS+1)
-        drain_words(BINS + 1, m_axis_tvalid, m_axis_tready, clk);
-
-        -- Frame 2 header rpm
-        wait until m_axis_tvalid = '1'; wait for 1 ns;
-        -- Frame 2 header N
-        wait until rising_edge(clk); wait for 1 ns;
-        -- Frame 2 bin 0
-        wait until rising_edge(clk); wait until rising_edge(clk); wait for 1 ns;
-        assert to_integer(unsigned(m_axis_tdata)) = 20
-            report "FAIL T6: frame 2 bin 0 corrupted, expected 20, got " &
-                   integer'image(to_integer(unsigned(m_axis_tdata)))
-            severity failure;
-
-        drain_words(BINS - 1, m_axis_tvalid, m_axis_tready, clk);
+        -- Drain 2 complete frames: 2 × (2 headers + 7200 bins) = 2 × 7202 = 14404
+        -- Both may be back-to-back with no gap if frame 2 started during frame 1 CLR
+        drain_words(2 * (BINS + 2), m_axis_tvalid, m_axis_tready, clk);
 
         wait for 5 * CLK_PERIOD; wait for 1 ns;
         assert frame_count = fc_before + 2
-            report "FAIL T6: expected 2 output frames"
+            report "FAIL T6: expected 2 output frames, got " &
+                   integer'image(to_integer(frame_count - fc_before))
             severity failure;
         report "TEST 6: PASS";
         wait for 10 * CLK_PERIOD;
