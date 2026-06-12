@@ -294,9 +294,10 @@ begin
                         out_valid <= '0';
                         tlast_int <= '0';
                         if bank_full = '1' then
-                            swap_ack  <= '1';   -- one-cycle pulse to acc FSM
+                            swap_ack  <= '1';
                             lat_n     <= avg_n;
                             lat_rpm   <= rpm;
+                            out_data  <= resize(rpm, 32);  -- pre-load HDR0 data
                             out_bin   <= (others => '0');
                             out_state <= OUT_HDR0;
                         end if;
@@ -304,13 +305,14 @@ begin
                     when OUT_HDR0 =>
                         out_valid <= '1';
                         tlast_int <= '0';
-                        out_data  <= resize(lat_rpm, 32);
+                        -- out_data already holds lat_rpm from OUT_IDLE
                         if m_axis_tready = '1' then
+                            out_data  <= resize(lat_n, 32);  -- pre-load HDR1 data
                             out_state <= OUT_HDR1;
                         end if;
 
                     when OUT_HDR1 =>
-                        out_data  <= resize(lat_n, 32);
+                        -- out_data holds lat_n, loaded in HDR0
                         if m_axis_tready = '1' then
                             -- Issue first BRAM read
                             out_addr  <= (others => '0');
