@@ -266,15 +266,16 @@ begin
                    s_axis_tready, clk);
 
         -- Wait for output frame header word 0: rpm
-        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
-        wait until rising_edge(clk); wait for 1 ns;
+        -- Sample immediately after tvalid goes high (before next clock edge
+        -- advances the FSM). m_tdata is stable combinatorially from out_data.
+        wait until m_axis_tvalid = '1';
+        wait for 1 ns;
         assert unsigned(m_axis_tdata) = 3000
             report "FAIL T3: header rpm mismatch, got " &
                    integer'image(to_integer(unsigned(m_axis_tdata)))
             severity failure;
 
-        -- Header word 1: N
-        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
+        -- Header word 1: N -- wait for next rising edge (FSM now in HDR1)
         wait until rising_edge(clk); wait for 1 ns;
         assert unsigned(m_axis_tdata) = 1
             report "FAIL T3: header N mismatch, got " &
