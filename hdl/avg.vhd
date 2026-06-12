@@ -291,28 +291,32 @@ begin
                 case out_state is
 
                     when OUT_IDLE =>
+                        out_valid <= '0';
                         tlast_int <= '0';
                         if bank_full = '1' then
                             swap_ack  <= '1';
                             lat_n     <= avg_n;
                             lat_rpm   <= rpm;
                             out_bin   <= (others => '0');
-                            out_valid <= '1';  -- pre-assert so HDR0 first cycle is valid
+                            -- Pre-load out_data with rpm so it is stable
+                            -- for the full HDR0 cycle when out_valid goes high
+                            out_data  <= resize(rpm, 32);
                             out_state <= OUT_HDR0;
-                        else
-                            out_valid <= '0';
                         end if;
 
                     when OUT_HDR0 =>
-                        -- out_valid already '1' from OUT_IDLE
-                        -- m_axis_tdata driven combinatorially from lat_rpm
+                        -- out_data holds rpm (pre-loaded in IDLE)
+                        -- Hold out_data=rpm every cycle we are in HDR0
+                        out_valid <= '1';
                         tlast_int <= '0';
+                        out_data  <= resize(lat_rpm, 32);
                         if m_axis_tready = '1' then
                             out_state <= OUT_HDR1;
                         end if;
 
                     when OUT_HDR1 =>
-                        -- m_axis_tdata driven combinatorially from lat_n
+                        -- Hold out_data=lat_n every cycle we are in HDR1
+                        out_data  <= resize(lat_n, 32);
                         if m_axis_tready = '1' then
                             out_addr  <= (others => '0');
                             out_state <= OUT_RDREQ;
@@ -366,14 +370,17 @@ begin
 
     -- =========================================================================
     -- Bypass mux and output assignments
-    -- Header words (rpm, N) are driven combinatorially from lat_rpm/lat_n
-    -- to avoid registered pipeline latency issues. Bin data comes from
-    -- registered out_data (BRAM output, already has read latency accounted for).
+    -- out_data is pre-loaded one state early throughout the FSM so it is
+    -- always stable for the full cycle when out_valid is high.
     -- =========================================================================
-    m_axis_tdata  <= s_axis_tdata                        when bypass_active = '1'
-                     else std_logic_vector(resize(rpm,   32)) when out_state = OUT_HDR0
-                     else std_logic_vector(resize(lat_n, 32)) when out_state = OUT_HDR1
+    m_axis_tdata  <= s_axis_tdata              when bypass_active = '1'
                      else std_logic_vector(out_data);
+    m_axis_tvalid <= s_axis_tvalid             when bypass_active = '1'
+                     else out_valid;
+    m_axis_tlast  <= s_axis_tlast              when bypass_active = '1'
+                     else tlast_int;
+    s_axis_tready <= m_axis_tready             when bypass_active = '1'
+                     else '1' when acc_state = ACC_IDLE else '0';
     m_axis_tvalid <= s_axis_tvalid             when bypass_active = '1'
                      else out_valid;
     m_axis_tlast  <= s_axis_tlast              when bypass_active = '1'
