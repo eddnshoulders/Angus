@@ -94,7 +94,12 @@ architecture sim of avg_tb is
     end procedure send_frame;
 
     -- =========================================================================
-    -- Helper: receive one output word, return data
+    -- Helper: receive one output word.
+    -- Waits for tvalid to be asserted (may already be high), then waits for
+    -- the next rising edge where tvalid AND tready are both high (the actual
+    -- AXI handshake), then samples tdata/tlast AFTER that edge.
+    -- NOTE: uses two-step wait because wait until rising_edge(clk) and cond
+    -- evaluates the condition BEFORE registered updates propagate.
     -- =========================================================================
     procedure recv_word (
         signal   tdata      : in  std_logic_vector(31 downto 0);
@@ -107,14 +112,19 @@ architecture sim of avg_tb is
     ) is
     begin
         tready <= '1';
-        wait until rising_edge(clk) and tvalid = '1';
+        -- Wait until tvalid is asserted (catches registered updates)
+        if tvalid = '0' then
+            wait until tvalid = '1';
+        end if;
+        -- Now wait for the rising edge where the handshake completes
+        wait until rising_edge(clk);
+        wait for 1 ns;
         data_out := tdata;
         last_out := tlast;
-        wait for 1 ns;
     end procedure recv_word;
 
     -- =========================================================================
-    -- Helper: receive and discard N output words
+    -- Helper: receive and discard n_words output words
     -- =========================================================================
     procedure drain_words (
         constant n_words    : in  integer;
@@ -125,7 +135,10 @@ architecture sim of avg_tb is
     begin
         tready <= '1';
         for i in 0 to n_words - 1 loop
-            wait until rising_edge(clk) and tvalid = '1';
+            if tvalid = '0' then
+                wait until tvalid = '1';
+            end if;
+            wait until rising_edge(clk);
         end loop;
         wait for 1 ns;
     end procedure drain_words;
@@ -252,25 +265,25 @@ begin
         send_frame(100, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
                    s_axis_tready, clk);
 
-        -- Wait for output frame to start
-        wait until rising_edge(clk) and m_axis_tvalid = '1';
-        wait for 1 ns;
-
-        -- Header word 0: rpm
+        -- Wait for output frame header word 0: rpm
+        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
+        wait until rising_edge(clk); wait for 1 ns;
         assert unsigned(m_axis_tdata) = 3000
             report "FAIL T3: header rpm mismatch, got " &
                    integer'image(to_integer(unsigned(m_axis_tdata)))
             severity failure;
-        wait until rising_edge(clk) and m_axis_tvalid = '1';
 
         -- Header word 1: N
+        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
+        wait until rising_edge(clk); wait for 1 ns;
         assert unsigned(m_axis_tdata) = 1
             report "FAIL T3: header N mismatch, got " &
                    integer'image(to_integer(unsigned(m_axis_tdata)))
             severity failure;
 
         -- Bin 0: expect 100
-        wait until rising_edge(clk) and m_axis_tvalid = '1';
+        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
+        wait until rising_edge(clk); wait for 1 ns;
         assert to_integer(unsigned(m_axis_tdata)) = 100
             report "FAIL T3: bin 0 averaged value wrong, expected 100, got " &
                    integer'image(to_integer(unsigned(m_axis_tdata)))
@@ -280,7 +293,9 @@ begin
         drain_words(BINS - 2, m_axis_tvalid, m_axis_tready, clk);
 
         -- Last bin (7199): expect 100, tlast asserted
-        wait until rising_edge(clk) and m_axis_tvalid = '1';
+        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
+            wait until rising_edge(clk);
+            wait for 1 ns;
         assert to_integer(unsigned(m_axis_tdata)) = 100
             report "FAIL T3: bin 7199 averaged value wrong, expected 100, got " &
                    integer'image(to_integer(unsigned(m_axis_tdata)))
@@ -315,17 +330,23 @@ begin
         end loop;
 
         -- Wait for output, check header rpm=6000, N=2
-        wait until rising_edge(clk) and m_axis_tvalid = '1';
+        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
+            wait until rising_edge(clk);
+            wait for 1 ns;
         assert unsigned(m_axis_tdata) = 6000
             report "FAIL T4: header rpm mismatch"
             severity failure;
-        wait until rising_edge(clk) and m_axis_tvalid = '1';
+        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
+            wait until rising_edge(clk);
+            wait for 1 ns;
         assert unsigned(m_axis_tdata) = 2
             report "FAIL T4: header N mismatch"
             severity failure;
 
         -- Bin 0: expect 200
-        wait until rising_edge(clk) and m_axis_tvalid = '1';
+        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
+            wait until rising_edge(clk);
+            wait for 1 ns;
         assert to_integer(unsigned(m_axis_tdata)) = 200
             report "FAIL T4: bin 0 wrong, expected 200, got " &
                    integer'image(to_integer(unsigned(m_axis_tdata)))
@@ -357,11 +378,17 @@ begin
 
         -- Wait for output to start, receive header
         m_axis_tready <= '1';
-        wait until rising_edge(clk) and m_axis_tvalid = '1';  -- rpm header
-        wait until rising_edge(clk) and m_axis_tvalid = '1';  -- N header
+        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
+            wait until rising_edge(clk);
+            wait for 1 ns;  -- rpm header
+        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
+            wait until rising_edge(clk);
+            wait for 1 ns;  -- N header
 
         -- Receive bin 0 then deassert tready for 10 cycles
-        wait until rising_edge(clk) and m_axis_tvalid = '1';
+        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
+            wait until rising_edge(clk);
+            wait for 1 ns;
         data_v := m_axis_tdata;
         m_axis_tready <= '0';
         wait for 10 * CLK_PERIOD;
@@ -403,7 +430,9 @@ begin
         -- Start sending next 2 frames immediately (should go to other bank)
         -- while first output frame is draining
         m_axis_tready <= '1';
-        wait until rising_edge(clk) and m_axis_tvalid = '1';  -- frame 1 starts
+        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
+            wait until rising_edge(clk);
+            wait for 1 ns;  -- frame 1 starts
 
         -- Concurrently send frames 3 and 4
         send_frame(20, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
@@ -415,11 +444,17 @@ begin
         drain_words(BINS + 1, m_axis_tvalid, m_axis_tready, clk);
 
         -- Wait for frame 2 output
-        wait until rising_edge(clk) and m_axis_tvalid = '1';  -- rpm
-        wait until rising_edge(clk) and m_axis_tvalid = '1';  -- N
+        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
+            wait until rising_edge(clk);
+            wait for 1 ns;  -- rpm
+        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
+            wait until rising_edge(clk);
+            wait for 1 ns;  -- N
 
         -- Bin 0 of frame 2 should be 20 (not contaminated by frame 1's 10)
-        wait until rising_edge(clk) and m_axis_tvalid = '1';
+        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
+            wait until rising_edge(clk);
+            wait for 1 ns;
         assert to_integer(unsigned(m_axis_tdata)) = 20
             report "FAIL T6: frame 2 bin 0 corrupted, expected 20, got " &
                    integer'image(to_integer(unsigned(m_axis_tdata)))
@@ -460,13 +495,19 @@ begin
         end loop;
 
         -- Check N=2 output: header N should be 2, bin 0 should be 80
-        wait until rising_edge(clk) and m_axis_tvalid = '1';  -- rpm
-        wait until rising_edge(clk) and m_axis_tvalid = '1';  -- N
+        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
+            wait until rising_edge(clk);
+            wait for 1 ns;  -- rpm
+        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
+            wait until rising_edge(clk);
+            wait for 1 ns;  -- N
         assert unsigned(m_axis_tdata) = 2
             report "FAIL T7: N header should be 2 after N change"
             severity failure;
 
-        wait until rising_edge(clk) and m_axis_tvalid = '1';
+        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
+            wait until rising_edge(clk);
+            wait for 1 ns;
         assert to_integer(unsigned(m_axis_tdata)) = 80
             report "FAIL T7: bin 0 wrong after N change, expected 80, got " &
                    integer'image(to_integer(unsigned(m_axis_tdata)))
@@ -510,18 +551,26 @@ begin
         s_axis_tlast  <= '0';
 
         -- Drain header
-        wait until rising_edge(clk) and m_axis_tvalid = '1';  -- rpm
-        wait until rising_edge(clk) and m_axis_tvalid = '1';  -- N
+        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
+            wait until rising_edge(clk);
+            wait for 1 ns;  -- rpm
+        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
+            wait until rising_edge(clk);
+            wait for 1 ns;  -- N
 
         -- Bin 0: expect 100
-        wait until rising_edge(clk) and m_axis_tvalid = '1';
+        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
+            wait until rising_edge(clk);
+            wait for 1 ns;
         assert to_integer(unsigned(m_axis_tdata)) = 100
             report "FAIL T8: bin 0 expected 100, got " &
                    integer'image(to_integer(unsigned(m_axis_tdata)))
             severity failure;
 
         -- Bin 1: expect 0
-        wait until rising_edge(clk) and m_axis_tvalid = '1';
+        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
+            wait until rising_edge(clk);
+            wait for 1 ns;
         assert to_integer(unsigned(m_axis_tdata)) = 0
             report "FAIL T8: bin 1 expected 0, got " &
                    integer'image(to_integer(unsigned(m_axis_tdata)))

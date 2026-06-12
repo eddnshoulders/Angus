@@ -308,18 +308,12 @@ begin
                         out_valid <= '1';
                         tlast_int <= '0';
                         out_data  <= resize(lat_rpm, 32);
-                        report "HDR0: lat_rpm=" & integer'image(to_integer(lat_rpm)) &
-                               " out_data(prev)=" & integer'image(to_integer(out_data)) &
-                               " tready=" & std_logic'image(m_axis_tready);
                         if m_axis_tready = '1' then
                             out_state <= OUT_HDR1;
                         end if;
 
                     when OUT_HDR1 =>
                         out_data  <= resize(lat_n, 32);
-                        report "HDR1: lat_n=" & integer'image(to_integer(lat_n)) &
-                               " out_data(prev)=" & integer'image(to_integer(out_data)) &
-                               " tready=" & std_logic'image(m_axis_tready);
                         if m_axis_tready = '1' then
                             out_addr  <= (others => '0');
                             out_state <= OUT_RDREQ;
