@@ -305,14 +305,13 @@ begin
                     when OUT_HDR0 =>
                         out_valid <= '1';
                         tlast_int <= '0';
-                        -- out_data already holds lat_rpm, loaded in OUT_IDLE
+                        out_data  <= resize(lat_rpm, 32);  -- stable every cycle
                         if m_axis_tready = '1' then
-                            out_data  <= resize(lat_n, 32);  -- pre-load for HDR1
                             out_state <= OUT_HDR1;
                         end if;
 
                     when OUT_HDR1 =>
-                        -- out_data holds lat_n, pre-loaded in HDR0
+                        out_data  <= resize(lat_n, 32);    -- stable every cycle
                         if m_axis_tready = '1' then
                             out_addr  <= (others => '0');
                             out_state <= OUT_RDREQ;
@@ -366,8 +365,13 @@ begin
 
     -- =========================================================================
     -- Bypass mux and output assignments
+    -- Header words (rpm, N) are driven combinatorially from lat_rpm/lat_n
+    -- to avoid registered pipeline latency issues. Bin data comes from
+    -- registered out_data (BRAM output, already has read latency accounted for).
     -- =========================================================================
-    m_axis_tdata  <= s_axis_tdata              when bypass_active = '1'
+    m_axis_tdata  <= s_axis_tdata                        when bypass_active = '1'
+                     else std_logic_vector(resize(lat_rpm, 32)) when out_state = OUT_HDR0
+                     else std_logic_vector(resize(lat_n,  32))  when out_state = OUT_HDR1
                      else std_logic_vector(out_data);
     m_axis_tvalid <= s_axis_tvalid             when bypass_active = '1'
                      else out_valid;
