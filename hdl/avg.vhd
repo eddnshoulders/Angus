@@ -305,14 +305,13 @@ begin
                     when OUT_HDR0 =>
                         out_valid <= '1';
                         tlast_int <= '0';
-                        -- out_data already holds lat_rpm from OUT_IDLE
+                        out_data  <= resize(lat_rpm, 32);
                         if m_axis_tready = '1' then
-                            out_data  <= resize(lat_n, 32);  -- pre-load HDR1 data
                             out_state <= OUT_HDR1;
                         end if;
 
                     when OUT_HDR1 =>
-                        -- out_data holds lat_n, loaded in HDR0
+                        out_data  <= resize(lat_n, 32);
                         if m_axis_tready = '1' then
                             -- Issue first BRAM read
                             out_addr  <= (others => '0');
