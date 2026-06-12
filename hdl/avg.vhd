@@ -330,11 +330,9 @@ begin
                     when OUT_STREAM =>
                         out_valid <= '1';
                         out_data  <= shift_right(out_rdata, to_integer(lat_n));
-                        if out_bin = BINS - 2 then
-                            tlast_int <= '1';
-                        end if;
                         if m_axis_tready = '1' then
                             if out_bin = BINS - 1 then
+                                -- Last bin presented with tlast already asserted
                                 out_valid     <= '0';
                                 tlast_int     <= '0';
                                 frame_out_cnt <= frame_out_cnt + 1;
@@ -342,6 +340,11 @@ begin
                                 out_state     <= OUT_CLR;
                             else
                                 out_bin   <= out_bin + 1;
+                                -- Assert tlast one cycle early so it is
+                                -- registered and stable when bin 7199 is presented
+                                if out_bin = BINS - 2 then
+                                    tlast_int <= '1';
+                                end if;
                                 out_state <= OUT_RDREQ;
                             end if;
                         end if;

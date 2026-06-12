@@ -125,6 +125,7 @@ architecture sim of avg_tb is
 
     -- =========================================================================
     -- Helper: receive and discard n_words output words
+    -- Uses clocked loop to properly detect AXI handshakes
     -- =========================================================================
     procedure drain_words (
         constant n_words    : in  integer;
@@ -132,15 +133,17 @@ architecture sim of avg_tb is
         signal   tready     : out std_logic;
         signal   clk        : in  std_logic
     ) is
+        variable count : integer := 0;
     begin
         tready <= '1';
-        for i in 0 to n_words - 1 loop
-            if tvalid = '0' then
-                wait until tvalid = '1';
-            end if;
+        count := 0;
+        while count < n_words loop
             wait until rising_edge(clk);
+            wait for 1 ns;
+            if tvalid = '1' then
+                count := count + 1;
+            end if;
         end loop;
-        wait for 1 ns;
     end procedure drain_words;
 
 begin
@@ -292,13 +295,14 @@ begin
                    integer'image(to_integer(unsigned(m_axis_tdata)))
             severity failure;
 
-        -- Drain remaining bins
+        -- Drain bins 1..7198 (BINS-2 bins)
         drain_words(BINS - 2, m_axis_tvalid, m_axis_tready, clk);
 
         -- Last bin (7199): expect 100, tlast asserted
-        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
-            wait until rising_edge(clk);
-            wait for 1 ns;
+        -- Sample immediately after tvalid rises to catch tlast before it clears
+        wait until m_axis_tvalid = '0';   -- wait for RDREQ gap
+        wait until m_axis_tvalid = '1';   -- wait for bin 7199 STREAM
+        wait for 1 ns;
         assert to_integer(unsigned(m_axis_tdata)) = 100
             report "FAIL T3: bin 7199 averaged value wrong, expected 100, got " &
                    integer'image(to_integer(unsigned(m_axis_tdata)))
