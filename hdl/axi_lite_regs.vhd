@@ -215,7 +215,9 @@ entity axi_lite_regs is
         pll_phase_err_count: in unsigned(15 downto 0);
         -- Pack
         pkt_count          : in unsigned(31 downto 0);
-        ovf_count          : in unsigned(15 downto 0)
+        ovf_count          : in unsigned(15 downto 0);
+        avg_n              : out unsigned(3 downto 0);
+        avg_frame_count    : in unsigned(31 downto 0)
     );
 end entity axi_lite_regs;
 
@@ -289,6 +291,7 @@ architecture rtl of axi_lite_regs is
     constant A_TDC_DEG          : integer := 16#100# / 4;
     constant A_PKT_COUNT        : integer := 16#104# / 4;
     constant A_OVF_COUNT        : integer := 16#108# / 4;
+    constant A_AVG_N            : integer := 16#10C# / 4;
 
     -- =========================================================================
     -- AXI internal
@@ -329,6 +332,7 @@ architecture rtl of axi_lite_regs is
     signal reg_pll_phase_thresh : std_logic_vector(31 downto 0) := x"00000000";
     signal reg_tdc_offset       : std_logic_vector(31 downto 0) := x"00000000";
     signal reg_dma_buffer_size  : std_logic_vector(31 downto 0) := x"00000002";
+    signal reg_avg_n            : std_logic_vector(31 downto 0) := x"00000000";
 
     -- =========================================================================
     -- Self-clearing pulses
@@ -439,6 +443,7 @@ begin
                         when A_PLL_PHASE_THRESH => reg_pll_phase_thresh <= s_axi_wdata;
                         when A_TDC_OFFSET       => reg_tdc_offset       <= s_axi_wdata;
                         when A_DMA_BUFFER_SIZE  => reg_dma_buffer_size  <= s_axi_wdata;
+                        when A_AVG_N            => reg_avg_n            <= s_axi_wdata;
                         when others => null;
                     end case;
                 end if;
@@ -539,6 +544,8 @@ begin
                         when A_TDC_DEG          => axi_rdata <= x"0000" & std_logic_vector(tdc_deg);
                         when A_PKT_COUNT        => axi_rdata <= std_logic_vector(pkt_count);
                         when A_OVF_COUNT        => axi_rdata <= x"0000" & std_logic_vector(ovf_count);
+                        when A_AVG_N            => axi_rdata <= reg_avg_n;
+                        when A_AVG_N + 1        => axi_rdata <= std_logic_vector(avg_frame_count);
                         when others             => axi_rdata <= (others => '0');
                     end case;
                 elsif axi_rvalid = '1' and s_axi_rready = '1' then
@@ -624,6 +631,7 @@ begin
     phase_ref_min    <= latch_phase_ref_min;
     phase_ref_max    <= latch_phase_ref_max;
     dma_buffer_size  <= latch_dma_buffer_size;
+    avg_n            <= unsigned(reg_avg_n(3 downto 0));
     -- Runtime config (direct from registers)
     fault_clear          <= fault_clear_int;
     pll_corr_dir         <= reg_control_rt(1);

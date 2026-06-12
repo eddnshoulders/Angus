@@ -59,6 +59,11 @@ entity top is
         m_axis_tvalid      : out std_logic;
         m_axis_tready      : in  std_logic;
         m_axis_tlast       : out std_logic;
+        -- Averaged stream output (to 2nd FIFO/DMA)
+        m_avg_axis_tdata   : out std_logic_vector(31 downto 0);
+        m_avg_axis_tvalid  : out std_logic;
+        m_avg_axis_tready  : in  std_logic;
+        m_avg_axis_tlast   : out std_logic;
         cam_raw            : in  std_logic;
         crank_raw          : in  std_logic;
         a_raw              : in  std_logic;
@@ -295,6 +300,14 @@ architecture rtl of top is
     -- =========================================================================
     signal pkt_count       : unsigned(31 downto 0);
     signal ovf_count       : unsigned(15 downto 0);
+    -- avg block signals
+    signal avg_n           : unsigned(3 downto 0);
+    signal avg_frame_count : unsigned(31 downto 0);
+    -- pack→avg internal stream
+    signal pack_tdata      : std_logic_vector(31 downto 0);
+    signal pack_tvalid     : std_logic;
+    signal pack_tready     : std_logic;
+    signal pack_tlast      : std_logic;
 
     -- =========================================================================
     -- Fault block
@@ -431,7 +444,9 @@ begin
             speed_fault_count   => speed_fault_count,
             pll_phase_err_count => pll_err_count,
             pkt_count           => pkt_count,
-            ovf_count           => ovf_count
+            ovf_count           => ovf_count,
+            avg_n               => avg_n,
+            avg_frame_count     => avg_frame_count
         );
 
     -- =========================================================================
@@ -611,15 +626,46 @@ begin
     -- Extract 12-bit result: DO format [15:4] = result, [3:0] = 0
     adc_ch0 <= unsigned(adc_data(15 downto 4));
 
+    -- Raw stream: pack output tapped directly to m_axis_* (raw DMA path).
+    -- avg block is the sole AXI-Stream slave of pack (controls pack_tready).
+    -- Raw DMA path is a read-only tap -- m_axis_tready not connected back to pack.
+    -- Raw FIFO overflow is acceptable; counted via ovf_count.
+    m_axis_tdata  <= pack_tdata;
+    m_axis_tvalid <= pack_tvalid;
+    m_axis_tlast  <= pack_tlast;
+
     -- =========================================================================
     -- Pack
     -- =========================================================================
     u_pack : entity work.pack
         port map (clk=>clk, rst=>rst, trig_pulse=>trig_pulse, tdc_deg=>tdc_deg,
                   di_ch=>di_ch, adc_ch0=>adc_ch0, z_edge=>z_edge,
-                  dma_buffer_size=>dma_buffer_size, m_axis_tdata=>m_axis_tdata,
-                  m_axis_tvalid=>m_axis_tvalid, m_axis_tready=>m_axis_tready,
-                  m_axis_tlast=>m_axis_tlast, pkt_count=>pkt_count, ovf_count=>ovf_count);
+                  dma_buffer_size=>dma_buffer_size, m_axis_tdata=>pack_tdata,
+                  m_axis_tvalid=>pack_tvalid, m_axis_tready=>pack_tready,
+                  m_axis_tlast=>pack_tlast, pkt_count=>pkt_count, ovf_count=>ovf_count);
+
+    -- =========================================================================
+    -- Avg -- theta-P averaging accumulator
+    -- Consumes raw stream from pack, produces:
+    --   m_axis_*     : raw stream passthrough (to raw DMA FIFO)
+    --   m_avg_axis_* : averaged frames (to avg DMA FIFO)
+    -- =========================================================================
+    u_avg : entity work.avg
+        port map (
+            clk              => clk,
+            rst              => rst,
+            s_axis_tdata     => pack_tdata,
+            s_axis_tvalid    => pack_tvalid,
+            s_axis_tready    => pack_tready,
+            s_axis_tlast     => pack_tlast,
+            m_axis_tdata     => m_avg_axis_tdata,
+            m_axis_tvalid    => m_avg_axis_tvalid,
+            m_axis_tready    => m_avg_axis_tready,
+            m_axis_tlast     => m_avg_axis_tlast,
+            avg_n            => avg_n,
+            rpm              => speed_rpm_fast,
+            frame_count      => avg_frame_count
+        );
 
     -- =========================================================================
     -- Fault
