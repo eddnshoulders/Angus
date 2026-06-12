@@ -283,8 +283,10 @@ begin
             severity failure;
 
         -- Bin 0: expect 100
-        if m_axis_tvalid = '0' then wait until m_axis_tvalid = '1'; end if;
-        wait until rising_edge(clk); wait for 1 ns;
+        -- tvalid goes low during RDREQ/RDWAIT, must wait for it to go high again
+        wait until m_axis_tvalid = '0';   -- wait for RDREQ to drop tvalid
+        wait until m_axis_tvalid = '1';   -- wait for STREAM to raise tvalid
+        wait for 1 ns;
         assert to_integer(unsigned(m_axis_tdata)) = 100
             report "FAIL T3: bin 0 averaged value wrong, expected 100, got " &
                    integer'image(to_integer(unsigned(m_axis_tdata)))

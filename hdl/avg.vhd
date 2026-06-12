@@ -282,11 +282,12 @@ begin
                 out_bin       <= (others => '0');
                 clr_bin       <= (others => '0');
                 out_we        <= '0';
-                swap_ack      <= '0';
                 frame_out_cnt <= (others => '0');
             else
                 out_we   <= '0';
-                swap_ack <= '0';  -- default low, pulsed for one cycle only
+                -- swap_ack held high while bank_full is asserted
+                -- (acc FSM may still be in READ/WRITE when bank_full first appears)
+                swap_ack <= bank_full;
 
                 case out_state is
 
@@ -294,7 +295,6 @@ begin
                         out_valid <= '0';
                         tlast_int <= '0';
                         if bank_full = '1' then
-                            swap_ack  <= '1';
                             lat_n     <= avg_n;
                             lat_rpm   <= rpm;
                             out_bin   <= (others => '0');
