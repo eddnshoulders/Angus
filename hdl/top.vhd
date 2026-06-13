@@ -639,10 +639,8 @@ begin
     adc_ch0 <= unsigned(adc_data(15 downto 4));
 
     -- Raw stream: pack output tapped directly to m_axis_* (raw DMA path).
-    -- avg block is the sole AXI-Stream slave of pack (controls pack_tready).
-    -- Raw DMA path is a read-only tap -- m_axis_tready not connected back to pack.
-    -- Raw FIFO overflow is acceptable; counted via ovf_count.
-    -- m_axis_tready from BD is unused -- tie high to avoid undriven input warning.
+    -- pack_tready driven by raw FIFO tready (m_axis_tready from BD).
+    -- avg taps the same stream independently, never stalling pack.
     m_axis_tdata  <= pack_tdata;
     m_axis_tvalid <= pack_tvalid;
     m_axis_tlast  <= pack_tlast;
@@ -663,13 +661,19 @@ begin
     --   m_axis_*     : raw stream passthrough (to raw DMA FIFO)
     --   m_avg_axis_* : averaged frames (to avg DMA FIFO)
     -- =========================================================================
+    -- Raw stream tready: pack is driven directly by raw FIFO tready.
+    -- avg also taps the stream but must never stall pack -- its m_axis_tready
+    -- is tied high so the bypass path doesn't gate pack.
+    -- avg FIFO overflow is acceptable during heavy averaging (counted separately).
+    pack_tready <= m_axis_tready;
+
     u_avg : entity work.avg
         port map (
             clk              => clk,
             rst              => rst,
             s_axis_tdata     => pack_tdata,
             s_axis_tvalid    => pack_tvalid,
-            s_axis_tready    => pack_tready,
+            s_axis_tready    => open,          -- avg must not stall pack
             s_axis_tlast     => pack_tlast,
             m_axis_tdata     => avg_tdata_i,
             m_axis_tvalid    => avg_tvalid_i,
