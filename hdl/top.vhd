@@ -642,6 +642,7 @@ begin
     -- avg block is the sole AXI-Stream slave of pack (controls pack_tready).
     -- Raw DMA path is a read-only tap -- m_axis_tready not connected back to pack.
     -- Raw FIFO overflow is acceptable; counted via ovf_count.
+    -- m_axis_tready from BD is unused -- tie high to avoid undriven input warning.
     m_axis_tdata  <= pack_tdata;
     m_axis_tvalid <= pack_tvalid;
     m_axis_tlast  <= pack_tlast;

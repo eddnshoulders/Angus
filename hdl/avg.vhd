@@ -393,10 +393,6 @@ begin
                      else '1' when acc_state = ACC_IDLE else '0';
     m_axis_tvalid <= s_axis_tvalid             when bypass_active = '1'
                      else out_valid;
-    m_axis_tlast  <= s_axis_tlast              when bypass_active = '1'
-                     else tlast_int;
-    s_axis_tready <= m_axis_tready             when bypass_active = '1'
-                     else '1' when acc_state = ACC_IDLE else '0';
 
     frame_count   <= frame_out_cnt;
 
