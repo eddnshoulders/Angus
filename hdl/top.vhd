@@ -129,7 +129,15 @@ entity top is
         ila_fault_crank_tooth        : out std_logic;
         ila_fault_crank_ab           : out std_logic;
         ila_fault_pll_phase          : out std_logic;
-        ila_fault_speed_calc         : out std_logic
+        ila_fault_speed_calc         : out std_logic;
+        -- avg stream debug
+        ila_pack_tvalid              : out std_logic;
+        ila_pack_tready              : out std_logic;
+        ila_pack_tlast               : out std_logic;
+        ila_avg_tvalid               : out std_logic;
+        ila_avg_tready               : out std_logic;
+        ila_avg_tlast                : out std_logic;
+        ila_avg_frame_count          : out std_logic_vector(7 downto 0)
     );
 end entity top;
 
@@ -795,5 +803,14 @@ begin
     ila_fault_crank_ab          <= fault_crank_ab;
     ila_fault_pll_phase         <= fault_pll_phase;
     ila_fault_speed_calc        <= fault_speed_calc;
+
+    -- avg stream debug
+    ila_pack_tvalid             <= pack_tvalid;
+    ila_pack_tready             <= pack_tready;
+    ila_pack_tlast              <= pack_tlast;
+    ila_avg_tvalid              <= m_avg_axis_tvalid;
+    ila_avg_tready              <= m_avg_axis_tready;
+    ila_avg_tlast               <= m_avg_axis_tlast;
+    ila_avg_frame_count         <= std_logic_vector(avg_frame_count(7 downto 0));
 
 end architecture rtl;
