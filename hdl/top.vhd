@@ -316,6 +316,10 @@ architecture rtl of top is
     signal pack_tvalid     : std_logic;
     signal pack_tready     : std_logic;
     signal pack_tlast      : std_logic;
+    -- avg output stream internals (cannot read 'out' ports directly)
+    signal avg_tdata_i     : std_logic_vector(31 downto 0);
+    signal avg_tvalid_i    : std_logic;
+    signal avg_tlast_i     : std_logic;
 
     -- =========================================================================
     -- Fault block
@@ -666,10 +670,10 @@ begin
             s_axis_tvalid    => pack_tvalid,
             s_axis_tready    => pack_tready,
             s_axis_tlast     => pack_tlast,
-            m_axis_tdata     => m_avg_axis_tdata,
-            m_axis_tvalid    => m_avg_axis_tvalid,
+            m_axis_tdata     => avg_tdata_i,
+            m_axis_tvalid    => avg_tvalid_i,
             m_axis_tready    => m_avg_axis_tready,
-            m_axis_tlast     => m_avg_axis_tlast,
+            m_axis_tlast     => avg_tlast_i,
             avg_n            => avg_n,
             rpm              => speed_rpm_fast,
             frame_count      => avg_frame_count
@@ -804,13 +808,18 @@ begin
     ila_fault_pll_phase         <= fault_pll_phase;
     ila_fault_speed_calc        <= fault_speed_calc;
 
+    -- avg stream port assignments
+    m_avg_axis_tdata            <= avg_tdata_i;
+    m_avg_axis_tvalid           <= avg_tvalid_i;
+    m_avg_axis_tlast            <= avg_tlast_i;
+
     -- avg stream debug
     ila_pack_tvalid             <= pack_tvalid;
     ila_pack_tready             <= pack_tready;
     ila_pack_tlast              <= pack_tlast;
-    ila_avg_tvalid              <= m_avg_axis_tvalid;
+    ila_avg_tvalid              <= avg_tvalid_i;
     ila_avg_tready              <= m_avg_axis_tready;
-    ila_avg_tlast               <= m_avg_axis_tlast;
+    ila_avg_tlast               <= avg_tlast_i;
     ila_avg_frame_count         <= std_logic_vector(avg_frame_count(7 downto 0));
 
 end architecture rtl;
