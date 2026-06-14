@@ -118,6 +118,9 @@ architecture rtl of avg is
     signal s_di         : std_logic_vector(7 downto 0) := (others => '0');
     signal frame_cnt    : unsigned(14 downto 0) := (others => '0');
     signal frame_target : unsigned(14 downto 0);
+    -- Latched avg_n: captured at frame boundary so changes only take
+    -- effect at the start of the next accumulation, not mid-frame
+    signal lat_avg_n    : unsigned(3 downto 0) := (others => '0');
     signal bank_full    : std_logic := '0';
     signal swap_ack     : std_logic := '0';
 
@@ -213,7 +216,7 @@ begin
     acc_rdata <= r0_rdata when acc_bank = '0' else r1_rdata;
     out_rdata <= r0_rdata when out_bank = '0' else r1_rdata;
 
-    frame_target  <= shift_left(to_unsigned(1, 15), to_integer(avg_n));
+    frame_target  <= shift_left(to_unsigned(1, 15), to_integer(lat_avg_n));
     bypass_active <= '1' when avg_n = 0 else '0';
 
     -- =========================================================================
@@ -230,6 +233,7 @@ begin
                 acc_we      <= '0';
                 di_we       <= '0';
                 acc_bank    <= '0';
+                lat_avg_n   <= (others => '0');
             else
                 acc_we <= '0';
                 di_we  <= '0';
@@ -240,6 +244,11 @@ begin
                         if s_axis_tvalid = '1' and bypass_active = '0' then
                             if word_cnt = '0' then
                                 -- Word 0: latch bin address (tdc_deg)
+                                -- Also latch avg_n at very first sample of frame
+                                -- (for power-on case before first WAIT_SWAP)
+                                if frame_cnt = 0 then
+                                    lat_avg_n <= avg_n;
+                                end if;
                                 s_tdc    <= unsigned(s_axis_tdata(12 downto 0));
                                 word_cnt <= '1';
                             else
@@ -290,6 +299,7 @@ begin
                         if swap_ack = '1' then
                             bank_full <= '0';
                             acc_bank  <= not acc_bank;
+                            lat_avg_n <= avg_n;  -- latch new avg_n for next frame
                             acc_state <= ACC_IDLE;
                         end if;
 
@@ -361,7 +371,7 @@ begin
                     when OUT_RDWAIT2 =>
                         -- out_rdata now holds bin 0 data (registered from RDWAIT read).
                         -- Capture into stable output registers.
-                        out_pres  <= shift_right(out_rdata, to_integer(avg_n));
+                        out_pres  <= shift_right(out_rdata, to_integer(lat_avg_n));
                         out_di    <= di_rdata;
                         -- Assert valid so word 0 is stable for a full cycle
                         -- before STREAM's first tready check
@@ -389,7 +399,7 @@ begin
                                     -- Advance to next bin
                                     -- Capture lookahead data
                                     out_pres <= shift_right(out_rdata,
-                                                            to_integer(avg_n));
+                                                            to_integer(lat_avg_n));
                                     out_di   <= di_rdata;
                                     out_bin  <= out_bin + 1;
                                     -- Issue lookahead read for bin+2
