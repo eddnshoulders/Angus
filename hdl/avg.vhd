@@ -124,7 +124,7 @@ architecture rtl of avg is
     -- =========================================================================
     -- Output generator FSM
     -- =========================================================================
-    type t_out_state is (OUT_IDLE, OUT_RDREQ, OUT_RDWAIT, OUT_STREAM, OUT_CLR);
+    type t_out_state is (OUT_IDLE, OUT_RDREQ, OUT_RDWAIT, OUT_RDWAIT2, OUT_STREAM, OUT_CLR);
     signal out_state    : t_out_state := OUT_IDLE;
 
     signal out_bin      : unsigned(12 downto 0) := (others => '0');
@@ -153,6 +153,8 @@ begin
     p_ram0 : process(clk)
     begin
         if rising_edge(clk) then
+            if r0_we = '1' and to_integer(r0_addr) = 0 then
+            end if;
             if r0_we = '1' then
                 ram0(to_integer(r0_addr)) <= r0_wdata;
             end if;
@@ -171,13 +173,27 @@ begin
     end process p_ram1;
 
     -- DI snapshot: write port driven by accumulator, read port by output FSM
+    -- Address clamped to BINS-1 to prevent out-of-bounds during pipeline startup
     p_di_snap : process(clk)
+        variable safe_rd_addr : integer range 0 to BINS-1;
+        variable safe_wr_addr : integer range 0 to BINS-1;
     begin
         if rising_edge(clk) then
-            if di_we = '1' then
-                di_snap(to_integer(di_wr_addr)) <= di_wr_data;
+            -- Clamp addresses to valid range
+            if to_integer(di_rd_addr) < BINS then
+                safe_rd_addr := to_integer(di_rd_addr);
+            else
+                safe_rd_addr := BINS - 1;
             end if;
-            di_rdata <= di_snap(to_integer(di_rd_addr));
+            if to_integer(di_wr_addr) < BINS then
+                safe_wr_addr := to_integer(di_wr_addr);
+            else
+                safe_wr_addr := BINS - 1;
+            end if;
+            if di_we = '1' then
+                di_snap(safe_wr_addr) <= di_wr_data;
+            end if;
+            di_rdata <= di_snap(safe_rd_addr);
         end if;
     end process p_di_snap;
 
@@ -335,14 +351,22 @@ begin
                         end if;
 
                     when OUT_RDWAIT =>
-                        -- Pressure and DI data for bin 0 now stable
-                        -- Capture into output registers
-                        out_pres  <= shift_right(out_rdata, to_integer(avg_n));
-                        out_di    <= di_rdata;
-                        -- Issue lookahead read for bin 1
+                        -- bin 0 address was issued in RDREQ (cycle N).
+                        -- BRAM is registering the read this cycle (addr now stable).
+                        -- Issue lookahead read for bin 1.
                         out_addr    <= to_unsigned(1, 13);
                         di_rd_addr  <= to_unsigned(1, 13);
-                        out_state   <= OUT_STREAM;
+                        out_state   <= OUT_RDWAIT2;
+
+                    when OUT_RDWAIT2 =>
+                        -- out_rdata now holds bin 0 data (registered from RDWAIT read).
+                        -- Capture into stable output registers.
+                        out_pres  <= shift_right(out_rdata, to_integer(avg_n));
+                        out_di    <= di_rdata;
+                        -- Assert valid so word 0 is stable for a full cycle
+                        -- before STREAM's first tready check
+                        out_valid <= '1';
+                        out_state <= OUT_STREAM;
 
                     when OUT_STREAM =>
                         out_valid <= '1';
@@ -387,6 +411,7 @@ begin
                         end if;
 
                     when OUT_CLR =>
+                        if clr_bin = 0 then report "CLR: out_bank=" & std_logic'image(out_bank) & " acc_bank=" & std_logic'image(acc_bank) & " clr_bin=" & integer'image(to_integer(clr_bin)) & " out_addr=" & integer'image(to_integer(out_addr)) & " out_we=" & std_logic'image(out_we); end if;
                         out_addr  <= clr_bin;
                         out_wdata <= (others => '0');
                         out_we    <= '1';
@@ -408,11 +433,22 @@ begin
     -- =========================================================================
     -- Output data mux
     -- word 0: tdc_deg = bin index
+    -- word 0: tdc_deg = bin index
     -- word 1: DI[31:24] | 0x00 | pressure_avg[15:4] | 0x0
     -- =========================================================================
-    out_data_i <= std_logic_vector(resize(out_bin, 32)) when out_word = '0'
-                  else out_di & x"00" &
-                       std_logic_vector(out_pres(11 downto 0)) & x"0";
+    process(out_word, out_bin, out_pres, out_di)
+        variable w1 : std_logic_vector(31 downto 0);
+    begin
+        if out_word = '0' then
+            out_data_i <= std_logic_vector(resize(out_bin, 32));
+        else
+            w1(31 downto 24) := out_di;
+            w1(23 downto 16) := x"00";
+            w1(15 downto 4)  := std_logic_vector(out_pres(11 downto 0));
+            w1(3 downto 0)   := "0000";
+            out_data_i <= w1;
+        end if;
+    end process;
 
     -- =========================================================================
     -- Bypass mux and output assignments

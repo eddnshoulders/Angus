@@ -324,7 +324,7 @@ begin
                    s_axis_tready, clk);
 
         wait until m_axis_tvalid = '1';
-        drain_words(FRAME_WORDS, m_axis_tvalid, m_axis_tready, clk);
+        drain_words(FRAME_WORDS - 1, m_axis_tvalid, m_axis_tready, clk);
 
         avg_n <= to_unsigned(2, 4);
         for f in 0 to 3 loop
