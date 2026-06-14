@@ -50,7 +50,6 @@ architecture sim of avg_tb is
 
     -- Control
     signal avg_n           : unsigned(3 downto 0) := (others => '0');
-    signal rpm             : unsigned(15 downto 0) := to_unsigned(3000, 16);
     signal frame_count     : unsigned(31 downto 0);
 
     signal sim_done        : boolean := false;
@@ -170,7 +169,6 @@ begin
             m_axis_tready   => m_axis_tready,
             m_axis_tlast    => m_axis_tlast,
             avg_n           => avg_n,
-            rpm             => rpm,
             frame_count     => frame_count
         );
 
@@ -252,75 +250,49 @@ begin
         test_num <= 3;
 
         avg_n <= to_unsigned(1, 4);
-        rpm   <= to_unsigned(3000, 16);
         m_axis_tready <= '1';
         fc_before := frame_count;
 
-        -- Send 2 engine cycles
         send_frame(100, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
                    s_axis_tready, clk);
         send_frame(100, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
                    s_axis_tready, clk);
 
-        -- Wait for output frame header word 0: rpm
-        -- Sample immediately after tvalid goes high (before next clock edge
-        -- advances the FSM). m_tdata is stable combinatorially from out_data.
-        wait until m_axis_tvalid = '1';
-        wait for 1 ns;
-        assert unsigned(m_axis_tdata) = 3000
-            report "FAIL T3: header rpm mismatch, got " &
-                   integer'image(to_integer(unsigned(m_axis_tdata)))
-            severity failure;
-
-        -- Header word 1: N -- wait for next rising edge (FSM now in HDR1)
-        wait until rising_edge(clk); wait for 1 ns;
-        assert unsigned(m_axis_tdata) = 1
-            report "FAIL T3: header N mismatch, got " &
-                   integer'image(to_integer(unsigned(m_axis_tdata)))
-            severity failure;
-
-        -- After HDR1, BRAM pipeline takes 2 cycles (RDWAIT + first STREAM)
-        -- then tvalid is continuously high for all 7200 bins.
-        -- Skip 2 startup cycles then sample bin 0:
-        wait until rising_edge(clk); -- RDWAIT
-        wait until rising_edge(clk); -- first STREAM cycle (bin 0 presented)
-        wait for 1 ns;
+        -- Wait for output frame (no headers, straight to bins)
+        wait until m_axis_tvalid = '1'; wait for 1 ns;
         assert to_integer(unsigned(m_axis_tdata)) = 100
-            report "FAIL T3: bin 0 averaged value wrong, expected 100, got " &
+            report "FAIL T3: bin 0 wrong, expected 100, got " &
                    integer'image(to_integer(unsigned(m_axis_tdata)))
             severity failure;
 
-        -- Drain bins 1..7198 (tvalid continuous, one bin per clock)
+        -- Drain bins 1..7198
         drain_words(BINS - 2, m_axis_tvalid, m_axis_tready, clk);
 
-        -- Last bin (7199): next rising edge, tlast should be asserted
+        -- Bin 7199: tlast asserted
         wait until rising_edge(clk); wait for 1 ns;
         assert to_integer(unsigned(m_axis_tdata)) = 100
-            report "FAIL T3: bin 7199 averaged value wrong, expected 100, got " &
+            report "FAIL T3: bin 7199 wrong, expected 100, got " &
                    integer'image(to_integer(unsigned(m_axis_tdata)))
             severity failure;
         assert m_axis_tlast = '1'
             report "FAIL T3: tlast not asserted on final bin"
             severity failure;
 
-        -- frame_count should have incremented
         wait for 5 * CLK_PERIOD; wait for 1 ns;
         assert frame_count = fc_before + 1
             report "FAIL T3: frame_count did not increment"
             severity failure;
-
         report "TEST 3: PASS";
         wait for 10 * CLK_PERIOD;
 
         -- --------------------------------------------------------------------
         -- TEST 4: N=2 (4 frames averaged)
-        -- pressure = 200 each frame, expected = (200*4) >> 2 = 200
+        -- pressure=200 each frame, expected = (200*4) >> 2 = 200
         -- --------------------------------------------------------------------
         report "TEST 4: N=2 averaging -- 4 frames, pressure=200";
         test_num <= 4;
 
         avg_n <= to_unsigned(2, 4);
-        rpm   <= to_unsigned(6000, 16);
         fc_before := frame_count;
 
         for f in 0 to 3 loop
@@ -328,23 +300,12 @@ begin
                        s_axis_tready, clk);
         end loop;
 
-        -- Header rpm
         wait until m_axis_tvalid = '1'; wait for 1 ns;
-        assert unsigned(m_axis_tdata) = 6000
-            report "FAIL T4: header rpm mismatch, got " &
-                   integer'image(to_integer(unsigned(m_axis_tdata)))
-            severity failure;
-        -- Header N
-        wait until rising_edge(clk); wait for 1 ns;
-        assert unsigned(m_axis_tdata) = 2
-            report "FAIL T4: header N mismatch"
-            severity failure;
-        -- Bin 0 (2 startup cycles after HDR1)
-        wait until rising_edge(clk); wait until rising_edge(clk); wait for 1 ns;
         assert to_integer(unsigned(m_axis_tdata)) = 200
             report "FAIL T4: bin 0 wrong, expected 200, got " &
                    integer'image(to_integer(unsigned(m_axis_tdata)))
             severity failure;
+
         drain_words(BINS - 1, m_axis_tvalid, m_axis_tready, clk);
 
         wait for 5 * CLK_PERIOD; wait for 1 ns;
@@ -355,13 +316,12 @@ begin
         wait for 10 * CLK_PERIOD;
 
         -- --------------------------------------------------------------------
-        -- TEST 5: Back-pressure on output
+        -- TEST 5: Back-pressure
         -- --------------------------------------------------------------------
         report "TEST 5: Back-pressure -- tready deasserted mid-frame";
         test_num <= 5;
 
         avg_n <= to_unsigned(1, 4);
-        rpm   <= to_unsigned(3000, 16);
 
         send_frame(50, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
                    s_axis_tready, clk);
@@ -369,9 +329,7 @@ begin
                    s_axis_tready, clk);
 
         m_axis_tready <= '1';
-        wait until m_axis_tvalid = '1'; wait for 1 ns;  -- rpm
-        wait until rising_edge(clk); wait for 1 ns;       -- N
-        wait until rising_edge(clk); wait until rising_edge(clk); wait for 1 ns; -- bin 0
+        wait until m_axis_tvalid = '1'; wait for 1 ns;
         data_v := m_axis_tdata;
         m_axis_tready <= '0';
         wait for 10 * CLK_PERIOD;
@@ -389,17 +347,14 @@ begin
         wait for 10 * CLK_PERIOD;
 
         -- --------------------------------------------------------------------
-        -- TEST 6: Double buffer -- concurrent accumulate and output
+        -- TEST 6: Double buffer
         -- --------------------------------------------------------------------
         report "TEST 6: Double buffer -- concurrent accumulate and output";
         test_num <= 6;
 
         avg_n <= to_unsigned(1, 4);
-        rpm   <= to_unsigned(3000, 16);
         fc_before := frame_count;
 
-        -- Send 4 frames sequentially. After frames 1&2, output frame 1 starts.
-        -- After frames 3&4, output frame 2 starts.
         send_frame(10, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
                    s_axis_tready, clk);
         send_frame(10, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
@@ -409,20 +364,12 @@ begin
         send_frame(20, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
                    s_axis_tready, clk);
 
-        -- By now both output frames have been triggered (frames 1&2 → out1,
-        -- frames 3&4 → out2). Drain both frames completely.
-        -- Frame 2's output may have already started while we were sending frames 3&4,
-        -- so use drain_words (counts edges) rather than wait until tvalid.
         m_axis_tready <= '1';
-
-        -- Drain 2 complete frames: 2 × (2 headers + 7200 bins) = 2 × 7202 = 14404
-        -- Both may be back-to-back with no gap if frame 2 started during frame 1 CLR
-        drain_words(2 * (BINS + 2), m_axis_tvalid, m_axis_tready, clk);
+        drain_words(2 * BINS, m_axis_tvalid, m_axis_tready, clk);
 
         wait for 5 * CLK_PERIOD; wait for 1 ns;
         assert frame_count = fc_before + 2
-            report "FAIL T6: expected 2 output frames, got " &
-                   integer'image(to_integer(frame_count - fc_before))
+            report "FAIL T6: expected 2 output frames"
             severity failure;
         report "TEST 6: PASS";
         wait for 10 * CLK_PERIOD;
@@ -434,16 +381,15 @@ begin
         test_num <= 7;
 
         avg_n <= to_unsigned(1, 4);
-        rpm   <= to_unsigned(3000, 16);
 
         send_frame(40, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
                    s_axis_tready, clk);
         send_frame(40, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
                    s_axis_tready, clk);
 
-        -- Drain N=1 output frame: sample rpm then drain rest
-        wait until m_axis_tvalid = '1'; wait for 1 ns;
-        drain_words(BINS + 1, m_axis_tvalid, m_axis_tready, clk);
+        -- Drain N=1 output frame
+        wait until m_axis_tvalid = '1';
+        drain_words(BINS, m_axis_tvalid, m_axis_tready, clk);
 
         avg_n <= to_unsigned(2, 4);
         for f in 0 to 3 loop
@@ -451,15 +397,7 @@ begin
                        s_axis_tready, clk);
         end loop;
 
-        -- Header rpm
         wait until m_axis_tvalid = '1'; wait for 1 ns;
-        -- Header N
-        wait until rising_edge(clk); wait for 1 ns;
-        assert unsigned(m_axis_tdata) = 2
-            report "FAIL T7: N header should be 2 after N change"
-            severity failure;
-        -- Bin 0
-        wait until rising_edge(clk); wait until rising_edge(clk); wait for 1 ns;
         assert to_integer(unsigned(m_axis_tdata)) = 80
             report "FAIL T7: bin 0 wrong after N change, expected 80, got " &
                    integer'image(to_integer(unsigned(m_axis_tdata)))
@@ -476,7 +414,6 @@ begin
         test_num <= 8;
 
         avg_n <= to_unsigned(1, 4);
-        rpm   <= to_unsigned(3000, 16);
 
         for f in 0 to 1 loop
             for bin in 0 to BINS - 1 loop
@@ -496,17 +433,13 @@ begin
         s_axis_tvalid <= '0';
         s_axis_tlast  <= '0';
 
-        -- Header rpm
         wait until m_axis_tvalid = '1'; wait for 1 ns;
-        -- Header N
-        wait until rising_edge(clk); wait for 1 ns;
-        -- Bin 0 (2 startup cycles)
-        wait until rising_edge(clk); wait until rising_edge(clk); wait for 1 ns;
         assert to_integer(unsigned(m_axis_tdata)) = 100
             report "FAIL T8: bin 0 expected 100, got " &
                    integer'image(to_integer(unsigned(m_axis_tdata)))
             severity failure;
-        -- Bin 1
+
+        -- Bin 1: expect 0
         wait until rising_edge(clk); wait for 1 ns;
         assert to_integer(unsigned(m_axis_tdata)) = 0
             report "FAIL T8: bin 1 expected 0, got " &

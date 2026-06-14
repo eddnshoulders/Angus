@@ -50,7 +50,6 @@ entity avg is
 
         -- Control inputs
         avg_n           : in  unsigned(3 downto 0);
-        rpm             : in  unsigned(15 downto 0);
 
         -- Status
         frame_count     : out unsigned(31 downto 0)
@@ -120,8 +119,7 @@ architecture rtl of avg is
     -- =========================================================================
     -- Output generator FSM
     -- =========================================================================
-    type t_out_state is (OUT_IDLE, OUT_HDR0, OUT_HDR1, OUT_RDWAIT,
-                         OUT_STREAM, OUT_CLR);
+    type t_out_state is (OUT_IDLE, OUT_RDREQ, OUT_RDWAIT, OUT_STREAM, OUT_CLR);
     signal out_state    : t_out_state := OUT_IDLE;
 
     signal out_bin      : unsigned(12 downto 0) := (others => '0');
@@ -130,8 +128,6 @@ architecture rtl of avg is
     signal tlast_int    : std_logic := '0';
     signal clr_bin      : unsigned(12 downto 0) := (others => '0');
 
-    signal lat_n        : unsigned(3 downto 0)  := (others => '0');
-    signal lat_rpm      : unsigned(15 downto 0) := (others => '0');
     signal out_bank     : std_logic := '1';
 
     signal frame_out_cnt : unsigned(31 downto 0) := (others => '0');
@@ -301,55 +297,52 @@ begin
                         out_valid <= '0';
                         tlast_int <= '0';
                         if bank_full = '1' then
-                            lat_n     <= avg_n;
-                            lat_rpm   <= rpm;
                             out_bin   <= (others => '0');
-                            out_data  <= resize(rpm, 32);
-                            out_state <= OUT_HDR0;
+                            out_state <= OUT_RDREQ;
+                            -- Don't issue BRAM read yet -- wait for bank swap
+                            -- (swap_ack fires this cycle, acc_bank flips next cycle)
                         end if;
 
-                    when OUT_HDR0 =>
-                        out_valid <= '1';
-                        tlast_int <= '0';
-                        out_data  <= resize(lat_rpm, 32);
-                        if m_axis_tready = '1' then
-                            out_state <= OUT_HDR1;
-                        end if;
-
-                    when OUT_HDR1 =>
-                        out_data  <= resize(lat_n, 32);
-                        if m_axis_tready = '1' then
-                            -- Issue read for bin 0 now, result available in 2 cycles
+                    when OUT_RDREQ =>
+                        -- Wait here until acc FSM completes the bank swap
+                        -- (bank_full clears when acc_bank has flipped)
+                        if bank_full = '0' then
+                            -- Bank swap complete, out_bank now stable
+                            -- Issue read for bin 0
                             out_addr  <= (others => '0');
-                            out_bin   <= (others => '0');
                             out_state <= OUT_RDWAIT;
                         end if;
 
                     when OUT_RDWAIT =>
-                        -- Issue read for bin 0+1 while waiting for bin 0 data
-                        out_addr  <= out_bin + 1;
+                        -- bin 0 data now stable in out_rdata (1 cycle after read)
+                        -- capture into out_data
+                        out_data  <= shift_right(out_rdata, to_integer(avg_n));
+                        -- issue bin 1 read for lookahead
+                        out_addr  <= to_unsigned(1, 13);
                         out_state <= OUT_STREAM;
 
                     when OUT_STREAM =>
-                        -- Present current bin (out_rdata from 2 cycles ago)
+                        -- out_data holds current bin (captured from out_rdata
+                        -- in RDWAIT or previous STREAM cycle on tready)
                         out_valid <= '1';
-                        out_data  <= shift_right(out_rdata, to_integer(lat_n));
                         -- Set tlast when presenting second-to-last bin
                         if out_bin = BINS - 2 then
                             tlast_int <= '1';
                         end if;
                         if m_axis_tready = '1' then
                             if out_bin = BINS - 1 then
-                                -- Last bin: tlast already asserted, move to CLR
-                                -- Don't clear tlast here - clear it in OUT_CLR
+                                -- Last bin presented, move to CLR
                                 out_valid     <= '0';
                                 frame_out_cnt <= frame_out_cnt + 1;
                                 clr_bin       <= (others => '0');
                                 out_state     <= OUT_CLR;
                             else
-                                -- Issue read for bin+2 while presenting bin
-                                -- Clamp address to BINS-1 to avoid out-of-bounds
+                                -- Advance to next bin:
+                                -- out_rdata now holds bin+1 (lookahead read completed)
+                                -- capture it into out_data for next STREAM cycle
+                                out_data <= shift_right(out_rdata, to_integer(avg_n));
                                 out_bin  <= out_bin + 1;
+                                -- Issue lookahead read for bin+2
                                 if to_integer(out_bin) + 2 < BINS then
                                     out_addr <= out_bin + 2;
                                 else

@@ -680,7 +680,6 @@ begin
             m_axis_tready    => m_avg_axis_tready,
             m_axis_tlast     => avg_tlast_i,
             avg_n            => avg_n,
-            rpm              => speed_rpm_fast,
             frame_count      => avg_frame_count
         );
 
