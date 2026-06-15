@@ -331,7 +331,7 @@ architecture rtl of axi_lite_regs is
     signal reg_max_rpm          : std_logic_vector(31 downto 0) := x"00001770";
     signal reg_pll_phase_thresh : std_logic_vector(31 downto 0) := x"00000000";
     signal reg_tdc_offset       : std_logic_vector(31 downto 0) := x"00000000";
-    signal reg_dma_buffer_size  : std_logic_vector(31 downto 0) := x"00000002";
+    signal reg_dma_buffer_size  : std_logic_vector(31 downto 0) := x"00000001";
     signal reg_avg_n            : std_logic_vector(31 downto 0) := x"00000000";
 
     -- =========================================================================
@@ -358,7 +358,7 @@ architecture rtl of axi_lite_regs is
     signal latch_enc_n_ppr      : unsigned(15 downto 0) := to_unsigned(96, 16);
     signal latch_phase_ref_min  : unsigned(31 downto 0) := x"10000000";
     signal latch_phase_ref_max  : unsigned(31 downto 0) := x"20000000";
-    signal latch_dma_buffer_size: unsigned(3 downto 0)  := to_unsigned(2, 4);
+    signal latch_dma_buffer_size: unsigned(3 downto 0)  := to_unsigned(1, 4);
 
     -- =========================================================================
     -- Reset counter
@@ -579,7 +579,7 @@ begin
                 latch_enc_n_ppr       <= to_unsigned(96, 16);
                 latch_phase_ref_min   <= x"10000000";
                 latch_phase_ref_max   <= x"20000000";
-                latch_dma_buffer_size <= to_unsigned(2, 4);
+                latch_dma_buffer_size <= to_unsigned(1, 4);
             else
                 if config_apply_int = '1' then
                     latch_crank_edge_sel  <= reg_control(0);
