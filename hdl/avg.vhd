@@ -160,6 +160,11 @@ architecture rtl of avg is
     signal out_stall_cnt : unsigned(31 downto 0) := (others => '0');
     signal bad_tlast_cnt : unsigned(31 downto 0) := (others => '0');
 
+    -- Internal copy of s_axis_tready: needed because the entity's
+    -- s_axis_tready is an 'out' port and cannot be read directly
+    -- (VHDL restriction -- same pattern as avg_tdata_i/tvalid_i/tlast_i).
+    signal s_axis_tready_i : std_logic;
+
     -- Combinatorial output data mux
     signal out_data_i   : std_logic_vector(31 downto 0);
 
@@ -476,7 +481,7 @@ begin
                 bad_tlast_cnt <= (others => '0');
             else
                 -- Input beat: any accepted s_axis transfer (bypass or accumulate)
-                if s_axis_tvalid = '1' and s_axis_tready = '1' then
+                if s_axis_tvalid = '1' and s_axis_tready_i = '1' then
                     in_beat_cnt <= in_beat_cnt + 1;
                 end if;
 
@@ -528,8 +533,9 @@ begin
     m_axis_tdata  <= s_axis_tdata when bypass_active = '1' else out_data_i;
     m_axis_tvalid <= s_axis_tvalid when bypass_active = '1' else out_valid;
     m_axis_tlast  <= s_axis_tlast  when bypass_active = '1' else tlast_int;
-    s_axis_tready <= m_axis_tready when bypass_active = '1'
-                     else '1' when acc_state = ACC_IDLE else '0';
+    s_axis_tready_i <= m_axis_tready when bypass_active = '1'
+                       else '1' when acc_state = ACC_IDLE else '0';
+    s_axis_tready   <= s_axis_tready_i;
 
     frame_count   <= frame_out_cnt;
 
