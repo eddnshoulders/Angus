@@ -94,6 +94,13 @@ use ieee.numeric_std.all;
 --   0x100 TDC_DEG            [15:0] TDC-referenced engine angle (0-7199)
 --   0x104 PKT_COUNT          [31:0] DMA packet count
 --   0x108 OVF_COUNT          [15:0] DMA overflow count
+--   0x10C AVG_N              [3:0]  averaging exponent (0=bypass, N=2^N cycles)
+--   0x110 AVG_FRAME_COUNT    [31:0] avg output frames completed
+--   0x114 AVG_IN_BEAT_COUNT  [31:0] avg s_axis beats accepted
+--   0x118 AVG_OUT_BEAT_COUNT [31:0] avg m_axis beats accepted (tvalid & tready)
+--   0x11C AVG_OUT_TLAST_COUNT[31:0] avg m_axis tlast beats accepted
+--   0x120 AVG_OUT_STALL_COUNT[31:0] cycles avg m_axis tvalid=1, tready=0
+--   0x124 AVG_BAD_TLAST_COUNT[31:0] avg tlast asserted on wrong word (framing bug)
 -- =============================================================================
 
 entity axi_lite_regs is
@@ -217,7 +224,14 @@ entity axi_lite_regs is
         pkt_count          : in unsigned(31 downto 0);
         ovf_count          : in unsigned(15 downto 0);
         avg_n              : out unsigned(3 downto 0);
-        avg_frame_count    : in unsigned(31 downto 0)
+        avg_frame_count    : in unsigned(31 downto 0);
+
+        -- Avg diagnostics (avg<->DMA1 handshake visibility)
+        avg_in_beat_count   : in unsigned(31 downto 0);
+        avg_out_beat_count  : in unsigned(31 downto 0);
+        avg_out_tlast_count : in unsigned(31 downto 0);
+        avg_out_stall_count : in unsigned(31 downto 0);
+        avg_bad_tlast_count : in unsigned(31 downto 0)
     );
 end entity axi_lite_regs;
 
@@ -292,6 +306,12 @@ architecture rtl of axi_lite_regs is
     constant A_PKT_COUNT        : integer := 16#104# / 4;
     constant A_OVF_COUNT        : integer := 16#108# / 4;
     constant A_AVG_N            : integer := 16#10C# / 4;
+    -- A_AVG_N + 1 = 0x110 AVG_FRAME_COUNT
+    constant A_AVG_IN_BEAT      : integer := 16#114# / 4;
+    constant A_AVG_OUT_BEAT     : integer := 16#118# / 4;
+    constant A_AVG_OUT_TLAST    : integer := 16#11C# / 4;
+    constant A_AVG_OUT_STALL    : integer := 16#120# / 4;
+    constant A_AVG_BAD_TLAST    : integer := 16#124# / 4;
 
     -- =========================================================================
     -- AXI internal
@@ -546,6 +566,11 @@ begin
                         when A_OVF_COUNT        => axi_rdata <= x"0000" & std_logic_vector(ovf_count);
                         when A_AVG_N            => axi_rdata <= reg_avg_n;
                         when A_AVG_N + 1        => axi_rdata <= std_logic_vector(avg_frame_count);
+                        when A_AVG_IN_BEAT      => axi_rdata <= std_logic_vector(avg_in_beat_count);
+                        when A_AVG_OUT_BEAT     => axi_rdata <= std_logic_vector(avg_out_beat_count);
+                        when A_AVG_OUT_TLAST    => axi_rdata <= std_logic_vector(avg_out_tlast_count);
+                        when A_AVG_OUT_STALL    => axi_rdata <= std_logic_vector(avg_out_stall_count);
+                        when A_AVG_BAD_TLAST    => axi_rdata <= std_logic_vector(avg_bad_tlast_count);
                         when others             => axi_rdata <= (others => '0');
                     end case;
                 elsif axi_rvalid = '1' and s_axi_rready = '1' then

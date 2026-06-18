@@ -53,7 +53,18 @@ entity avg is
         avg_n           : in  unsigned(3 downto 0);
 
         -- Status
-        frame_count     : out unsigned(31 downto 0)
+        frame_count     : out unsigned(31 downto 0);
+
+        -- Diagnostic counters (avg<->DMA1 handshake visibility)
+        in_beat_count   : out unsigned(31 downto 0);  -- s_axis beats accepted
+        out_beat_count  : out unsigned(31 downto 0);  -- m_axis beats accepted (tvalid & tready)
+        out_tlast_count : out unsigned(31 downto 0);  -- m_axis tlast beats accepted
+        out_stall_count : out unsigned(31 downto 0);  -- cycles tvalid=1, tready=0
+        bad_tlast_count : out unsigned(31 downto 0);  -- tlast asserted on word 0 (framing bug)
+
+        -- Output FSM state, for ILA correlation against stall/tlast counters
+        -- 0=IDLE 1=RDREQ 2=RDWAIT 3=RDWAIT2 4=STREAM 5=CLR
+        out_state_dbg   : out std_logic_vector(2 downto 0)
     );
 end entity avg;
 
@@ -139,6 +150,15 @@ architecture rtl of avg is
     signal clr_bin      : unsigned(12 downto 0) := (others => '0');
 
     signal frame_out_cnt : unsigned(31 downto 0) := (others => '0');
+
+    -- =========================================================================
+    -- Diagnostic counters
+    -- =========================================================================
+    signal in_beat_cnt   : unsigned(31 downto 0) := (others => '0');
+    signal out_beat_cnt  : unsigned(31 downto 0) := (others => '0');
+    signal out_tlast_cnt : unsigned(31 downto 0) := (others => '0');
+    signal out_stall_cnt : unsigned(31 downto 0) := (others => '0');
+    signal bad_tlast_cnt : unsigned(31 downto 0) := (others => '0');
 
     -- Combinatorial output data mux
     signal out_data_i   : std_logic_vector(31 downto 0);
@@ -441,8 +461,50 @@ begin
     end process p_out;
 
     -- =========================================================================
+    -- Diagnostic counters
+    -- Free-running, do not affect any datapath or control logic.
+    -- Read out via axi_lite_regs for avg<->DMA1 handshake visibility.
+    -- =========================================================================
+    p_diag : process(clk)
+    begin
+        if rising_edge(clk) then
+            if rst = '1' then
+                in_beat_cnt   <= (others => '0');
+                out_beat_cnt  <= (others => '0');
+                out_tlast_cnt <= (others => '0');
+                out_stall_cnt <= (others => '0');
+                bad_tlast_cnt <= (others => '0');
+            else
+                -- Input beat: any accepted s_axis transfer (bypass or accumulate)
+                if s_axis_tvalid = '1' and s_axis_tready = '1' then
+                    in_beat_cnt <= in_beat_cnt + 1;
+                end if;
+
+                -- Output beat / tlast / stall: only meaningful in accumulate
+                -- mode, since bypass mode's m_axis is just s_axis passed
+                -- through and is already covered by in_beat_cnt above.
+                if bypass_active = '0' then
+                    if out_valid = '1' and m_axis_tready = '1' then
+                        out_beat_cnt <= out_beat_cnt + 1;
+                        if tlast_int = '1' then
+                            out_tlast_cnt <= out_tlast_cnt + 1;
+                        end if;
+                    elsif out_valid = '1' and m_axis_tready = '0' then
+                        out_stall_cnt <= out_stall_cnt + 1;
+                    end if;
+
+                    -- Framing sanity check: tlast must only ever appear on
+                    -- word 1 (the DI|pressure word), never word 0 (tdc_deg)
+                    if tlast_int = '1' and out_word = '0' then
+                        bad_tlast_cnt <= bad_tlast_cnt + 1;
+                    end if;
+                end if;
+            end if;
+        end if;
+    end process p_diag;
+
+    -- =========================================================================
     -- Output data mux
-    -- word 0: tdc_deg = bin index
     -- word 0: tdc_deg = bin index
     -- word 1: DI[31:24] | 0x00 | pressure_avg[15:4] | 0x0
     -- =========================================================================
@@ -470,5 +532,21 @@ begin
                      else '1' when acc_state = ACC_IDLE else '0';
 
     frame_count   <= frame_out_cnt;
+
+    in_beat_count   <= in_beat_cnt;
+    out_beat_count  <= out_beat_cnt;
+    out_tlast_count <= out_tlast_cnt;
+    out_stall_count <= out_stall_cnt;
+    bad_tlast_count <= bad_tlast_cnt;
+
+    -- Output FSM state encoding for ILA
+    with out_state select out_state_dbg <=
+        "000" when OUT_IDLE,
+        "001" when OUT_RDREQ,
+        "010" when OUT_RDWAIT,
+        "011" when OUT_RDWAIT2,
+        "100" when OUT_STREAM,
+        "101" when OUT_CLR,
+        "111" when others;
 
 end architecture rtl;

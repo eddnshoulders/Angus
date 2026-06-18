@@ -137,7 +137,8 @@ entity top is
         ila_avg_tvalid               : out std_logic;
         ila_avg_tready               : out std_logic;
         ila_avg_tlast                : out std_logic;
-        ila_avg_frame_count          : out std_logic_vector(7 downto 0)
+        ila_avg_frame_count          : out std_logic_vector(7 downto 0);
+        ila_avg_out_state            : out std_logic_vector(2 downto 0)
     );
 end entity top;
 
@@ -311,6 +312,13 @@ architecture rtl of top is
     -- avg block signals
     signal avg_n           : unsigned(3 downto 0);
     signal avg_frame_count : unsigned(31 downto 0);
+
+    signal avg_in_beat_count   : unsigned(31 downto 0);
+    signal avg_out_beat_count  : unsigned(31 downto 0);
+    signal avg_out_tlast_count : unsigned(31 downto 0);
+    signal avg_out_stall_count : unsigned(31 downto 0);
+    signal avg_bad_tlast_count : unsigned(31 downto 0);
+    signal avg_out_state_dbg   : std_logic_vector(2 downto 0);
     -- pack→avg internal stream
     signal pack_tdata      : std_logic_vector(31 downto 0);
     signal pack_tvalid     : std_logic;
@@ -458,7 +466,13 @@ begin
             pkt_count           => pkt_count,
             ovf_count           => ovf_count,
             avg_n               => avg_n,
-            avg_frame_count     => avg_frame_count
+            avg_frame_count     => avg_frame_count,
+
+            avg_in_beat_count   => avg_in_beat_count,
+            avg_out_beat_count  => avg_out_beat_count,
+            avg_out_tlast_count => avg_out_tlast_count,
+            avg_out_stall_count => avg_out_stall_count,
+            avg_bad_tlast_count => avg_bad_tlast_count
         );
 
     -- =========================================================================
@@ -680,7 +694,14 @@ begin
             m_axis_tready    => m_avg_axis_tready,
             m_axis_tlast     => avg_tlast_i,
             avg_n            => avg_n,
-            frame_count      => avg_frame_count
+            frame_count      => avg_frame_count,
+
+            in_beat_count    => avg_in_beat_count,
+            out_beat_count   => avg_out_beat_count,
+            out_tlast_count  => avg_out_tlast_count,
+            out_stall_count  => avg_out_stall_count,
+            bad_tlast_count  => avg_bad_tlast_count,
+            out_state_dbg    => avg_out_state_dbg
         );
 
     -- =========================================================================
@@ -825,5 +846,6 @@ begin
     ila_avg_tready              <= m_avg_axis_tready;
     ila_avg_tlast               <= avg_tlast_i;
     ila_avg_frame_count         <= std_logic_vector(avg_frame_count(7 downto 0));
+    ila_avg_out_state           <= avg_out_state_dbg;
 
 end architecture rtl;
