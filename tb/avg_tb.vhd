@@ -1,464 +1,252 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+
 library std;
 use std.env.all;
 
--- =============================================================================
--- avg_tb.vhd
---
--- Testbench for avg.vhd with 2-word output format.
--- Output frame: 14400 words (7200 bins × 2 words each)
---   Word 0: tdc_deg = bin index (0-7199)
---   Word 1: DI[31:24] | 0x00 | pressure_avg[15:4] | 0x0
---
--- Tests:
---   T1: Reset
---   T2: Bypass (N=0) -- raw passthrough
---   T3: N=1 (2 frames) -- verify bin 0 pressure and tdc_deg word
---   T4: N=2 (4 frames)
---   T5: Back-pressure
---   T6: Double buffer
---   T7: N change
---   T8: Sparse pressure + DI value
--- =============================================================================
-
 entity avg_tb is
-end entity avg_tb;
+end entity;
 
-architecture sim of avg_tb is
+architecture tb of avg_tb is
+    constant CLK_PERIOD : time := 10 ns;
+    constant BINS_C     : positive := 16;
+    constant ADDR_W_C   : positive := 4;
 
-    constant CLK_PERIOD : time    := 10 ns;
-    constant BINS       : integer := 7200;
-    constant WORDS_PER_BIN : integer := 2;
-    constant FRAME_WORDS   : integer := BINS * WORDS_PER_BIN; -- 14400
+    signal clk : std_logic := '0';
+    signal rst : std_logic := '1';
 
-    signal clk             : std_logic := '0';
-    signal rst             : std_logic := '1';
-    signal s_axis_tdata    : std_logic_vector(31 downto 0) := (others => '0');
-    signal s_axis_tvalid   : std_logic := '0';
-    signal s_axis_tready   : std_logic;
-    signal s_axis_tlast    : std_logic := '0';
-    signal m_axis_tdata    : std_logic_vector(31 downto 0);
-    signal m_axis_tvalid   : std_logic;
-    signal m_axis_tready   : std_logic := '1';
-    signal m_axis_tlast    : std_logic;
-    signal avg_n           : unsigned(3 downto 0) := (others => '0');
-    signal frame_count     : unsigned(31 downto 0);
-    signal sim_done        : boolean := false;
-    signal test_num        : integer := 0;
+    signal sample_valid : std_logic := '0';
+    signal sample_ready : std_logic;
+    signal tdc_deg      : unsigned(ADDR_W_C - 1 downto 0) := (others => '0');
+    signal adc_ch0      : unsigned(11 downto 0) := (others => '0');
+    signal di_in        : std_logic_vector(7 downto 0) := (others => '0');
+    signal avg_n        : unsigned(1 downto 0) := (others => '0');
 
-    -- Diagnostic counters under test (avg<->DMA1 handshake visibility)
-    signal in_beat_count   : unsigned(31 downto 0);
-    signal out_beat_count  : unsigned(31 downto 0);
-    signal out_tlast_count : unsigned(31 downto 0);
-    signal out_stall_count : unsigned(31 downto 0);
-    signal bad_tlast_count : unsigned(31 downto 0);
-    signal out_state_dbg   : std_logic_vector(2 downto 0);
+    signal m_axis_tdata  : std_logic_vector(31 downto 0);
+    signal m_axis_tvalid : std_logic;
+    signal m_axis_tready : std_logic := '0';
+    signal m_axis_tlast  : std_logic;
 
-    -- Send one full engine cycle (BINS samples, 2 words each)
-    procedure send_frame (
-        constant pressure   : in integer;
-        constant di         : in integer;
-        signal   tdata      : out std_logic_vector(31 downto 0);
-        signal   tvalid     : out std_logic;
-        signal   tlast      : out std_logic;
-        signal   tready     : in  std_logic;
-        signal   clk        : in  std_logic
+    signal frames_in_count      : unsigned(31 downto 0);
+    signal frames_out_count     : unsigned(31 downto 0);
+    signal samples_in_count     : unsigned(31 downto 0);
+    signal missed_sample_count  : unsigned(31 downto 0);
+    signal out_of_order_count   : unsigned(31 downto 0);
+    signal bank_overrun_count   : unsigned(31 downto 0);
+    signal dropped_sample_count : unsigned(31 downto 0);
+    signal out_stall_count      : unsigned(31 downto 0);
+    signal state_dbg            : std_logic_vector(7 downto 0);
+
+    procedure wait_clk(signal clk_s : in std_logic; n : natural := 1) is
+    begin
+        for i in 1 to n loop
+            wait until rising_edge(clk_s);
+        end loop;
+    end procedure;
+
+    procedure send_sample(
+        signal clk_s   : in std_logic;
+        signal valid_s : out std_logic;
+        signal ready_s : in std_logic;
+        signal deg_s   : out unsigned(ADDR_W_C - 1 downto 0);
+        signal adc_s   : out unsigned(11 downto 0);
+        signal di_s    : out std_logic_vector(7 downto 0);
+        constant deg_v  : natural;
+        constant adc_v  : natural;
+        constant di_v   : natural
     ) is
     begin
-        tvalid <= '1';
-        for bin in 0 to BINS - 1 loop
-            tlast <= '0';
-            -- Word 0: set tdc_deg, wait until acc samples it (tready='1' post-delta)
-            tdata <= std_logic_vector(to_unsigned(bin, 32));
-            loop
-                wait until rising_edge(clk); wait for 1 ns;
-                exit when tready = '1';
-            end loop;
-            -- Word 1: set pressure/DI, wait until acc samples it
-            tdata <= std_logic_vector(to_unsigned(di, 8)) &
-                     x"00" &
-                     std_logic_vector(to_unsigned(pressure * 16, 16));
-            if bin = BINS - 1 then tlast <= '1'; end if;
-            loop
-                wait until rising_edge(clk); wait for 1 ns;
-                exit when tready = '1';
-            end loop;
+        deg_s   <= to_unsigned(deg_v, ADDR_W_C);
+        adc_s   <= to_unsigned(adc_v, 12);
+        di_s    <= std_logic_vector(to_unsigned(di_v, 8));
+        valid_s <= '1';
+        loop
+            wait until rising_edge(clk_s);
+            wait for 1 ns;
+            exit when ready_s = '1';
         end loop;
-        tvalid <= '0';
-        tlast  <= '0';
-        wait until rising_edge(clk);
-    end procedure send_frame;
+        valid_s <= '0';
+        wait until rising_edge(clk_s);
+    end procedure;
 
-    -- Drain n_words output words (tvalid continuously high during averaging)
-    procedure drain_words (
-        constant n_words    : in  integer;
-        signal   tvalid     : in  std_logic;
-        signal   tready     : out std_logic;
-        signal   clk        : in  std_logic
+    procedure send_frame(
+        signal clk_s   : in std_logic;
+        signal valid_s : out std_logic;
+        signal ready_s : in std_logic;
+        signal deg_s   : out unsigned(ADDR_W_C - 1 downto 0);
+        signal adc_s   : out unsigned(11 downto 0);
+        signal di_s    : out std_logic_vector(7 downto 0);
+        constant base_adc : natural;
+        constant di_v     : natural
     ) is
     begin
-        tready <= '1';
-        for i in 0 to n_words - 1 loop
-            wait until rising_edge(clk);
+        for b in 0 to BINS_C - 1 loop
+            send_sample(clk_s, valid_s, ready_s, deg_s, adc_s, di_s, b, base_adc + b, di_v);
         end loop;
-    end procedure drain_words;
+    end procedure;
+
+    procedure get_beat(
+        signal clk_s   : in std_logic;
+        signal valid_s : in std_logic;
+        signal ready_s : in std_logic;
+        signal data_s  : in std_logic_vector(31 downto 0);
+        signal last_s  : in std_logic;
+        variable data_v : out std_logic_vector(31 downto 0);
+        variable last_v : out std_logic
+    ) is
+    begin
+        -- Capture data while it is stable before the clock edge that accepts
+        -- the AXI beat. Sampling after the rising edge can accidentally read
+        -- the next beat from a registered master.
+        loop
+            wait until falling_edge(clk_s);
+            if valid_s = '1' and ready_s = '1' then
+                data_v := data_s;
+                last_v := last_s;
+                wait until rising_edge(clk_s);
+                exit;
+            end if;
+        end loop;
+    end procedure;
+
+    procedure expect_frame(
+        signal clk_s   : in std_logic;
+        signal valid_s : in std_logic;
+        signal ready_s : inout std_logic;
+        signal data_s  : in std_logic_vector(31 downto 0);
+        signal last_s  : in std_logic;
+        constant base_adc : natural;
+        constant di_v     : natural
+    ) is
+        variable d : std_logic_vector(31 downto 0);
+        variable l : std_logic;
+        variable expected_word1 : std_logic_vector(31 downto 0);
+    begin
+        -- Hold the output stream stalled until the checker is ready. This makes
+        -- bin 0 word 0 the first accepted beat rather than allowing the DUT to
+        -- stream part of a frame before expect_frame starts listening.
+        -- Assert ready, then let get_beat capture the already-present
+        -- first beat before the next rising edge accepts it. Do not wait for a
+        -- rising edge here, because that would accept and discard bin 0 word 0
+        -- before the checker starts reading.
+        ready_s <= '1';
+        wait for 1 ns;
+
+        for b in 0 to BINS_C - 1 loop
+            get_beat(clk_s, valid_s, ready_s, data_s, last_s, d, l);
+            assert d = std_logic_vector(to_unsigned(b, 32))
+                report "bin word mismatch. got 0x" & to_hstring(d) & " expected bin " & integer'image(b)
+                severity failure;
+            assert l = '0'
+                report "tlast asserted on bin word"
+                severity failure;
+
+            get_beat(clk_s, valid_s, ready_s, data_s, last_s, d, l);
+            expected_word1 := std_logic_vector(to_unsigned(di_v, 8)) & x"00" &
+                              std_logic_vector(to_unsigned(base_adc + b, 12)) & "0000";
+            assert d = expected_word1
+                report "data word mismatch at bin " & integer'image(b) &
+                       ". got 0x" & to_hstring(d) & " expected 0x" & to_hstring(expected_word1)
+                severity failure;
+            if b = BINS_C - 1 then
+                assert l = '1' report "missing tlast on final data word" severity failure;
+            else
+                assert l = '0' report "early tlast" severity failure;
+            end if;
+        end loop;
+
+        ready_s <= '0';
+        wait until rising_edge(clk_s);
+    end procedure;
 
 begin
-
-    p_clk : process
-    begin
-        while not sim_done loop
-            clk <= '0'; wait for CLK_PERIOD/2;
-            clk <= '1'; wait for CLK_PERIOD/2;
-        end loop;
-        wait;
-    end process p_clk;
+    clk <= not clk after CLK_PERIOD / 2;
 
     dut : entity work.avg
+        generic map (
+            BINS => BINS_C,
+            ADDR_W => ADDR_W_C
+        )
         port map (
-            clk             => clk,
-            rst             => rst,
-            s_axis_tdata    => s_axis_tdata,
-            s_axis_tvalid   => s_axis_tvalid,
-            s_axis_tready   => s_axis_tready,
-            s_axis_tlast    => s_axis_tlast,
-            m_axis_tdata    => m_axis_tdata,
-            m_axis_tvalid   => m_axis_tvalid,
-            m_axis_tready   => m_axis_tready,
-            m_axis_tlast    => m_axis_tlast,
-            avg_n           => avg_n,
-            frame_count     => frame_count,
-            in_beat_count   => in_beat_count,
-            out_beat_count  => out_beat_count,
-            out_tlast_count => out_tlast_count,
+            clk => clk,
+            rst => rst,
+            sample_valid => sample_valid,
+            sample_ready => sample_ready,
+            tdc_deg => tdc_deg,
+            adc_ch0 => adc_ch0,
+            di_in => di_in,
+            avg_n => avg_n,
+            m_axis_tdata => m_axis_tdata,
+            m_axis_tvalid => m_axis_tvalid,
+            m_axis_tready => m_axis_tready,
+            m_axis_tlast => m_axis_tlast,
+            frames_in_count => frames_in_count,
+            frames_out_count => frames_out_count,
+            samples_in_count => samples_in_count,
+            missed_sample_count => missed_sample_count,
+            out_of_order_count => out_of_order_count,
+            bank_overrun_count => bank_overrun_count,
+            dropped_sample_count => dropped_sample_count,
             out_stall_count => out_stall_count,
-            bad_tlast_count => bad_tlast_count,
-            out_state_dbg   => out_state_dbg
+            state_dbg => state_dbg
         );
 
-    p_stim : process
-        variable data_v     : std_logic_vector(31 downto 0);
-        variable fc_before  : unsigned(31 downto 0);
-        variable stall_before : unsigned(31 downto 0);
+    stim : process
+        variable d_tmp : std_logic_vector(31 downto 0);
+        variable l_tmp : std_logic;
     begin
+        report "TEST 0: reset";
+        rst <= '1';
+        wait_clk(clk, 5);
+        rst <= '0';
+        wait_clk(clk, 5);
 
-        -- T1: Reset
-        report "TEST 1: Reset";
-        test_num <= 1;
-        rst <= '1'; wait for 5 * CLK_PERIOD;
-        rst <= '0'; wait for 2 * CLK_PERIOD; wait for 1 ns;
-        assert m_axis_tvalid = '0'
-            report "FAIL T1: tvalid should be low" severity failure;
-        assert to_integer(frame_count) = 0
-            report "FAIL T1: frame_count should be 0" severity failure;
-        report "TEST 1: PASS";
+        report "TEST 1: avg_n=0 uses binning path, one frame in gives one frame out";
+        avg_n <= to_unsigned(0, 2);
+        send_frame(clk, sample_valid, sample_ready, tdc_deg, adc_ch0, di_in, 100, 16#A5#);
 
-        -- T2: Bypass (N=0)
-        report "TEST 2: Bypass (N=0) -- raw passthrough";
-        test_num <= 2;
-        avg_n <= to_unsigned(0, 4);
-        m_axis_tready <= '1';
-        -- Send word 0
-        s_axis_tdata  <= x"00000064";
-        s_axis_tvalid <= '1';
-        s_axis_tlast  <= '0';
-        wait until rising_edge(clk) and s_axis_tready = '1'; wait for 1 ns;
-        assert m_axis_tvalid = '1'
-            report "FAIL T2: tvalid in bypass" severity failure;
-        assert m_axis_tdata = x"00000064"
-            report "FAIL T2: word 0 mismatch in bypass" severity failure;
-        -- Send word 1 with tlast
-        s_axis_tdata  <= x"AABBCCDD";
-        s_axis_tlast  <= '1';
-        wait until rising_edge(clk) and s_axis_tready = '1'; wait for 1 ns;
-        assert m_axis_tdata = x"AABBCCDD"
-            report "FAIL T2: word 1 mismatch in bypass" severity failure;
-        assert m_axis_tlast = '1'
-            report "FAIL T2: tlast in bypass" severity failure;
-        s_axis_tvalid <= '0'; s_axis_tlast <= '0';
-        wait for 5 * CLK_PERIOD;
-        report "TEST 2: PASS";
+        -- Set avg_n before the wrap sample that starts the next accumulation
+        -- bank. Per the design rule, avg_n is latched only when a new
+        -- binning cycle/bank is claimed. Changing it after this sample would
+        -- be too late for the 200/300 two-frame window.
+        avg_n <= to_unsigned(1, 2);
 
-        -- T3: N=1, 2 frames, pressure=100, DI=0xAB
-        -- Expected: bin 0 word0=0, word1=0xAB_00_640_0 (pressure=100>>1*16=800? no)
-        -- pressure sum = 100+100=200, avg = 200>>1 = 100
-        -- word1 = 0xAB | 0x00 | (100 << 4) | 0x0 = 0xAB001640 -- wait
-        -- pressure field [15:4] = 100 = 0x064, so [15:0] = 0x0640
-        -- word1 = 0xAB_00_0640
-        report "TEST 3: N=1 -- 2 frames, pressure=100, DI=0xAB";
-        test_num <= 3;
-        avg_n <= to_unsigned(1, 4);
-        m_axis_tready <= '1';
-        fc_before := frame_count;
+        -- Send first sample of next frame to create the 15->0 wrap boundary.
+        -- This sample belongs to the new avg_n=1 accumulation window.
+        send_sample(clk, sample_valid, sample_ready, tdc_deg, adc_ch0, di_in, 0, 200, 16#5A#);
+        expect_frame(clk, m_axis_tvalid, m_axis_tready, m_axis_tdata, m_axis_tlast, 100, 16#A5#);
 
-        send_frame(100, 16#AB#, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
-                   s_axis_tready, clk);
-        send_frame(100, 16#AB#, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
-                   s_axis_tready, clk);
-
-        -- Wait for output frame
-        wait until m_axis_tvalid = '1'; wait for 1 ns;
-
-        -- Bin 0, word 0: tdc_deg should be 0
-        assert to_integer(unsigned(m_axis_tdata)) = 0
-            report "FAIL T3: bin 0 word 0 (tdc_deg) wrong, expected 0, got " &
-                   integer'image(to_integer(unsigned(m_axis_tdata)))
-            severity failure;
-
-        -- Bin 0, word 1: DI=0xAB, pressure=100
-        wait until rising_edge(clk); wait for 1 ns;
-        assert m_axis_tdata(31 downto 24) = x"AB"
-            report "FAIL T3: bin 0 DI wrong, expected 0xAB"
-            severity failure;
-        assert to_integer(unsigned(m_axis_tdata(15 downto 4))) = 100
-            report "FAIL T3: bin 0 pressure wrong, expected 100, got " &
-                   integer'image(to_integer(unsigned(m_axis_tdata(15 downto 4))))
-            severity failure;
-
-        -- Drain remaining bins (bins 1..7198 = 7198 bins = 14396 words)
-        -- then check last bin
-        drain_words(FRAME_WORDS - 4, m_axis_tvalid, m_axis_tready, clk);
-
-        -- Bin 7199, word 0: tdc_deg = 7199
-        wait until rising_edge(clk); wait for 1 ns;
-        assert to_integer(unsigned(m_axis_tdata)) = 7199
-            report "FAIL T3: bin 7199 word 0 wrong, expected 7199, got " &
-                   integer'image(to_integer(unsigned(m_axis_tdata)))
-            severity failure;
-
-        -- Bin 7199, word 1: tlast asserted
-        wait until rising_edge(clk); wait for 1 ns;
-        assert m_axis_tlast = '1'
-            report "FAIL T3: tlast not asserted on final word"
-            severity failure;
-        assert to_integer(unsigned(m_axis_tdata(15 downto 4))) = 100
-            report "FAIL T3: bin 7199 pressure wrong"
-            severity failure;
-
-        wait for 5 * CLK_PERIOD; wait for 1 ns;
-        assert frame_count = fc_before + 1
-            report "FAIL T3: frame_count did not increment"
-            severity failure;
-
-        -- Diagnostic counter checks: clean run, no backpressure.
-        -- One output frame = FRAME_WORDS beats, exactly one tlast,
-        -- zero stalls (tready held high throughout), zero bad tlasts.
-        assert to_integer(out_beat_count) = FRAME_WORDS
-            report "FAIL T3: out_beat_count expected " &
-                   integer'image(FRAME_WORDS) & ", got " &
-                   integer'image(to_integer(out_beat_count))
-            severity failure;
-        assert to_integer(out_tlast_count) = 1
-            report "FAIL T3: out_tlast_count expected 1, got " &
-                   integer'image(to_integer(out_tlast_count))
-            severity failure;
-        assert to_integer(out_stall_count) = 0
-            report "FAIL T3: out_stall_count expected 0 (no backpressure applied), got " &
-                   integer'image(to_integer(out_stall_count))
-            severity failure;
-        assert to_integer(bad_tlast_count) = 0
-            report "FAIL T3: bad_tlast_count expected 0, got " &
-                   integer'image(to_integer(bad_tlast_count))
-            severity failure;
-        report "TEST 3: PASS";
-        wait for 10 * CLK_PERIOD;
-
-        -- T4: N=2, 4 frames, pressure=200
-        report "TEST 4: N=2 -- 4 frames, pressure=200";
-        test_num <= 4;
-        avg_n <= to_unsigned(2, 4);
-        fc_before := frame_count;
-
-        for f in 0 to 3 loop
-            send_frame(200, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
-                       s_axis_tready, clk);
+        report "TEST 2: avg_n change latches at new accumulation cycle";
+        -- The first sample of this frame was already sent above with adc=200.
+        for b in 1 to BINS_C - 1 loop
+            send_sample(clk, sample_valid, sample_ready, tdc_deg, adc_ch0, di_in, b, 200 + b, 16#5A#);
         end loop;
+        send_frame(clk, sample_valid, sample_ready, tdc_deg, adc_ch0, di_in, 300, 16#5A#);
+        -- Boundary to close the second frame of the avg_n=1 window and start
+        -- a new avg_n=1 window with bin 0 = 400.
+        send_sample(clk, sample_valid, sample_ready, tdc_deg, adc_ch0, di_in, 0, 400, 16#11#);
+        -- Average of 200+b and 300+b is 250+b.
+        expect_frame(clk, m_axis_tvalid, m_axis_tready, m_axis_tdata, m_axis_tlast, 250, 16#5A#);
 
-        wait until m_axis_tvalid = '1'; wait for 1 ns;
-        -- Bin 0 word 0: tdc_deg=0
-        assert to_integer(unsigned(m_axis_tdata)) = 0
-            report "FAIL T4: bin 0 tdc_deg wrong" severity failure;
-        wait until rising_edge(clk); wait for 1 ns;
-        -- Bin 0 word 1: pressure=200
-        assert to_integer(unsigned(m_axis_tdata(15 downto 4))) = 200
-            report "FAIL T4: bin 0 pressure wrong, expected 200, got " &
-                   integer'image(to_integer(unsigned(m_axis_tdata(15 downto 4))))
-            severity failure;
-
-        drain_words(FRAME_WORDS - 2, m_axis_tvalid, m_axis_tready, clk);
-
-        wait for 5 * CLK_PERIOD; wait for 1 ns;
-        assert frame_count = fc_before + 1
-            report "FAIL T4: frame_count did not increment"
-            severity failure;
-        report "TEST 4: PASS";
-        wait for 10 * CLK_PERIOD;
-
-        -- T5: Back-pressure
-        report "TEST 5: Back-pressure -- tready deasserted mid-frame";
-        test_num <= 5;
-        avg_n <= to_unsigned(1, 4);
-
-        send_frame(50, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
-                   s_axis_tready, clk);
-        send_frame(50, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
-                   s_axis_tready, clk);
-
-        m_axis_tready <= '1';
-        wait until m_axis_tvalid = '1'; wait for 1 ns;
-        data_v := m_axis_tdata;
-        m_axis_tready <= '0';
-        stall_before := out_stall_count;
-        wait for 10 * CLK_PERIOD;
-
-        assert m_axis_tvalid = '1'
-            report "FAIL T5: tvalid dropped under back-pressure"
-            severity failure;
-        assert m_axis_tdata = data_v
-            report "FAIL T5: data changed under back-pressure"
-            severity failure;
-        assert to_integer(out_stall_count) = to_integer(stall_before) + 10
-            report "FAIL T5: out_stall_count expected +10 during back-pressure window, got +" &
-                   integer'image(to_integer(out_stall_count) - to_integer(stall_before))
-            severity failure;
-        assert out_state_dbg = "100"  -- OUT_STREAM
-            report "FAIL T5: expected out_state_dbg=OUT_STREAM during stall, got " &
-                   to_hstring(out_state_dbg)
-            severity failure;
-
-        m_axis_tready <= '1';
-        drain_words(FRAME_WORDS - 1, m_axis_tvalid, m_axis_tready, clk);
-        report "TEST 5: PASS";
-        wait for 10 * CLK_PERIOD;
-
-        -- T6: Double buffer
-        report "TEST 6: Double buffer -- 4 frames, 2 output frames";
-        test_num <= 6;
-        avg_n <= to_unsigned(1, 4);
-        fc_before := frame_count;
-
-        send_frame(10, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
-                   s_axis_tready, clk);
-        send_frame(10, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
-                   s_axis_tready, clk);
-        send_frame(20, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
-                   s_axis_tready, clk);
-        send_frame(20, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
-                   s_axis_tready, clk);
-
-        m_axis_tready <= '1';
-        drain_words(2 * FRAME_WORDS, m_axis_tvalid, m_axis_tready, clk);
-
-        wait for 5 * CLK_PERIOD; wait for 1 ns;
-        assert frame_count = fc_before + 2
-            report "FAIL T6: expected 2 output frames"
-            severity failure;
-        report "TEST 6: PASS";
-        wait for 10 * CLK_PERIOD;
-
-        -- T7: N change
-        report "TEST 7: N change between frames";
-        test_num <= 7;
-        avg_n <= to_unsigned(1, 4);
-
-        send_frame(40, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
-                   s_axis_tready, clk);
-        send_frame(40, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
-                   s_axis_tready, clk);
-
-        wait until m_axis_tvalid = '1';
-        drain_words(FRAME_WORDS - 1, m_axis_tvalid, m_axis_tready, clk);
-
-        avg_n <= to_unsigned(2, 4);
-        for f in 0 to 3 loop
-            send_frame(80, 0, s_axis_tdata, s_axis_tvalid, s_axis_tlast,
-                       s_axis_tready, clk);
+        report "TEST 3: missed sample is counted and does not shift following bins";
+        avg_n <= to_unsigned(0, 2);
+        -- Complete the frame that started with bin 0 = 400, but skip bin 5.
+        for b in 1 to BINS_C - 1 loop
+            if b /= 5 then
+                send_sample(clk, sample_valid, sample_ready, tdc_deg, adc_ch0, di_in, b, 400 + b, 16#11#);
+            end if;
         end loop;
-
-        wait until m_axis_tvalid = '1'; wait for 1 ns;
-        -- Skip tdc_deg word
-        wait until rising_edge(clk); wait for 1 ns;
-        assert to_integer(unsigned(m_axis_tdata(15 downto 4))) = 80
-            report "FAIL T7: bin 0 pressure wrong after N change, expected 80, got " &
-                   integer'image(to_integer(unsigned(m_axis_tdata(15 downto 4))))
-            severity failure;
-        drain_words(FRAME_WORDS - 2, m_axis_tvalid, m_axis_tready, clk);
-        report "TEST 7: PASS";
-        wait for 10 * CLK_PERIOD;
-
-        -- T8: Sparse pressure + DI verification
-        report "TEST 8: Sparse pressure + DI snapshot";
-        test_num <= 8;
-        avg_n <= to_unsigned(1, 4);
-
-        -- Frame 1: bin 0 pressure=100 DI=0xCD, others pressure=0 DI=0
-        -- Frame 2: same
-        for f in 0 to 1 loop
-            s_axis_tvalid <= '1';
-            for bin in 0 to BINS - 1 loop
-                s_axis_tlast  <= '0';
-                s_axis_tdata  <= std_logic_vector(to_unsigned(bin, 32));
-                loop
-                    wait until rising_edge(clk); wait for 1 ns;
-                    exit when s_axis_tready = '1';
-                end loop;
-                if bin = 0 then
-                    s_axis_tdata <= x"CD" & x"00" & x"0640";
-                else
-                    s_axis_tdata <= x"00000000";
-                end if;
-                if bin = BINS - 1 then s_axis_tlast <= '1'; end if;
-                loop
-                    wait until rising_edge(clk); wait for 1 ns;
-                    exit when s_axis_tready = '1';
-                end loop;
-            end loop;
-        end loop;
-        s_axis_tvalid <= '0'; s_axis_tlast <= '0';
-
-        wait until m_axis_tvalid = '1'; wait for 1 ns;
-
-        -- Bin 0 word 0: tdc_deg=0
-        assert to_integer(unsigned(m_axis_tdata)) = 0
-            report "FAIL T8: bin 0 tdc_deg wrong" severity failure;
-
-        -- Bin 0 word 1: DI=0xCD, pressure=100
-        wait until rising_edge(clk); wait for 1 ns;
-        assert m_axis_tdata(31 downto 24) = x"CD"
-            report "FAIL T8: bin 0 DI wrong, expected 0xCD, got " &
-                   to_hstring(m_axis_tdata(31 downto 24))
-            severity failure;
-        assert to_integer(unsigned(m_axis_tdata(15 downto 4))) = 100
-            report "FAIL T8: bin 0 pressure wrong, expected 100, got " &
-                   integer'image(to_integer(unsigned(m_axis_tdata(15 downto 4))))
+        send_sample(clk, sample_valid, sample_ready, tdc_deg, adc_ch0, di_in, 0, 500, 16#22#);
+        -- The realtime output should still be angularly aligned. We only assert
+        -- the counter here; a full missing-bin data check can be added once the
+        -- desired display policy for under-sampled bins is finalised.
+        assert missed_sample_count > 0
+            report "missed sample counter did not increment"
             severity failure;
 
-        -- Bin 1 word 0: tdc_deg=1
-        wait until rising_edge(clk); wait for 1 ns;
-        assert to_integer(unsigned(m_axis_tdata)) = 1
-            report "FAIL T8: bin 1 tdc_deg wrong" severity failure;
-
-        -- Bin 1 word 1: DI=0x00, pressure=0
-        wait until rising_edge(clk); wait for 1 ns;
-        assert m_axis_tdata(31 downto 24) = x"00"
-            report "FAIL T8: bin 1 DI should be 0" severity failure;
-        assert to_integer(unsigned(m_axis_tdata(15 downto 4))) = 0
-            report "FAIL T8: bin 1 pressure should be 0" severity failure;
-
-        drain_words(FRAME_WORDS - 4, m_axis_tvalid, m_axis_tready, clk);
-        report "TEST 8: PASS";
-
-        -- Done
-        wait for 20 * CLK_PERIOD;
-        report "========================================";
-        report "All avg tests complete";
-        report "========================================";
-        sim_done <= true;
+        report "PASS: all avg_direct tests completed";
         std.env.stop;
-        wait;
-
-    end process p_stim;
-
-end architecture sim;
+		
+    end process;
+end architecture;

@@ -3,556 +3,436 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 -- =============================================================================
--- avg.vhd
+-- avg_direct.vhd
 --
--- Theta-P averaging accumulator.
--- Consumes the raw AXI-Stream from pack.vhd and produces a second AXI-Stream
--- of averaged frames for the display DMA path.
+-- Direct-sample crank-angle profile averaging block.
 --
--- Input stream (from pack.vhd, 2 words per sample):
---   Word 0: [31:0]  tdc_deg  (0-7199, used directly as bin address)
---   Word 1: [31:24] DI[7:0] | [23:16] 0x00 | [15:4] pressure | [3:0] 0x0
---   tlast asserted on Word 1 of the last sample in each engine cycle
+-- Intended use:
+--   tdc/adc/di sample bus
+--      |-- pack.vhd          -> raw DMA / saved data
+--      `-- avg_direct.vhd    -> realtime averaged profile DMA
 --
--- Output stream (to avg DMA, 2 words per bin, matching pack.vhd format):
---   Word 0: [31:0]  tdc_deg = bin index (0-7199)
---   Word 1: [31:24] DI snapshot | [23:16] 0x00 | [15:4] pressure_avg | [3:0] 0x0
---   tlast asserted on Word 1 of bin 7199
---   Frame = 14400 words = 57600 bytes (identical layout to raw 1-rev frame)
+-- Input samples are written using tdc_deg as the accumulation address. An
+-- internal expected-bin counter is used only for validation and resync. A missed
+-- sample therefore creates a local under-sampled bin; it never shifts all later
+-- samples.
 --
--- Averaging:
---   N = 0: bypass mode. Raw stream passes directly to output.
---   N > 0: accumulate 2^N engine cycles, output averaged frame.
---          pressure_avg = sum >> N (right shift, exact for power-of-2 counts)
---          DI: snapshot from most recent accumulated frame (not averaged)
+-- Averaging window:
+--   avg_n = 0..3 means 2^avg_n complete 720-degree frames per output frame.
+--   avg_n is latched only when a new accumulation bank is claimed.
+--   output average is sum >> latched_avg_n.
 --
--- Double buffering:
---   Pressure: two 7200x32-bit BRAMs (ping-pong banks)
---   DI snapshot: single 7200x8-bit BRAM (no double buffer needed -- single
---                cycle snapshot, torn reads acceptable for display)
+-- Output stream is pack-compatible, two 32-bit words per bin:
+--   word0 = bin/tdc_deg as 32-bit unsigned
+--   word1 = DI[31:24] | 0x00[23:16] | adc_avg[15:4] | 0x0[3:0]
+--   tlast on word1 of the final bin.
+--
+-- The block is deliberately simple rather than one-sample-per-clock optimised.
+-- At 20,000 rpm and 0.1 degree sampling the input rate is 2.4 MS/s, which gives
+-- ~41 clocks/sample at 100 MHz.
 -- =============================================================================
 
 entity avg is
+    generic (
+        BINS   : positive := 7200;
+        ADDR_W : positive := 13
+    );
     port (
-        clk             : in  std_logic;
-        rst             : in  std_logic;
+        clk : in std_logic;
+        rst : in std_logic;
 
-        -- Raw input stream (from pack.vhd)
-        s_axis_tdata    : in  std_logic_vector(31 downto 0);
-        s_axis_tvalid   : in  std_logic;
-        s_axis_tready   : out std_logic;
-        s_axis_tlast    : in  std_logic;
+        sample_valid : in  std_logic;
+        sample_ready : out std_logic;
+        tdc_deg      : in  unsigned(ADDR_W - 1 downto 0);
+        adc_ch0      : in  unsigned(11 downto 0);
+        di_in        : in  std_logic_vector(7 downto 0);
 
-        -- Averaged output stream (to avg DMA)
-        m_axis_tdata    : out std_logic_vector(31 downto 0);
-        m_axis_tvalid   : out std_logic;
-        m_axis_tready   : in  std_logic;
-        m_axis_tlast    : out std_logic;
+        avg_n        : in  unsigned(1 downto 0); -- 0..3 only
 
-        -- Control inputs
-        avg_n           : in  unsigned(3 downto 0);
+        m_axis_tdata  : out std_logic_vector(31 downto 0);
+        m_axis_tvalid : out std_logic;
+        m_axis_tready : in  std_logic;
+        m_axis_tlast  : out std_logic;
 
-        -- Status
-        frame_count     : out unsigned(31 downto 0);
-
-        -- Diagnostic counters (avg<->DMA1 handshake visibility)
-        in_beat_count   : out unsigned(31 downto 0);  -- s_axis beats accepted
-        out_beat_count  : out unsigned(31 downto 0);  -- m_axis beats accepted (tvalid & tready)
-        out_tlast_count : out unsigned(31 downto 0);  -- m_axis tlast beats accepted
-        out_stall_count : out unsigned(31 downto 0);  -- cycles tvalid=1, tready=0
-        bad_tlast_count : out unsigned(31 downto 0);  -- tlast asserted on word 0 (framing bug)
-
-        -- Output FSM state, for ILA correlation against stall/tlast counters
-        -- 0=IDLE 1=RDREQ 2=RDWAIT 3=RDWAIT2 4=STREAM 5=CLR
-        out_state_dbg   : out std_logic_vector(2 downto 0)
+        -- Status/counters for AXI-lite exposure upstream
+        frames_in_count     : out unsigned(31 downto 0);
+        frames_out_count    : out unsigned(31 downto 0);
+        samples_in_count    : out unsigned(31 downto 0);
+        missed_sample_count : out unsigned(31 downto 0);
+        out_of_order_count  : out unsigned(31 downto 0);
+        bank_overrun_count  : out unsigned(31 downto 0);
+        dropped_sample_count: out unsigned(31 downto 0);
+        out_stall_count     : out unsigned(31 downto 0);
+        state_dbg           : out std_logic_vector(7 downto 0)
     );
 end entity avg;
 
 architecture rtl of avg is
+    subtype addr_t is unsigned(ADDR_W - 1 downto 0);
 
-    -- =========================================================================
-    -- Pressure BRAM: two independent 7200x32-bit ping-pong banks
-    -- =========================================================================
-    constant BINS       : integer := 7200;
+    type sum_ram_t is array (0 to BINS - 1) of unsigned(31 downto 0);
+    type di_ram_t  is array (0 to BINS - 1) of std_logic_vector(7 downto 0);
 
-    type t_bram32 is array (0 to BINS - 1) of unsigned(31 downto 0);
-    type t_bram8  is array (0 to BINS - 1) of std_logic_vector(7 downto 0);
+    signal sum0 : sum_ram_t := (others => (others => '0'));
+    signal sum1 : sum_ram_t := (others => (others => '0'));
+    signal di0  : di_ram_t  := (others => (others => '0'));
+    signal di1  : di_ram_t  := (others => (others => '0'));
 
-    -- Pressure bank 0
-    signal ram0         : t_bram32 := (others => (others => '0'));
-    signal r0_addr      : unsigned(12 downto 0) := (others => '0');
-    signal r0_wdata     : unsigned(31 downto 0) := (others => '0');
-    signal r0_rdata     : unsigned(31 downto 0);
-    signal r0_we        : std_logic := '0';
+    type bank_state_t is (BANK_EMPTY, BANK_ACCUM, BANK_FULL, BANK_STREAM, BANK_CLEAR);
+    signal bank0_state : bank_state_t := BANK_ACCUM;
+    signal bank1_state : bank_state_t := BANK_EMPTY;
+    signal acc_bank    : std_logic := '0';
+    signal out_bank    : std_logic := '0';
+    signal bank0_shift : unsigned(1 downto 0) := (others => '0');
+    signal bank1_shift : unsigned(1 downto 0) := (others => '0');
+    signal acc_shift   : unsigned(1 downto 0) := (others => '0');
+    signal out_shift   : unsigned(1 downto 0) := (others => '0');
 
-    -- Pressure bank 1
-    signal ram1         : t_bram32 := (others => (others => '0'));
-    signal r1_addr      : unsigned(12 downto 0) := (others => '0');
-    signal r1_wdata     : unsigned(31 downto 0) := (others => '0');
-    signal r1_rdata     : unsigned(31 downto 0);
-    signal r1_we        : std_logic := '0';
+    type acc_state_t is (ACC_IDLE, ACC_READ, ACC_ADD, ACC_WRITE);
+    signal acc_state : acc_state_t := ACC_IDLE;
+    signal lat_addr  : addr_t := (others => '0');
+    signal lat_adc   : unsigned(11 downto 0) := (others => '0');
+    signal lat_di    : std_logic_vector(7 downto 0) := (others => '0');
+    signal lat_bank  : std_logic := '0';
+    signal rd_sum    : unsigned(31 downto 0) := (others => '0');
+    signal new_sum   : unsigned(31 downto 0) := (others => '0');
 
-    -- DI snapshot BRAM (single port, accumulator writes, output reads)
-    signal di_snap      : t_bram8  := (others => (others => '0'));
-    signal di_wr_addr   : unsigned(12 downto 0) := (others => '0');
-    signal di_wr_data   : std_logic_vector(7 downto 0) := (others => '0');
-    signal di_we        : std_logic := '0';
-    signal di_rd_addr   : unsigned(12 downto 0) := (others => '0');
-    signal di_rdata     : std_logic_vector(7 downto 0);
+    signal prev_tdc      : addr_t := (others => '0');
+    signal expected_bin  : addr_t := (others => '0');
+    signal have_prev     : std_logic := '0';
+    signal frames_window : unsigned(3 downto 0) := (others => '0'); -- max 8
 
-    -- =========================================================================
-    -- Bank routing
-    -- =========================================================================
-    signal acc_bank     : std_logic := '0';
-    signal out_bank     : std_logic;
+    type out_state_t is (OUT_IDLE, OUT_READ, OUT_SEND0, OUT_SEND1, OUT_CLEAR, OUT_DONE);
+    signal out_state : out_state_t := OUT_IDLE;
+    signal out_bin   : addr_t := (others => '0');
+    signal out_sum   : unsigned(31 downto 0) := (others => '0');
+    signal out_di    : std_logic_vector(7 downto 0) := (others => '0');
+    signal out_word0 : std_logic_vector(31 downto 0) := (others => '0');
+    signal out_word1 : std_logic_vector(31 downto 0) := (others => '0');
+    signal clr_bin   : addr_t := (others => '0');
 
-    signal acc_rdata    : unsigned(31 downto 0);
-    signal out_rdata    : unsigned(31 downto 0);
+    signal m_data  : std_logic_vector(31 downto 0) := (others => '0');
+    signal m_valid : std_logic := '0';
+    signal m_last  : std_logic := '0';
 
-    signal acc_addr     : unsigned(12 downto 0) := (others => '0');
-    signal acc_wdata    : unsigned(31 downto 0) := (others => '0');
-    signal acc_we       : std_logic := '0';
+    signal c_frames_in      : unsigned(31 downto 0) := (others => '0');
+    signal c_frames_out     : unsigned(31 downto 0) := (others => '0');
+    signal c_samples_in     : unsigned(31 downto 0) := (others => '0');
+    signal c_missed         : unsigned(31 downto 0) := (others => '0');
+    signal c_ooo            : unsigned(31 downto 0) := (others => '0');
+    signal c_overrun        : unsigned(31 downto 0) := (others => '0');
+    signal c_dropped        : unsigned(31 downto 0) := (others => '0');
+    signal c_out_stall      : unsigned(31 downto 0) := (others => '0');
 
-    signal out_addr     : unsigned(12 downto 0) := (others => '0');
-    signal out_wdata    : unsigned(31 downto 0) := (others => '0');
-    signal out_we       : std_logic := '0';
+    function target_frames(n : unsigned(1 downto 0)) return unsigned is
+        variable r : unsigned(3 downto 0) := (others => '0');
+    begin
+        case to_integer(n) is
+            when 0 => r := to_unsigned(1, 4);
+            when 1 => r := to_unsigned(2, 4);
+            when 2 => r := to_unsigned(4, 4);
+            when others => r := to_unsigned(8, 4);
+        end case;
+        return r;
+    end function;
 
-    -- =========================================================================
-    -- Accumulator FSM
-    -- =========================================================================
-    type t_acc_state is (ACC_IDLE, ACC_READ, ACC_WRITE, ACC_COOLDOWN, ACC_WAIT_SWAP);
-    signal acc_state    : t_acc_state := ACC_IDLE;
+    function at_last_bin(a : addr_t) return boolean is
+    begin
+        return to_integer(a) = BINS - 1;
+    end function;
 
-    signal word_cnt     : std_logic := '0';
-    signal s_tdc        : unsigned(12 downto 0) := (others => '0');
-    signal s_pressure   : unsigned(11 downto 0) := (others => '0');
-    signal s_di         : std_logic_vector(7 downto 0) := (others => '0');
-    signal frame_cnt    : unsigned(14 downto 0) := (others => '0');
-    signal frame_target : unsigned(14 downto 0);
-    -- Latched avg_n: captured at frame boundary so changes only take
-    -- effect at the start of the next accumulation, not mid-frame
-    signal lat_avg_n    : unsigned(3 downto 0) := (others => '0');
-    signal bank_full    : std_logic := '0';
-    signal swap_ack     : std_logic := '0';
+    function inc_bin(a : addr_t) return addr_t is
+    begin
+        if to_integer(a) = BINS - 1 then
+            return (others => '0');
+        else
+            return a + 1;
+        end if;
+    end function;
 
-    -- =========================================================================
-    -- Output generator FSM
-    -- =========================================================================
-    type t_out_state is (OUT_IDLE, OUT_RDREQ, OUT_RDWAIT, OUT_RDWAIT2, OUT_STREAM, OUT_CLR);
-    signal out_state    : t_out_state := OUT_IDLE;
-
-    signal out_bin      : unsigned(12 downto 0) := (others => '0');
-    signal out_pres     : unsigned(31 downto 0) := (others => '0');
-    signal out_di       : std_logic_vector(7 downto 0) := (others => '0');
-    signal out_word     : std_logic := '0';  -- 0=tdc_deg word, 1=pressure/DI word
-    signal out_valid    : std_logic := '0';
-    signal tlast_int    : std_logic := '0';
-    signal clr_bin      : unsigned(12 downto 0) := (others => '0');
-
-    signal frame_out_cnt : unsigned(31 downto 0) := (others => '0');
-
-    -- =========================================================================
-    -- Diagnostic counters
-    -- =========================================================================
-    signal in_beat_cnt   : unsigned(31 downto 0) := (others => '0');
-    signal out_beat_cnt  : unsigned(31 downto 0) := (others => '0');
-    signal out_tlast_cnt : unsigned(31 downto 0) := (others => '0');
-    signal out_stall_cnt : unsigned(31 downto 0) := (others => '0');
-    signal bad_tlast_cnt : unsigned(31 downto 0) := (others => '0');
-
-    -- Internal copy of s_axis_tready: needed because the entity's
-    -- s_axis_tready is an 'out' port and cannot be read directly
-    -- (VHDL restriction -- same pattern as avg_tdata_i/tvalid_i/tlast_i).
-    signal s_axis_tready_i : std_logic;
-
-    -- Combinatorial output data mux
-    signal out_data_i   : std_logic_vector(31 downto 0);
-
-    -- =========================================================================
-    -- Bypass
-    -- =========================================================================
-    signal bypass_active : std_logic;
+    function make_word1(d : std_logic_vector(7 downto 0); p : unsigned(11 downto 0)) return std_logic_vector is
+        variable w : std_logic_vector(31 downto 0) := (others => '0');
+    begin
+        w(31 downto 24) := d;
+        w(23 downto 16) := x"00";
+        w(15 downto 4)  := std_logic_vector(p);
+        w(3 downto 0)   := "0000";
+        return w;
+    end function;
 
 begin
+    sample_ready <= '1' when acc_state = ACC_IDLE and
+                             ((acc_bank = '0' and bank0_state = BANK_ACCUM) or
+                              (acc_bank = '1' and bank1_state = BANK_ACCUM)) else '0';
 
-    -- =========================================================================
-    -- BRAM processes
-    -- =========================================================================
-    p_ram0 : process(clk)
-    begin
-        if rising_edge(clk) then
-            if r0_we = '1' and to_integer(r0_addr) = 0 then
-            end if;
-            if r0_we = '1' then
-                ram0(to_integer(r0_addr)) <= r0_wdata;
-            end if;
-            r0_rdata <= ram0(to_integer(r0_addr));
-        end if;
-    end process p_ram0;
+    m_axis_tdata  <= m_data;
+    m_axis_tvalid <= m_valid;
+    m_axis_tlast  <= m_last;
 
-    p_ram1 : process(clk)
-    begin
-        if rising_edge(clk) then
-            if r1_we = '1' then
-                ram1(to_integer(r1_addr)) <= r1_wdata;
-            end if;
-            r1_rdata <= ram1(to_integer(r1_addr));
-        end if;
-    end process p_ram1;
+    frames_in_count      <= c_frames_in;
+    frames_out_count     <= c_frames_out;
+    samples_in_count     <= c_samples_in;
+    missed_sample_count  <= c_missed;
+    out_of_order_count   <= c_ooo;
+    bank_overrun_count   <= c_overrun;
+    dropped_sample_count <= c_dropped;
+    out_stall_count      <= c_out_stall;
 
-    -- DI snapshot: write port driven by accumulator, read port by output FSM
-    -- Address clamped to BINS-1 to prevent out-of-bounds during pipeline startup
-    p_di_snap : process(clk)
-        variable safe_rd_addr : integer range 0 to BINS-1;
-        variable safe_wr_addr : integer range 0 to BINS-1;
-    begin
-        if rising_edge(clk) then
-            -- Clamp addresses to valid range
-            if to_integer(di_rd_addr) < BINS then
-                safe_rd_addr := to_integer(di_rd_addr);
-            else
-                safe_rd_addr := BINS - 1;
-            end if;
-            if to_integer(di_wr_addr) < BINS then
-                safe_wr_addr := to_integer(di_wr_addr);
-            else
-                safe_wr_addr := BINS - 1;
-            end if;
-            if di_we = '1' then
-                di_snap(safe_wr_addr) <= di_wr_data;
-            end if;
-            di_rdata <= di_snap(safe_rd_addr);
-        end if;
-    end process p_di_snap;
+    state_dbg(1 downto 0) <= std_logic_vector(to_unsigned(acc_state_t'pos(acc_state), 2));
+    state_dbg(4 downto 2) <= std_logic_vector(to_unsigned(out_state_t'pos(out_state), 3));
+    state_dbg(5) <= acc_bank;
+    state_dbg(6) <= out_bank;
+    state_dbg(7) <= '0';
 
-    -- =========================================================================
-    -- Bank routing muxes
-    -- =========================================================================
-    out_bank <= not acc_bank;
-
-    r0_addr  <= acc_addr  when acc_bank = '0' else out_addr;
-    r0_wdata <= acc_wdata when acc_bank = '0' else out_wdata;
-    r0_we    <= acc_we    when acc_bank = '0' else out_we;
-
-    r1_addr  <= acc_addr  when acc_bank = '1' else out_addr;
-    r1_wdata <= acc_wdata when acc_bank = '1' else out_wdata;
-    r1_we    <= acc_we    when acc_bank = '1' else out_we;
-
-    acc_rdata <= r0_rdata when acc_bank = '0' else r1_rdata;
-    out_rdata <= r0_rdata when out_bank = '0' else r1_rdata;
-
-    frame_target  <= shift_left(to_unsigned(1, 15), to_integer(lat_avg_n));
-    bypass_active <= '1' when avg_n = 0 else '0';
-
-    -- =========================================================================
-    -- Accumulator FSM
-    -- =========================================================================
-    p_acc : process(clk)
+    p_main : process(clk)
+        variable boundary       : boolean;
+        variable target_reached : boolean;
+        variable use_bank       : std_logic;
+        variable next_frames    : unsigned(3 downto 0);
+        variable diff           : integer;
+        variable avg_p          : unsigned(31 downto 0);
     begin
         if rising_edge(clk) then
             if rst = '1' then
-                acc_state   <= ACC_IDLE;
-                word_cnt    <= '0';
-                frame_cnt   <= (others => '0');
-                bank_full   <= '0';
-                acc_we      <= '0';
-                di_we       <= '0';
+                bank0_state <= BANK_ACCUM;
+                bank1_state <= BANK_EMPTY;
                 acc_bank    <= '0';
-                lat_avg_n   <= (others => '0');
+                out_bank    <= '0';
+                bank0_shift <= avg_n;
+                bank1_shift <= (others => '0');
+                acc_shift   <= avg_n;
+                out_shift   <= (others => '0');
+
+                acc_state <= ACC_IDLE;
+                out_state <= OUT_IDLE;
+                frames_window <= (others => '0');
+                expected_bin <= (others => '0');
+                prev_tdc <= (others => '0');
+                have_prev <= '0';
+                out_bin <= (others => '0');
+                clr_bin <= (others => '0');
+                m_valid <= '0';
+                m_last <= '0';
+                m_data <= (others => '0');
+
+                c_frames_in <= (others => '0');
+                c_frames_out <= (others => '0');
+                c_samples_in <= (others => '0');
+                c_missed <= (others => '0');
+                c_ooo <= (others => '0');
+                c_overrun <= (others => '0');
+                c_dropped <= (others => '0');
+                c_out_stall <= (others => '0');
             else
-                acc_we <= '0';
-                di_we  <= '0';
+                -- Count input attempts that arrive while the deliberately slow
+                -- accumulator is not ready. With the real 2.4 MS/s maximum this
+                -- should remain zero if upstream obeys sample_ready or samples
+                -- are naturally spaced by many PL clocks.
+                if sample_valid = '1' and sample_ready = '0' then
+                    c_dropped <= c_dropped + 1;
+                end if;
 
+                -- Accumulator: simple multi-cycle read-modify-write.
                 case acc_state is
-
                     when ACC_IDLE =>
-                        if s_axis_tvalid = '1' and bypass_active = '0' then
-                            if word_cnt = '0' then
-                                -- Word 0: latch bin address (tdc_deg)
-                                -- Also latch avg_n at very first sample of frame
-                                -- (for power-on case before first WAIT_SWAP)
-                                if frame_cnt = 0 then
-                                    lat_avg_n <= avg_n;
+                        if sample_valid = '1' and sample_ready = '1' then
+                            boundary := false;
+                            target_reached := false;
+                            use_bank := acc_bank;
+
+                            -- A tdc_deg decrease, normally 7199 -> 0, marks a
+                            -- new input frame. The new sample belongs to the new
+                            -- frame, so bank switching is handled before latching
+                            -- this sample for accumulation.
+                            if have_prev = '1' and tdc_deg < prev_tdc then
+                                boundary := true;
+                            end if;
+
+                            if boundary then
+                                c_frames_in <= c_frames_in + 1;
+                                next_frames := frames_window + 1;
+                                if next_frames >= target_frames(acc_shift) then
+                                    target_reached := true;
                                 end if;
-                                s_tdc    <= unsigned(s_axis_tdata(12 downto 0));
-                                word_cnt <= '1';
-                            else
-                                -- Word 1: latch pressure [15:4] and DI [31:24]
-                                s_pressure   <= unsigned(s_axis_tdata(15 downto 4));
-                                s_di         <= s_axis_tdata(31 downto 24);
-                                word_cnt     <= '0';
-                                -- Write DI snapshot immediately (no averaging)
-                                di_wr_addr   <= s_tdc;
-                                di_wr_data   <= s_axis_tdata(31 downto 24);
-                                di_we        <= '1';
-                                -- Issue pressure BRAM read for RMW
-                                acc_addr     <= s_tdc;
-                                acc_state    <= ACC_READ;
-                                -- Count complete cycles on tlast
-                                if s_axis_tlast = '1' then
-                                    if frame_cnt + 1 >= frame_target then
-                                        frame_cnt <= (others => '0');
-                                        bank_full <= '1';
+
+                                if target_reached then
+                                    if acc_bank = '0' then
+                                        bank0_state <= BANK_FULL;
+                                        bank0_shift <= acc_shift;
+                                        if bank1_state = BANK_EMPTY then
+                                            bank1_state <= BANK_ACCUM;
+                                            acc_bank <= '1';
+                                            use_bank := '1';
+                                            acc_shift <= avg_n; -- latch setting for new binning cycle
+                                            bank1_shift <= avg_n;
+                                            frames_window <= (others => '0');
+                                        else
+                                            c_overrun <= c_overrun + 1;
+                                            frames_window <= (others => '0');
+                                        end if;
                                     else
-                                        frame_cnt <= frame_cnt + 1;
+                                        bank1_state <= BANK_FULL;
+                                        bank1_shift <= acc_shift;
+                                        if bank0_state = BANK_EMPTY then
+                                            bank0_state <= BANK_ACCUM;
+                                            acc_bank <= '0';
+                                            use_bank := '0';
+                                            acc_shift <= avg_n; -- latch setting for new binning cycle
+                                            bank0_shift <= avg_n;
+                                            frames_window <= (others => '0');
+                                        else
+                                            c_overrun <= c_overrun + 1;
+                                            frames_window <= (others => '0');
+                                        end if;
+                                    end if;
+                                else
+                                    frames_window <= next_frames;
+                                end if;
+                            end if;
+
+                            -- Sequence validation. tdc_deg is authoritative for
+                            -- the write address; expected_bin only flags/resyncs.
+                            if have_prev = '1' then
+                                if tdc_deg = expected_bin then
+                                    null;
+                                elsif tdc_deg > expected_bin then
+                                    diff := to_integer(tdc_deg) - to_integer(expected_bin);
+                                    c_missed <= c_missed + to_unsigned(diff, 32);
+                                else
+                                    if tdc_deg /= 0 then
+                                        c_ooo <= c_ooo + 1;
                                     end if;
                                 end if;
                             end if;
+
+                            lat_addr <= tdc_deg;
+                            lat_adc  <= adc_ch0;
+                            lat_di   <= di_in;
+                            lat_bank <= use_bank;
+                            prev_tdc <= tdc_deg;
+                            expected_bin <= inc_bin(tdc_deg);
+                            have_prev <= '1';
+                            c_samples_in <= c_samples_in + 1;
+                            acc_state <= ACC_READ;
                         end if;
 
                     when ACC_READ =>
+                        if lat_bank = '0' then
+                            rd_sum <= sum0(to_integer(lat_addr));
+                        else
+                            rd_sum <= sum1(to_integer(lat_addr));
+                        end if;
+                        acc_state <= ACC_ADD;
+
+                    when ACC_ADD =>
+                        new_sum <= rd_sum + resize(lat_adc, 32);
                         acc_state <= ACC_WRITE;
 
                     when ACC_WRITE =>
-                        acc_wdata <= acc_rdata + resize(s_pressure, 32);
-                        acc_we    <= '1';
-                        acc_addr  <= s_tdc;
-                        if bank_full = '1' then
-                            acc_state <= ACC_WAIT_SWAP;
+                        if lat_bank = '0' then
+                            sum0(to_integer(lat_addr)) <= new_sum;
+                            di0(to_integer(lat_addr))  <= lat_di;
                         else
-                            acc_state <= ACC_COOLDOWN;
+                            sum1(to_integer(lat_addr)) <= new_sum;
+                            di1(to_integer(lat_addr))  <= lat_di;
                         end if;
-
-                    when ACC_COOLDOWN =>
-                        -- One dead cycle: tready='0', gives master time to
-                        -- update tdata before acc re-enters IDLE and samples
-                        acc_we    <= '0';
                         acc_state <= ACC_IDLE;
-
-                    when ACC_WAIT_SWAP =>
-                        acc_we <= '0';
-                        if swap_ack = '1' then
-                            bank_full <= '0';
-                            acc_bank  <= not acc_bank;
-                            lat_avg_n <= avg_n;  -- latch new avg_n for next frame
-                            acc_state <= ACC_IDLE;
-                        end if;
-
-                    when others =>
-                        acc_state <= ACC_IDLE;
-
                 end case;
-            end if;
-        end if;
-    end process p_acc;
 
-    -- =========================================================================
-    -- Output generator FSM
-    -- Streams 2 words per bin: word0=tdc_deg, word1=DI|pressure_avg
-    -- tlast on word 1 of bin 7199 (last word of frame)
-    -- =========================================================================
-    p_out : process(clk)
-    begin
-        if rising_edge(clk) then
-            if rst = '1' then
-                out_state     <= OUT_IDLE;
-                out_valid     <= '0';
-                tlast_int     <= '0';
-                out_bin       <= (others => '0');
-                out_word      <= '0';
-                clr_bin       <= (others => '0');
-                out_we        <= '0';
-                frame_out_cnt <= (others => '0');
-                swap_ack      <= '0';
-            else
-                out_we <= '0';
-
-                -- swap_ack: set when OUT_IDLE sees bank_full, hold until
-                -- bank_full clears (gives acc FSM time to reach WAIT_SWAP)
-                if bank_full = '0' then
-                    swap_ack <= '0';
-                elsif out_state = OUT_IDLE then
-                    swap_ack <= '1';
+                -- Output streamer and clearer. It only ever claims FULL banks.
+                -- Deterministic priority: bank0 before bank1 if both are full.
+                if m_valid = '1' and m_axis_tready = '0' then
+                    c_out_stall <= c_out_stall + 1;
                 end if;
 
                 case out_state is
-
                     when OUT_IDLE =>
-                        out_valid <= '0';
-                        tlast_int <= '0';
-                        out_word  <= '0';
-                        if bank_full = '1' then
-                            out_bin   <= (others => '0');
-                            out_state <= OUT_RDREQ;
+                        m_valid <= '0';
+                        m_last <= '0';
+                        if bank0_state = BANK_FULL then
+                            bank0_state <= BANK_STREAM;
+                            out_bank <= '0';
+                            out_shift <= bank0_shift;
+                            out_bin <= (others => '0');
+                            out_state <= OUT_READ;
+                        elsif bank1_state = BANK_FULL then
+                            bank1_state <= BANK_STREAM;
+                            out_bank <= '1';
+                            out_shift <= bank1_shift;
+                            out_bin <= (others => '0');
+                            out_state <= OUT_READ;
                         end if;
 
-                    when OUT_RDREQ =>
-                        -- Wait for bank swap to complete (bank_full clears
-                        -- when acc_bank has flipped and out_bank is stable)
-                        if bank_full = '0' then
-                            out_addr    <= (others => '0');
-                            di_rd_addr  <= (others => '0');
-                            out_state   <= OUT_RDWAIT;
+                    when OUT_READ =>
+                        -- Deassert TVALID while preparing the next bin. Without
+                        -- this, the previous data beat can be accepted again
+                        -- during the BRAM/read preparation cycle when TREADY is
+                        -- held high by the downstream DMA/testbench.
+                        m_valid <= '0';
+                        m_last  <= '0';
+                        if out_bank = '0' then
+                            out_sum <= sum0(to_integer(out_bin));
+                            out_di  <= di0(to_integer(out_bin));
+                        else
+                            out_sum <= sum1(to_integer(out_bin));
+                            out_di  <= di1(to_integer(out_bin));
+                        end if;
+                        out_state <= OUT_SEND0;
+
+                    when OUT_SEND0 =>
+                        if m_valid = '0' or m_axis_tready = '1' then
+                            m_data  <= std_logic_vector(resize(out_bin, 32));
+                            m_valid <= '1';
+                            m_last  <= '0';
+                            out_state <= OUT_SEND1;
                         end if;
 
-                    when OUT_RDWAIT =>
-                        -- bin 0 address was issued in RDREQ (cycle N).
-                        -- BRAM is registering the read this cycle (addr now stable).
-                        -- Issue lookahead read for bin 1.
-                        out_addr    <= to_unsigned(1, 13);
-                        di_rd_addr  <= to_unsigned(1, 13);
-                        out_state   <= OUT_RDWAIT2;
-
-                    when OUT_RDWAIT2 =>
-                        -- out_rdata now holds bin 0 data (registered from RDWAIT read).
-                        -- Capture into stable output registers.
-                        out_pres  <= shift_right(out_rdata, to_integer(lat_avg_n));
-                        out_di    <= di_rdata;
-                        -- Assert valid so word 0 is stable for a full cycle
-                        -- before STREAM's first tready check
-                        out_valid <= '1';
-                        out_state <= OUT_STREAM;
-
-                    when OUT_STREAM =>
-                        out_valid <= '1';
-
-                        if m_axis_tready = '1' then
-                            if out_word = '0' then
-                                -- Just presented word 0 (tdc_deg), move to word 1
-                                out_word <= '1';
+                    when OUT_SEND1 =>
+                        if m_valid = '0' or m_axis_tready = '1' then
+                            avg_p := shift_right(out_sum, to_integer(out_shift));
+                            m_data  <= make_word1(out_di, avg_p(11 downto 0));
+                            m_valid <= '1';
+                            if at_last_bin(out_bin) then
+                                m_last <= '1';
+                                clr_bin <= (others => '0');
+                                out_state <= OUT_CLEAR;
+                                c_frames_out <= c_frames_out + 1;
                             else
-                                -- Just presented word 1 (DI|pressure)
-                                out_word <= '0';
-                                if out_bin = BINS - 1 then
-                                    -- Last bin word 1 -- frame complete
-                                    out_valid     <= '0';
-                                    tlast_int     <= '0';
-                                    frame_out_cnt <= frame_out_cnt + 1;
-                                    clr_bin       <= (others => '0');
-                                    out_state     <= OUT_CLR;
-                                else
-                                    -- Advance to next bin
-                                    -- Capture lookahead data
-                                    out_pres <= shift_right(out_rdata,
-                                                            to_integer(lat_avg_n));
-                                    out_di   <= di_rdata;
-                                    out_bin  <= out_bin + 1;
-                                    -- Issue lookahead read for bin+2
-                                    if to_integer(out_bin) + 2 < BINS then
-                                        out_addr   <= out_bin + 2;
-                                        di_rd_addr <= out_bin + 2;
-                                    else
-                                        out_addr   <= to_unsigned(BINS-1, 13);
-                                        di_rd_addr <= to_unsigned(BINS-1, 13);
-                                    end if;
-                                end if;
-                            end if;
-
-                            -- Assert tlast on word 1 of second-to-last bin
-                            -- so it is registered and stable for last bin word 1
-                            if out_bin = BINS - 1 and out_word = '0' then
-                                tlast_int <= '1';
+                                m_last <= '0';
+                                out_bin <= out_bin + 1;
+                                out_state <= OUT_READ;
                             end if;
                         end if;
 
-                    when OUT_CLR =>
-                        if clr_bin = 0 then report "CLR: out_bank=" & std_logic'image(out_bank) & " acc_bank=" & std_logic'image(acc_bank) & " clr_bin=" & integer'image(to_integer(clr_bin)) & " out_addr=" & integer'image(to_integer(out_addr)) & " out_we=" & std_logic'image(out_we); end if;
-                        out_addr  <= clr_bin;
-                        out_wdata <= (others => '0');
-                        out_we    <= '1';
-                        if clr_bin = BINS - 1 then
-                            out_we    <= '0';
-                            out_state <= OUT_IDLE;
+                    when OUT_CLEAR =>
+                        -- Clear one bin per clock. This runs only on the bank
+                        -- just streamed, so it cannot collide with accumulation.
+                        m_valid <= '0';
+                        m_last <= '0';
+                        if out_bank = '0' then
+                            sum0(to_integer(clr_bin)) <= (others => '0');
+                            di0(to_integer(clr_bin))  <= (others => '0');
+                        else
+                            sum1(to_integer(clr_bin)) <= (others => '0');
+                            di1(to_integer(clr_bin))  <= (others => '0');
+                        end if;
+
+                        if at_last_bin(clr_bin) then
+                            out_state <= OUT_DONE;
                         else
                             clr_bin <= clr_bin + 1;
                         end if;
 
-                    when others =>
+                    when OUT_DONE =>
+                        if out_bank = '0' then
+                            bank0_state <= BANK_EMPTY;
+                        else
+                            bank1_state <= BANK_EMPTY;
+                        end if;
                         out_state <= OUT_IDLE;
-
                 end case;
             end if;
         end if;
-    end process p_out;
-
-    -- =========================================================================
-    -- Diagnostic counters
-    -- Free-running, do not affect any datapath or control logic.
-    -- Read out via axi_lite_regs for avg<->DMA1 handshake visibility.
-    -- =========================================================================
-    p_diag : process(clk)
-    begin
-        if rising_edge(clk) then
-            if rst = '1' then
-                in_beat_cnt   <= (others => '0');
-                out_beat_cnt  <= (others => '0');
-                out_tlast_cnt <= (others => '0');
-                out_stall_cnt <= (others => '0');
-                bad_tlast_cnt <= (others => '0');
-            else
-                -- Input beat: any accepted s_axis transfer (bypass or accumulate)
-                if s_axis_tvalid = '1' and s_axis_tready_i = '1' then
-                    in_beat_cnt <= in_beat_cnt + 1;
-                end if;
-
-                -- Output beat / tlast / stall: only meaningful in accumulate
-                -- mode, since bypass mode's m_axis is just s_axis passed
-                -- through and is already covered by in_beat_cnt above.
-                if bypass_active = '0' then
-                    if out_valid = '1' and m_axis_tready = '1' then
-                        out_beat_cnt <= out_beat_cnt + 1;
-                        if tlast_int = '1' then
-                            out_tlast_cnt <= out_tlast_cnt + 1;
-                        end if;
-                    elsif out_valid = '1' and m_axis_tready = '0' then
-                        out_stall_cnt <= out_stall_cnt + 1;
-                    end if;
-
-                    -- Framing sanity check: tlast must only ever appear on
-                    -- word 1 (the DI|pressure word), never word 0 (tdc_deg)
-                    if tlast_int = '1' and out_word = '0' then
-                        bad_tlast_cnt <= bad_tlast_cnt + 1;
-                    end if;
-                end if;
-            end if;
-        end if;
-    end process p_diag;
-
-    -- =========================================================================
-    -- Output data mux
-    -- word 0: tdc_deg = bin index
-    -- word 1: DI[31:24] | 0x00 | pressure_avg[15:4] | 0x0
-    -- =========================================================================
-    process(out_word, out_bin, out_pres, out_di)
-        variable w1 : std_logic_vector(31 downto 0);
-    begin
-        if out_word = '0' then
-            out_data_i <= std_logic_vector(resize(out_bin, 32));
-        else
-            w1(31 downto 24) := out_di;
-            w1(23 downto 16) := x"00";
-            w1(15 downto 4)  := std_logic_vector(out_pres(11 downto 0));
-            w1(3 downto 0)   := "0000";
-            out_data_i <= w1;
-        end if;
     end process;
-
-    -- =========================================================================
-    -- Bypass mux and output assignments
-    -- =========================================================================
-    m_axis_tdata  <= s_axis_tdata when bypass_active = '1' else out_data_i;
-    m_axis_tvalid <= s_axis_tvalid when bypass_active = '1' else out_valid;
-    m_axis_tlast  <= s_axis_tlast  when bypass_active = '1' else tlast_int;
-    s_axis_tready_i <= m_axis_tready when bypass_active = '1'
-                       else '1' when acc_state = ACC_IDLE else '0';
-    s_axis_tready   <= s_axis_tready_i;
-
-    frame_count   <= frame_out_cnt;
-
-    in_beat_count   <= in_beat_cnt;
-    out_beat_count  <= out_beat_cnt;
-    out_tlast_count <= out_tlast_cnt;
-    out_stall_count <= out_stall_cnt;
-    bad_tlast_count <= bad_tlast_cnt;
-
-    -- Output FSM state encoding for ILA
-    with out_state select out_state_dbg <=
-        "000" when OUT_IDLE,
-        "001" when OUT_RDREQ,
-        "010" when OUT_RDWAIT,
-        "011" when OUT_RDWAIT2,
-        "100" when OUT_STREAM,
-        "101" when OUT_CLR,
-        "111" when others;
 
 end architecture rtl;

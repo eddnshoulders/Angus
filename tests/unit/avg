@@ -1,0 +1,7 @@
+ghdl -a --std=08 ../../hdl/avg.vhd
+ghdl -a --std=08 ../../tb/avg_tb.vhd
+ghdl -e --std=08 avg_tb
+ghdl -r --std=08 avg_tb \
+     --vcd=../../sim/avg.vcd \
+     --stop-time=5000ms \
+     --assert-level=error
