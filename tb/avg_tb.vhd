@@ -48,6 +48,14 @@ architecture sim of avg_tb is
     signal sim_done        : boolean := false;
     signal test_num        : integer := 0;
 
+    -- Diagnostic counters under test (avg<->DMA1 handshake visibility)
+    signal in_beat_count   : unsigned(31 downto 0);
+    signal out_beat_count  : unsigned(31 downto 0);
+    signal out_tlast_count : unsigned(31 downto 0);
+    signal out_stall_count : unsigned(31 downto 0);
+    signal bad_tlast_count : unsigned(31 downto 0);
+    signal out_state_dbg   : std_logic_vector(2 downto 0);
+
     -- Send one full engine cycle (BINS samples, 2 words each)
     procedure send_frame (
         constant pressure   : in integer;
@@ -121,12 +129,19 @@ begin
             m_axis_tready   => m_axis_tready,
             m_axis_tlast    => m_axis_tlast,
             avg_n           => avg_n,
-            frame_count     => frame_count
+            frame_count     => frame_count,
+            in_beat_count   => in_beat_count,
+            out_beat_count  => out_beat_count,
+            out_tlast_count => out_tlast_count,
+            out_stall_count => out_stall_count,
+            bad_tlast_count => bad_tlast_count,
+            out_state_dbg   => out_state_dbg
         );
 
     p_stim : process
         variable data_v     : std_logic_vector(31 downto 0);
         variable fc_before  : unsigned(31 downto 0);
+        variable stall_before : unsigned(31 downto 0);
     begin
 
         -- T1: Reset
@@ -226,6 +241,27 @@ begin
         assert frame_count = fc_before + 1
             report "FAIL T3: frame_count did not increment"
             severity failure;
+
+        -- Diagnostic counter checks: clean run, no backpressure.
+        -- One output frame = FRAME_WORDS beats, exactly one tlast,
+        -- zero stalls (tready held high throughout), zero bad tlasts.
+        assert to_integer(out_beat_count) = FRAME_WORDS
+            report "FAIL T3: out_beat_count expected " &
+                   integer'image(FRAME_WORDS) & ", got " &
+                   integer'image(to_integer(out_beat_count))
+            severity failure;
+        assert to_integer(out_tlast_count) = 1
+            report "FAIL T3: out_tlast_count expected 1, got " &
+                   integer'image(to_integer(out_tlast_count))
+            severity failure;
+        assert to_integer(out_stall_count) = 0
+            report "FAIL T3: out_stall_count expected 0 (no backpressure applied), got " &
+                   integer'image(to_integer(out_stall_count))
+            severity failure;
+        assert to_integer(bad_tlast_count) = 0
+            report "FAIL T3: bad_tlast_count expected 0, got " &
+                   integer'image(to_integer(bad_tlast_count))
+            severity failure;
         report "TEST 3: PASS";
         wait for 10 * CLK_PERIOD;
 
@@ -274,6 +310,7 @@ begin
         wait until m_axis_tvalid = '1'; wait for 1 ns;
         data_v := m_axis_tdata;
         m_axis_tready <= '0';
+        stall_before := out_stall_count;
         wait for 10 * CLK_PERIOD;
 
         assert m_axis_tvalid = '1'
@@ -281,6 +318,14 @@ begin
             severity failure;
         assert m_axis_tdata = data_v
             report "FAIL T5: data changed under back-pressure"
+            severity failure;
+        assert to_integer(out_stall_count) = to_integer(stall_before) + 10
+            report "FAIL T5: out_stall_count expected +10 during back-pressure window, got +" &
+                   integer'image(to_integer(out_stall_count) - to_integer(stall_before))
+            severity failure;
+        assert out_state_dbg = "100"  -- OUT_STREAM
+            report "FAIL T5: expected out_state_dbg=OUT_STREAM during stall, got " &
+                   to_hstring(out_state_dbg)
             severity failure;
 
         m_axis_tready <= '1';
