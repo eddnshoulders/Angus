@@ -1,14 +1,14 @@
 {
   "schema": "xilinx.com:schema:json_instance:1.0",
   "ip_inst": {
-    "xci_name": "pynq_z2_smartconnect_0_0",
-    "cell_name": "smartconnect_0",
+    "xci_name": "pynq_z2_smartconnect_0_1",
+    "cell_name": "smartconnect_1",
     "component_reference": "xilinx.com:ip:smartconnect:1.0",
     "ip_revision": "23",
-    "gen_directory": "../../../../../../angus.gen/sources_1/bd/pynq_z2/ip/pynq_z2_smartconnect_0_0",
+    "gen_directory": "../../../../../../angus.gen/sources_1/bd/pynq_z2/ip/pynq_z2_smartconnect_0_1",
     "parameters": {
       "component_parameters": {
-        "Component_Name": [ { "value": "pynq_z2_smartconnect_0_0", "resolve_type": "user", "usage": "all" } ],
+        "Component_Name": [ { "value": "pynq_z2_smartconnect_0_1", "resolve_type": "user", "usage": "all" } ],
         "NUM_MI": [ { "value": "1", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "NUM_SI": [ { "value": "1", "value_src": "user", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "NUM_CLKS": [ { "value": "1", "resolve_type": "user", "format": "long", "usage": "all" } ],
@@ -16,7 +16,7 @@
         "ADVANCED_PROPERTIES": [ { "value": "0", "resolve_type": "user", "usage": "all" } ]
       },
       "model_parameters": {
-        "TLM_COMPONENT_NAME": [ { "value": "pynq_z2_smartconnect_0_0", "resolve_type": "generated", "usage": "simulation.tlm" } ],
+        "TLM_COMPONENT_NAME": [ { "value": "pynq_z2_smartconnect_0_1", "resolve_type": "generated", "usage": "simulation.tlm" } ],
         "HAS_RESET": [ { "value": "1", "resolve_type": "generated", "format": "long", "usage": "simulation.tlm" } ]
       },
       "project_parameters": {
@@ -37,7 +37,7 @@
         "IPCONTEXT": [ { "value": "IP_Integrator" } ],
         "IPREVISION": [ { "value": "23" } ],
         "MANAGED": [ { "value": "TRUE" } ],
-        "OUTPUTDIR": [ { "value": "../../../../../../angus.gen/sources_1/bd/pynq_z2/ip/pynq_z2_smartconnect_0_0" } ],
+        "OUTPUTDIR": [ { "value": "../../../../../../angus.gen/sources_1/bd/pynq_z2/ip/pynq_z2_smartconnect_0_1" } ],
         "SELECTEDSIMMODEL": [ { "value": "" } ],
         "SHAREDDIR": [ { "value": "../../ipshared" } ],
         "SWVERSION": [ { "value": "2024.1" } ],

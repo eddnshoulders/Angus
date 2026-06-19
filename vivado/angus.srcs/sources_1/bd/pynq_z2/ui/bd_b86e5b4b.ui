@@ -1,90 +1,122 @@
 {
    "ActiveEmotionalView":"Default View",
-   "Default View_ScaleFactor":"1.55164",
-   "Default View_TopLeft":"1865,-234",
+   "Default View_ScaleFactor":"0.56472",
+   "Default View_TopLeft":"-197,-344",
    "ExpandedHierarchyInLayout":"",
    "PinnedPorts":"",
    "guistr":"# # String gsaved with Nlview 7.7.1 2023-07-26 3bc4126617 VDI=43 GEI=38 GUI=JA:21.0 TLS
 #  -string -flagsOSRD
-preplace port DDR -pg 1 -lvl 6 -x 3290 -y 610 -defaultsOSRD
-preplace port FIXED_IO -pg 1 -lvl 6 -x 3290 -y 570 -defaultsOSRD
-preplace port port-id_crank_raw_0 -pg 1 -lvl 0 -x -30 -y 130 -defaultsOSRD
-preplace port port-id_cam_raw_0 -pg 1 -lvl 0 -x -30 -y 110 -defaultsOSRD
-preplace port port-id_CAN0_PHY_TX_0 -pg 1 -lvl 6 -x 3290 -y 1150 -defaultsOSRD
-preplace port port-id_CAN0_PHY_RX_0 -pg 1 -lvl 0 -x -30 -y 1130 -defaultsOSRD
-preplace port port-id_z_raw_0 -pg 1 -lvl 0 -x -30 -y 190 -defaultsOSRD
-preplace port port-id_b_raw_0 -pg 1 -lvl 0 -x -30 -y 170 -defaultsOSRD
-preplace port port-id_a_raw_0 -pg 1 -lvl 0 -x -30 -y 150 -defaultsOSRD
-preplace portBus digital_inputs_0 -pg 1 -lvl 0 -x -30 -y 350 -defaultsOSRD
-preplace portBus debug_out_0 -pg 1 -lvl 6 -x 3290 -y -200 -defaultsOSRD
-preplace inst processing_system7_0 -pg 1 -lvl 2 -x 1100 -y 940 -defaultsOSRD
-preplace inst axi_dma_0 -pg 1 -lvl 5 -x 3060 -y 790 -defaultsOSRD
-preplace inst axi_interconnect_0 -pg 1 -lvl 3 -x 1885 -y 760 -defaultsOSRD
-preplace inst smartconnect_0 -pg 1 -lvl 1 -x 470 -y 700 -defaultsOSRD
-preplace inst proc_sys_reset_0 -pg 1 -lvl 3 -x 1885 -y 1010 -defaultsOSRD
-preplace inst xlconstant_0 -pg 1 -lvl 2 -x 1100 -y 1290 -defaultsOSRD
-preplace inst xlconstant_1 -pg 1 -lvl 3 -x 1885 -y 430 -defaultsOSRD
-preplace inst top_0 -pg 1 -lvl 4 -x 2340 -y 190 -defaultsOSRD
-preplace inst ila_0 -pg 1 -lvl 5 -x 3060 -y 170 -defaultsOSRD
-preplace netloc CAN0_PHY_RX_0_1 1 0 3 NJ 1130 NJ 1130 1330
-preplace netloc a_raw_0_1 1 0 4 NJ 150 NJ 150 NJ 150 NJ
-preplace netloc axi_dma_0_s2mm_introut 1 1 5 870 590 N 590 2090 600 N 600 3250
-preplace netloc b_raw_0_1 1 0 4 NJ 170 NJ 170 NJ 170 NJ
-preplace netloc cam_raw_0_1 1 0 4 NJ 110 NJ 110 NJ 110 N
-preplace netloc crank_raw_0_1 1 0 4 NJ 130 NJ 130 NJ 130 N
-preplace netloc digital_inputs_0_1 1 0 4 NJ 350 NJ 350 NJ 350 N
-preplace netloc proc_sys_reset_0_peripheral_aresetn 1 3 2 2140 830 NJ
-preplace netloc processing_system7_0_CAN0_PHY_TX 1 2 4 1705J 910 NJ 910 2530J 1150 NJ
-preplace netloc processing_system7_0_FCLK_CLK0 1 0 5 320 940 860 1080 1685 70 2140 -210 2870
-preplace netloc processing_system7_0_FCLK_RESET0_N 1 2 1 1705 990n
-preplace netloc top_0_debug_out 1 4 2 2530 -250 3260J
-preplace netloc xlconstant_0_dout 1 2 1 1705J 1050n
-preplace netloc xlconstant_1_dout 1 3 1 2130 210n
-preplace netloc z_raw_0_1 1 0 4 NJ 190 NJ 190 NJ 190 NJ
-preplace netloc proc_sys_reset_0_interconnect_aresetn 1 0 4 330 780 NJ 780 1655J 600 2070
-preplace netloc top_0_ila_ab_edge 1 4 1 N -110
-preplace netloc top_0_ila_z_edge 1 4 1 N -90
-preplace netloc top_0_ila_ab_count 1 4 1 N -70
-preplace netloc top_0_ila_ppr_conf 1 4 1 N -50
-preplace netloc top_0_ila_ab_period 1 4 1 N -30
-preplace netloc top_0_ila_angle_angfac 1 4 1 N -10
-preplace netloc top_0_ila_angle_nco_ab_inc 1 4 1 N 10
-preplace netloc top_0_ila_angle_nco_clk_inc 1 4 1 N 30
-preplace netloc top_0_ila_angle_nco_clk_inc_valid 1 4 1 N 50
-preplace netloc top_0_ila_ref_edge 1 4 1 N 70
-preplace netloc top_0_ila_phase_ref_det 1 4 1 N 90
-preplace netloc top_0_ila_phase_ref_found 1 4 1 N 110
-preplace netloc top_0_ila_phase_eng 1 4 1 N 130
-preplace netloc top_0_ila_phase_ref_angfac 1 4 1 N 150
-preplace netloc top_0_ila_phase_ref_det_cnt 1 4 1 N 170
-preplace netloc top_0_ila_sync_state 1 4 1 N 190
-preplace netloc top_0_ila_sync_full 1 4 1 N 210
-preplace netloc top_0_ila_pll_angfac 1 4 1 N 230
-preplace netloc top_0_ila_pll_nco_accum 1 4 1 N 250
-preplace netloc top_0_ila_pll_err_angfac 1 4 1 N 270
-preplace netloc top_0_ila_pll_p_term 1 4 1 N 290
-preplace netloc top_0_ila_pll_i_term 1 4 1 N 310
-preplace netloc top_0_ila_pll_pi_corr 1 4 1 N 330
-preplace netloc top_0_ila_pll_div_valid 1 4 1 N 350
-preplace netloc top_0_ila_ang_angfac 1 4 1 N 370
-preplace netloc top_0_ila_tdc_deg 1 4 1 N 390
-preplace netloc top_0_ila_trig_count 1 4 1 N 430
-preplace netloc top_0_ila_fault_cam_tooth 1 4 1 N 450
-preplace netloc top_0_ila_fault_crank_tooth 1 4 1 N 470
-preplace netloc top_0_ila_fault_crank_ab 1 4 1 N 490
-preplace netloc top_0_ila_fault_pll_phase 1 4 1 N 510
-preplace netloc top_0_ila_fault_speed_calc 1 4 1 N 530
-preplace netloc top_0_ila_trig_pulse 1 4 1 2880 -150n
-preplace netloc axi_dma_0_M_AXI_S2MM 1 0 6 330 580 NJ 580 NJ 580 2100J 590 NJ 590 3240
-preplace netloc axi_interconnect_0_M00_AXI 1 3 1 2080 30n
-preplace netloc axi_interconnect_0_M01_AXI 1 3 2 2150 750 NJ
-preplace netloc processing_system7_0_DDR 1 2 4 1665J 610 NJ 610 NJ 610 NJ
-preplace netloc processing_system7_0_FIXED_IO 1 2 4 1675J 620 NJ 620 NJ 620 3260J
-preplace netloc processing_system7_0_M_AXI_GP0 1 2 1 1695 680n
-preplace netloc smartconnect_0_M00_AXI 1 1 1 610 700n
-preplace netloc top_0_m_axis 1 4 1 2540 -150n
-levelinfo -pg 1 -30 470 1100 1885 2340 3060 3290
-pagesize -pg 1 -db -bbox -sgen -230 -570 4220 1350
+preplace port DDR -pg 1 -lvl 9 -x 2940 -y 260 -defaultsOSRD
+preplace port FIXED_IO -pg 1 -lvl 9 -x 2940 -y 280 -defaultsOSRD
+preplace port port-id_crank_raw_0 -pg 1 -lvl 0 -x 0 -y 970 -defaultsOSRD
+preplace port port-id_cam_raw_0 -pg 1 -lvl 0 -x 0 -y 950 -defaultsOSRD
+preplace port port-id_CAN0_PHY_TX_0 -pg 1 -lvl 9 -x 2940 -y 320 -defaultsOSRD
+preplace port port-id_CAN0_PHY_RX_0 -pg 1 -lvl 0 -x 0 -y 320 -defaultsOSRD
+preplace port port-id_z_raw_0 -pg 1 -lvl 0 -x 0 -y 1030 -defaultsOSRD
+preplace port port-id_b_raw_0 -pg 1 -lvl 0 -x 0 -y 1010 -defaultsOSRD
+preplace port port-id_a_raw_0 -pg 1 -lvl 0 -x 0 -y 990 -defaultsOSRD
+preplace port port-id_vauxp1_0 -pg 1 -lvl 0 -x 0 -y 1050 -defaultsOSRD
+preplace port port-id_vauxn1_0 -pg 1 -lvl 0 -x 0 -y 1070 -defaultsOSRD
+preplace portBus digital_inputs_0 -pg 1 -lvl 0 -x 0 -y 1090 -defaultsOSRD
+preplace portBus debug_out_0 -pg 1 -lvl 9 -x 2940 -y 720 -defaultsOSRD
+preplace inst processing_system7_0 -pg 1 -lvl 8 -x 2660 -y 340 -defaultsOSRD
+preplace inst axi_dma_0 -pg 1 -lvl 6 -x 1900 -y 440 -defaultsOSRD
+preplace inst axi_interconnect_0 -pg 1 -lvl 3 -x 730 -y 160 -defaultsOSRD
+preplace inst smartconnect_0 -pg 1 -lvl 7 -x 2260 -y 310 -defaultsOSRD
+preplace inst proc_sys_reset_0 -pg 1 -lvl 2 -x 370 -y 440 -defaultsOSRD
+preplace inst xlconstant_0 -pg 1 -lvl 1 -x 100 -y 480 -defaultsOSRD
+preplace inst top_0 -pg 1 -lvl 4 -x 1110 -y 980 -defaultsOSRD
+preplace inst ila_0 -pg 1 -lvl 5 -x 1550 -y 1210 -defaultsOSRD
+preplace inst axis_data_fifo_0 -pg 1 -lvl 5 -x 1550 -y 420 -defaultsOSRD
+preplace inst axi_dma_1 -pg 1 -lvl 6 -x 1900 -y 220 -defaultsOSRD
+preplace inst axis_data_fifo_1 -pg 1 -lvl 5 -x 1550 -y 600 -defaultsOSRD
+preplace inst smartconnect_1 -pg 1 -lvl 7 -x 2260 -y 150 -defaultsOSRD
+preplace inst xlconcat_0 -pg 1 -lvl 7 -x 2260 -y 470 -defaultsOSRD
+preplace netloc CAN0_PHY_RX_0_1 1 0 9 NJ 320 NJ 320 560J 330 880J 40 NJ 40 NJ 40 NJ 40 NJ 40 2900
+preplace netloc a_raw_0_1 1 0 4 NJ 990 NJ 990 NJ 990 NJ
+preplace netloc axi_dma_0_s2mm_introut 1 6 1 2080 460n
+preplace netloc axi_dma_1_s2mm_introut 1 6 1 2100 240n
+preplace netloc b_raw_0_1 1 0 4 NJ 1010 NJ 1010 NJ 1010 NJ
+preplace netloc cam_raw_0_1 1 0 4 NJ 950 NJ 950 NJ 950 NJ
+preplace netloc crank_raw_0_1 1 0 4 NJ 970 NJ 970 NJ 970 NJ
+preplace netloc digital_inputs_0_1 1 0 4 NJ 1090 NJ 1090 NJ 1090 NJ
+preplace netloc proc_sys_reset_0_interconnect_aresetn 1 2 5 570 350 920J 320 NJ 320 NJ 320 2120
+preplace netloc proc_sys_reset_0_peripheral_aresetn 1 2 4 NJ 480 920 380 1420 330 1700
+preplace netloc processing_system7_0_CAN0_PHY_TX 1 8 1 NJ 320
+preplace netloc processing_system7_0_FCLK_CLK0 1 1 8 180 330 550 360 910 360 1430 340 1720 330 2090 70 2430 200 2890
+preplace netloc processing_system7_0_FCLK_RESET0_N 1 1 8 190 340 NJ 340 910J 60 NJ 60 NJ 60 NJ 60 NJ 60 2910
+preplace netloc top_0_debug_out 1 4 5 1380J 720 NJ 720 NJ 720 NJ 720 NJ
+preplace netloc top_0_ila_ab_count 1 4 1 N 880
+preplace netloc top_0_ila_ab_edge 1 4 1 N 840
+preplace netloc top_0_ila_ab_period 1 4 1 N 920
+preplace netloc top_0_ila_ang_angfac 1 4 1 N 1320
+preplace netloc top_0_ila_angle_angfac 1 4 1 N 940
+preplace netloc top_0_ila_angle_nco_ab_inc 1 4 1 N 960
+preplace netloc top_0_ila_angle_nco_clk_inc 1 4 1 N 980
+preplace netloc top_0_ila_angle_nco_clk_inc_valid 1 4 1 N 1000
+preplace netloc top_0_ila_avg_frame_count 1 4 1 1310 1500n
+preplace netloc top_0_ila_avg_tlast 1 4 1 1410 460n
+preplace netloc top_0_ila_avg_tready 1 4 1 1370 500n
+preplace netloc top_0_ila_avg_tvalid 1 4 1 1390 480n
+preplace netloc top_0_ila_fault_cam_tooth 1 4 1 N 1400
+preplace netloc top_0_ila_fault_crank_ab 1 4 1 N 1440
+preplace netloc top_0_ila_fault_crank_tooth 1 4 1 N 1420
+preplace netloc top_0_ila_fault_pll_phase 1 4 1 N 1460
+preplace netloc top_0_ila_fault_speed_calc 1 4 1 N 1480
+preplace netloc top_0_ila_pack_tlast 1 4 1 1360 540n
+preplace netloc top_0_ila_pack_tready 1 4 1 1320 580n
+preplace netloc top_0_ila_pack_tvalid 1 4 1 1330 560n
+preplace netloc top_0_ila_phase_eng 1 4 1 N 1080
+preplace netloc top_0_ila_phase_ref_angfac 1 4 1 N 1100
+preplace netloc top_0_ila_phase_ref_det 1 4 1 N 1040
+preplace netloc top_0_ila_phase_ref_det_cnt 1 4 1 N 1120
+preplace netloc top_0_ila_phase_ref_found 1 4 1 N 1060
+preplace netloc top_0_ila_pll_angfac 1 4 1 N 1180
+preplace netloc top_0_ila_pll_div_valid 1 4 1 N 1300
+preplace netloc top_0_ila_pll_err_angfac 1 4 1 N 1220
+preplace netloc top_0_ila_pll_i_term 1 4 1 N 1260
+preplace netloc top_0_ila_pll_nco_accum 1 4 1 N 1200
+preplace netloc top_0_ila_pll_p_term 1 4 1 N 1240
+preplace netloc top_0_ila_pll_pi_corr 1 4 1 N 1280
+preplace netloc top_0_ila_ppr_conf 1 4 1 N 900
+preplace netloc top_0_ila_ref_edge 1 4 1 N 1020
+preplace netloc top_0_ila_sync_full 1 4 1 N 1160
+preplace netloc top_0_ila_sync_state 1 4 1 N 1140
+preplace netloc top_0_ila_tdc_deg 1 4 1 N 1340
+preplace netloc top_0_ila_trig_count 1 4 1 N 1380
+preplace netloc top_0_ila_trig_pulse 1 4 1 1400 800n
+preplace netloc top_0_ila_z_edge 1 4 1 N 860
+preplace netloc top_0_xadc_busy_out 1 4 1 N 700
+preplace netloc top_0_xadc_channel_out 1 4 1 N 720
+preplace netloc top_0_xadc_convst_out 1 4 1 N 800
+preplace netloc top_0_xadc_den_out 1 4 1 N 780
+preplace netloc top_0_xadc_do_out 1 4 1 N 760
+preplace netloc top_0_xadc_drdy_out 1 4 1 N 740
+preplace netloc top_0_xadc_drp_state 1 4 1 N 640
+preplace netloc top_0_xadc_eoc_out 1 4 1 N 660
+preplace netloc top_0_xadc_eos_out 1 4 1 N 680
+preplace netloc vauxn1_0_1 1 0 4 NJ 1070 NJ 1070 NJ 1070 NJ
+preplace netloc vauxp1_0_1 1 0 4 NJ 1050 NJ 1050 NJ 1050 NJ
+preplace netloc xlconcat_0_dout 1 7 1 2400 410n
+preplace netloc xlconstant_0_dout 1 1 1 NJ 480
+preplace netloc z_raw_0_1 1 0 4 NJ 1030 NJ 1030 NJ 1030 NJ
+preplace netloc top_0_ila_avg_out_state 1 4 1 1300 1520n
+preplace netloc axi_dma_0_M_AXI_S2MM 1 6 1 2110 290n
+preplace netloc axi_dma_1_M_AXI_S2MM 1 6 1 2100 130n
+preplace netloc axi_interconnect_0_M00_AXI 1 3 3 920 150 NJ 150 1720J
+preplace netloc axi_interconnect_0_M01_AXI 1 3 3 NJ 160 NJ 160 1710
+preplace netloc axi_interconnect_0_M02_AXI 1 3 1 900 180n
+preplace netloc axis_data_fifo_0_M_AXIS 1 5 1 N 420
+preplace netloc axis_data_fifo_1_M_AXIS 1 5 1 1670 200n
+preplace netloc processing_system7_0_DDR 1 8 1 NJ 260
+preplace netloc processing_system7_0_FIXED_IO 1 8 1 NJ 280
+preplace netloc processing_system7_0_M_AXI_GP0 1 2 7 580 320 890J 50 NJ 50 NJ 50 NJ 50 NJ 50 2920
+preplace netloc smartconnect_0_M00_AXI 1 7 1 N 310
+preplace netloc smartconnect_1_M00_AXI 1 7 1 2400 150n
+preplace netloc top_0_m_avg_axis 1 4 1 1350 580n
+preplace netloc top_0_m_axis 1 4 1 1340 400n
+levelinfo -pg 1 0 100 370 730 1110 1550 1900 2260 2660 2940
+pagesize -pg 1 -db -bbox -sgen -200 0 3130 1700
 "
 }
 {

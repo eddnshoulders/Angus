@@ -1,11 +1,13 @@
 # Vivado build outputs - everything generated during synthesis/implementation
 vivado/*.cache/
+vivado/*.gen/
 vivado/*.hw/
 vivado/*.ip_user_files/
 vivado/*.runs/
 vivado/*.sim/
 vivado/.Xil/
 vivado/NA/
+.Xil/
 
 # Vivado log and journal files
 vivado/*.log
@@ -29,3 +31,7 @@ e~*.lst
 
 # IP generated files (can be regenerated)
 vivado/*.srcs/sources_1/ip/*/
+
+# synth and impl reports
+vivado/reports/
+*.rpt

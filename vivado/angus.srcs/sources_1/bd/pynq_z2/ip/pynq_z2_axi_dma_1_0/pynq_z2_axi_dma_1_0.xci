@@ -1,14 +1,14 @@
 {
   "schema": "xilinx.com:schema:json_instance:1.0",
   "ip_inst": {
-    "xci_name": "pynq_z2_axi_dma_0_0",
-    "cell_name": "axi_dma_0",
+    "xci_name": "pynq_z2_axi_dma_1_0",
+    "cell_name": "axi_dma_1",
     "component_reference": "xilinx.com:ip:axi_dma:7.1",
     "ip_revision": "32",
-    "gen_directory": "../../../../../../angus.gen/sources_1/bd/pynq_z2/ip/pynq_z2_axi_dma_0_0",
+    "gen_directory": "../../../../../../angus.gen/sources_1/bd/pynq_z2/ip/pynq_z2_axi_dma_1_0",
     "parameters": {
       "component_parameters": {
-        "Component_Name": [ { "value": "pynq_z2_axi_dma_0_0", "resolve_type": "user", "usage": "all" } ],
+        "Component_Name": [ { "value": "pynq_z2_axi_dma_1_0", "resolve_type": "user", "usage": "all" } ],
         "c_include_sg": [ { "value": "0", "value_src": "user", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "c_enable_multi_channel": [ { "value": "0", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
         "c_num_mm2s_channels": [ { "value": "1", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
@@ -17,9 +17,9 @@
         "c_dlytmr_resolution": [ { "value": "125", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "c_prmry_is_aclk_async": [ { "value": "0", "value_src": "propagated", "value_permission": "bd", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "c_sg_include_stscntrl_strm": [ { "value": "0", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
-        "c_micro_dma": [ { "value": "0", "value_src": "user", "resolve_type": "user", "format": "long", "usage": "all" } ],
+        "c_micro_dma": [ { "value": "0", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "c_include_mm2s": [ { "value": "0", "value_src": "user", "resolve_type": "user", "format": "long", "usage": "all" } ],
-        "c_m_axi_mm2s_data_width": [ { "value": "32", "value_src": "user", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
+        "c_m_axi_mm2s_data_width": [ { "value": "32", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
         "c_m_axis_mm2s_tdata_width": [ { "value": "32", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
         "c_include_mm2s_dre": [ { "value": "0", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
         "c_include_mm2s_sf": [ { "value": "1", "resolve_type": "user", "format": "long", "usage": "all" } ],
@@ -71,7 +71,7 @@
       },
       "project_parameters": {
         "ARCHITECTURE": [ { "value": "zynq" } ],
-        "BASE_BOARD_PART": [ { "value": "" } ],
+        "BASE_BOARD_PART": [ { "value": "tul.com.tw:pynq-z2:part0:1.0" } ],
         "BOARD_CONNECTIONS": [ { "value": "" } ],
         "DEVICE": [ { "value": "xc7z020" } ],
         "NEXTGEN_VERSAL": [ { "value": "0" } ],
@@ -87,7 +87,7 @@
         "IPCONTEXT": [ { "value": "IP_Integrator" } ],
         "IPREVISION": [ { "value": "32" } ],
         "MANAGED": [ { "value": "TRUE" } ],
-        "OUTPUTDIR": [ { "value": "../../../../../../angus.gen/sources_1/bd/pynq_z2/ip/pynq_z2_axi_dma_0_0" } ],
+        "OUTPUTDIR": [ { "value": "../../../../../../angus.gen/sources_1/bd/pynq_z2/ip/pynq_z2_axi_dma_1_0" } ],
         "SELECTEDSIMMODEL": [ { "value": "" } ],
         "SHAREDDIR": [ { "value": "../../ipshared" } ],
         "SWVERSION": [ { "value": "2024.1" } ],

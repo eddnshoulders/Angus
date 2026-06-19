@@ -1,4 +1,0 @@
-rsync -avz hdl/ edd@fernando.servers.buggins.haus:/home/edd/angus/hdl
-rsync -avz tb/ edd@fernando.servers.buggins.haus:/home/edd/angus/tb
-rsync -avz tests/ edd@fernando.servers.buggins.haus:/home/edd/angus/tests
-
