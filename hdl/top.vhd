@@ -701,7 +701,13 @@ begin
             out_tlast_count  => avg_out_tlast_count,
             out_stall_count  => avg_out_stall_count,
             bad_tlast_count  => avg_bad_tlast_count,
-            out_state_dbg    => avg_out_state_dbg
+            out_state_dbg    => avg_out_state_dbg,
+
+            -- New in the bank-ownership refactor; not yet wired to
+            -- axi_lite_regs or the ILA pending review -- left open.
+            bank_overflow          => open,
+            bank_overflow_count    => open,
+            in_fifo_overflow_count => open
         );
 
     -- =========================================================================
