@@ -73,10 +73,41 @@ architecture rtl of avg is
     type sum_ram_t is array (0 to BINS - 1) of unsigned(31 downto 0);
     type di_ram_t  is array (0 to BINS - 1) of std_logic_vector(7 downto 0);
 
+    -- sum0/sum1/di0/di1 are each accessed from two logically distinct
+    -- roles: the accumulator (read-modify-write during ACC_READ/
+    -- ACC_WRITE) and the output streamer/clearer (read during OUT_READ,
+    -- write during OUT_CLEAR). Bank ownership (acc_bank/out_bank) always
+    -- keeps these two roles pointed at *different* physical banks, so
+    -- each individual array only ever needs one read/write port active
+    -- at a time -- but the original code accessed each array from four
+    -- separate if/elsif branches spread across the process, which Vivado
+    -- could not map onto an inferable BRAM template (Synth 8-3391:
+    -- "memory pattern used is not supported"). Restructured below into
+    -- the standard single-port-RAM inference template (one address/
+    -- data/we per array, address/data/we muxed by whichever role
+    -- currently owns that bank) so each array has exactly one syntactic
+    -- access point.
     signal sum0 : sum_ram_t := (others => (others => '0'));
     signal sum1 : sum_ram_t := (others => (others => '0'));
     signal di0  : di_ram_t  := (others => (others => '0'));
     signal di1  : di_ram_t  := (others => (others => '0'));
+
+    -- Bank 0 port: address/write-data/write-enable muxed between
+    -- accumulator and output roles; rdata is the registered BRAM output.
+    signal bank0_addr  : addr_t := (others => '0');
+    signal bank0_wdata : unsigned(31 downto 0) := (others => '0');
+    signal bank0_we    : std_logic := '0';
+    signal bank0_di_wdata : std_logic_vector(7 downto 0) := (others => '0');
+    signal bank0_rdata : unsigned(31 downto 0);
+    signal bank0_di_rdata : std_logic_vector(7 downto 0);
+
+    -- Bank 1 port: same shape as bank 0.
+    signal bank1_addr  : addr_t := (others => '0');
+    signal bank1_wdata : unsigned(31 downto 0) := (others => '0');
+    signal bank1_we    : std_logic := '0';
+    signal bank1_di_wdata : std_logic_vector(7 downto 0) := (others => '0');
+    signal bank1_rdata : unsigned(31 downto 0);
+    signal bank1_di_rdata : std_logic_vector(7 downto 0);
 
     type bank_state_t is (BANK_EMPTY, BANK_ACCUM, BANK_FULL, BANK_STREAM, BANK_CLEAR);
     signal bank0_state : bank_state_t := BANK_ACCUM;
@@ -94,7 +125,6 @@ architecture rtl of avg is
     signal lat_adc   : unsigned(11 downto 0) := (others => '0');
     signal lat_di    : std_logic_vector(7 downto 0) := (others => '0');
     signal lat_bank  : std_logic := '0';
-    signal rd_sum    : unsigned(31 downto 0) := (others => '0');
     signal new_sum   : unsigned(31 downto 0) := (others => '0');
 
     signal prev_tdc      : addr_t := (others => '0');
@@ -102,7 +132,7 @@ architecture rtl of avg is
     signal have_prev     : std_logic := '0';
     signal frames_window : unsigned(3 downto 0) := (others => '0'); -- max 8
 
-    type out_state_t is (OUT_IDLE, OUT_READ, OUT_SEND0, OUT_SEND1, OUT_CLEAR, OUT_DONE);
+    type out_state_t is (OUT_IDLE, OUT_READ, OUT_READ2, OUT_SEND0, OUT_SEND1, OUT_CLEAR, OUT_DONE);
     signal out_state : out_state_t := OUT_IDLE;
     signal out_bin   : addr_t := (others => '0');
     signal out_sum   : unsigned(31 downto 0) := (others => '0');
@@ -190,6 +220,83 @@ begin
     state_dbg(5) <= acc_bank;
     state_dbg(6) <= out_bank;
     state_dbg(7) <= '0';
+
+    -- =========================================================================
+    -- BRAM port muxing: each bank's single read+write port is driven by
+    -- whichever role (accumulator or output) currently owns that bank.
+    -- The accumulator side is gated on lat_bank (the bank latched for the
+    -- in-flight sample at ACC_IDLE), not acc_bank directly -- matching
+    -- the original code's addressing exactly, and correct even in the
+    -- edge case where acc_bank changes (a fresh bank claim) on the same
+    -- cycle a sample is latched, since lat_bank is updated from the same
+    -- post-claim value in that case (see ACC_IDLE). acc_bank and out_bank
+    -- are never equal (ping-pong banking always keeps the accumulator
+    -- and the output streamer/clearer pointed at different physical
+    -- banks), so this mux is unambiguous -- exactly one role drives each
+    -- bank's port at any given time.
+    -- =========================================================================
+    bank0_addr     <= lat_addr  when lat_bank = '0' and (acc_state = ACC_READ or acc_state = ACC_ADD or acc_state = ACC_WRITE)
+                      else out_bin when out_bank = '0' and (out_state = OUT_READ or out_state = OUT_READ2)
+                      else clr_bin;
+    bank0_wdata    <= new_sum   when lat_bank = '0' else (others => '0');
+    bank0_di_wdata <= lat_di    when lat_bank = '0' else (others => '0');
+    bank0_we       <= '1' when (lat_bank = '0' and acc_state = ACC_WRITE)
+                          or  (out_bank = '0' and out_state = OUT_CLEAR)
+                     else '0';
+
+    bank1_addr     <= lat_addr  when lat_bank = '1' and (acc_state = ACC_READ or acc_state = ACC_ADD or acc_state = ACC_WRITE)
+                      else out_bin when out_bank = '1' and (out_state = OUT_READ or out_state = OUT_READ2)
+                      else clr_bin;
+    bank1_wdata    <= new_sum   when lat_bank = '1' else (others => '0');
+    bank1_di_wdata <= lat_di    when lat_bank = '1' else (others => '0');
+    bank1_we       <= '1' when (lat_bank = '1' and acc_state = ACC_WRITE)
+                          or  (out_bank = '1' and out_state = OUT_CLEAR)
+                     else '0';
+
+    -- =========================================================================
+    -- Bank 0 / Bank 1 BRAMs: single registered read+write port each, one
+    -- standard inferable template per array (Synth 8-3391 fix -- see
+    -- signal declaration comment above).
+    -- =========================================================================
+    p_bank0_sum : process(clk)
+    begin
+        if rising_edge(clk) then
+            if bank0_we = '1' then
+                sum0(to_integer(bank0_addr)) <= bank0_wdata;
+            end if;
+            bank0_rdata <= sum0(to_integer(bank0_addr));
+        end if;
+    end process p_bank0_sum;
+
+    p_bank0_di : process(clk)
+    begin
+        if rising_edge(clk) then
+            if bank0_we = '1' then
+                di0(to_integer(bank0_addr)) <= bank0_di_wdata;
+            end if;
+            bank0_di_rdata <= di0(to_integer(bank0_addr));
+        end if;
+    end process p_bank0_di;
+
+    p_bank1_sum : process(clk)
+    begin
+        if rising_edge(clk) then
+            if bank1_we = '1' then
+                sum1(to_integer(bank1_addr)) <= bank1_wdata;
+            end if;
+            bank1_rdata <= sum1(to_integer(bank1_addr));
+        end if;
+    end process p_bank1_sum;
+
+    p_bank1_di : process(clk)
+    begin
+        if rising_edge(clk) then
+            if bank1_we = '1' then
+                di1(to_integer(bank1_addr)) <= bank1_di_wdata;
+            end if;
+            bank1_di_rdata <= di1(to_integer(bank1_addr));
+        end if;
+    end process p_bank1_di;
 
     p_main : process(clk)
         variable boundary       : boolean;
@@ -324,25 +431,29 @@ begin
                         end if;
 
                     when ACC_READ =>
-                        if lat_bank = '0' then
-                            rd_sum <= sum0(to_integer(lat_addr));
-                        else
-                            rd_sum <= sum1(to_integer(lat_addr));
-                        end if;
+                        -- bank0_addr/bank1_addr already present lat_addr
+                        -- this cycle (see mux above, gated on
+                        -- acc_state=ACC_READ/ACC_ADD/ACC_WRITE). The
+                        -- BRAM's registered read output is not valid
+                        -- until the next cycle -- captured in ACC_ADD
+                        -- below, not here, to match the one-cycle
+                        -- latency (mirrors OUT_READ/OUT_READ2 on the
+                        -- output side).
                         acc_state <= ACC_ADD;
 
                     when ACC_ADD =>
-                        new_sum <= rd_sum + resize(lat_adc, 32);
+                        if lat_bank = '0' then
+                            new_sum <= bank0_rdata + resize(lat_adc, 32);
+                        else
+                            new_sum <= bank1_rdata + resize(lat_adc, 32);
+                        end if;
                         acc_state <= ACC_WRITE;
 
                     when ACC_WRITE =>
-                        if lat_bank = '0' then
-                            sum0(to_integer(lat_addr)) <= new_sum;
-                            di0(to_integer(lat_addr))  <= lat_di;
-                        else
-                            sum1(to_integer(lat_addr)) <= new_sum;
-                            di1(to_integer(lat_addr))  <= lat_di;
-                        end if;
+                        -- The actual write to sum0/sum1/di0/di1 happens
+                        -- in p_bank0_sum/p_bank0_di/p_bank1_sum/p_bank1_di
+                        -- via the bank0_we/bank1_we mux above (gated on
+                        -- lat_bank and acc_state=ACC_WRITE), not here.
                         acc_state <= ACC_IDLE;
                 end case;
 
@@ -375,14 +486,21 @@ begin
                         -- this, the previous data beat can be accepted again
                         -- during the BRAM/read preparation cycle when TREADY is
                         -- held high by the downstream DMA/testbench.
+                        -- bank0_addr/bank1_addr already present out_bin this
+                        -- cycle (see mux above); the BRAM's registered read
+                        -- output is not valid until the next cycle, captured
+                        -- in OUT_READ2.
                         m_valid <= '0';
                         m_last  <= '0';
+                        out_state <= OUT_READ2;
+
+                    when OUT_READ2 =>
                         if out_bank = '0' then
-                            out_sum <= sum0(to_integer(out_bin));
-                            out_di  <= di0(to_integer(out_bin));
+                            out_sum <= bank0_rdata;
+                            out_di  <= bank0_di_rdata;
                         else
-                            out_sum <= sum1(to_integer(out_bin));
-                            out_di  <= di1(to_integer(out_bin));
+                            out_sum <= bank1_rdata;
+                            out_di  <= bank1_di_rdata;
                         end if;
                         out_state <= OUT_SEND0;
 
@@ -414,15 +532,15 @@ begin
                     when OUT_CLEAR =>
                         -- Clear one bin per clock. This runs only on the bank
                         -- just streamed, so it cannot collide with accumulation.
+                        -- The actual zeroing write happens in
+                        -- p_bank0_sum/p_bank0_di/p_bank1_sum/p_bank1_di via
+                        -- the bank0_we/bank1_we mux above (gated on out_bank
+                        -- and out_state=OUT_CLEAR; bank*_wdata/bank*_di_wdata
+                        -- default to all-zero whenever lat_bank doesn't
+                        -- match, which is always true here since the
+                        -- accumulator is on the other bank).
                         m_valid <= '0';
                         m_last <= '0';
-                        if out_bank = '0' then
-                            sum0(to_integer(clr_bin)) <= (others => '0');
-                            di0(to_integer(clr_bin))  <= (others => '0');
-                        else
-                            sum1(to_integer(clr_bin)) <= (others => '0');
-                            di1(to_integer(clr_bin))  <= (others => '0');
-                        end if;
 
                         if at_last_bin(clr_bin) then
                             out_state <= OUT_DONE;
