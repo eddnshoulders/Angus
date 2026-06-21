@@ -115,6 +115,12 @@ architecture rtl of avg is
     signal m_valid : std_logic := '0';
     signal m_last  : std_logic := '0';
 
+    -- Internal copy of sample_ready: needed because the entity's
+    -- sample_ready is an 'out' port and cannot be read directly (this
+    -- compiles under GHDL but Vivado's synthesizer enforces the
+    -- restriction strictly -- Synth 8-10557).
+    signal sample_ready_i : std_logic;
+
     signal c_frames_in      : unsigned(31 downto 0) := (others => '0');
     signal c_frames_out     : unsigned(31 downto 0) := (others => '0');
     signal c_samples_in     : unsigned(31 downto 0) := (others => '0');
@@ -161,9 +167,10 @@ architecture rtl of avg is
     end function;
 
 begin
-    sample_ready <= '1' when acc_state = ACC_IDLE and
+    sample_ready_i <= '1' when acc_state = ACC_IDLE and
                              ((acc_bank = '0' and bank0_state = BANK_ACCUM) or
                               (acc_bank = '1' and bank1_state = BANK_ACCUM)) else '0';
+    sample_ready <= sample_ready_i;
 
     m_axis_tdata  <= m_data;
     m_axis_tvalid <= m_valid;
@@ -228,14 +235,14 @@ begin
                 -- accumulator is not ready. With the real 2.4 MS/s maximum this
                 -- should remain zero if upstream obeys sample_ready or samples
                 -- are naturally spaced by many PL clocks.
-                if sample_valid = '1' and sample_ready = '0' then
+                if sample_valid = '1' and sample_ready_i = '0' then
                     c_dropped <= c_dropped + 1;
                 end if;
 
                 -- Accumulator: simple multi-cycle read-modify-write.
                 case acc_state is
                     when ACC_IDLE =>
-                        if sample_valid = '1' and sample_ready = '1' then
+                        if sample_valid = '1' and sample_ready_i = '1' then
                             boundary := false;
                             target_reached := false;
                             use_bank := acc_bank;
