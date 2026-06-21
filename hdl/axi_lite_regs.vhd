@@ -224,14 +224,17 @@ entity axi_lite_regs is
         pkt_count          : in unsigned(31 downto 0);
         ovf_count          : in unsigned(15 downto 0);
         avg_n              : out unsigned(3 downto 0);
-        avg_frame_count    : in unsigned(31 downto 0);
 
-        -- Avg diagnostics (avg<->DMA1 handshake visibility)
-        avg_in_beat_count   : in unsigned(31 downto 0);
-        avg_out_beat_count  : in unsigned(31 downto 0);
-        avg_out_tlast_count : in unsigned(31 downto 0);
-        avg_out_stall_count : in unsigned(31 downto 0);
-        avg_bad_tlast_count : in unsigned(31 downto 0)
+        -- Avg diagnostics (direct-sample design, see avg_summary.md)
+        avg_frames_in_count     : in unsigned(31 downto 0);
+        avg_frames_out_count    : in unsigned(31 downto 0);
+        avg_samples_in_count    : in unsigned(31 downto 0);
+        avg_missed_sample_count : in unsigned(31 downto 0);
+        avg_out_of_order_count  : in unsigned(31 downto 0);
+        avg_bank_overrun_count  : in unsigned(31 downto 0);
+        avg_dropped_sample_count: in unsigned(31 downto 0);
+        avg_out_stall_count     : in unsigned(31 downto 0);
+        avg_state_dbg           : in std_logic_vector(7 downto 0)
     );
 end entity axi_lite_regs;
 
@@ -306,12 +309,19 @@ architecture rtl of axi_lite_regs is
     constant A_PKT_COUNT        : integer := 16#104# / 4;
     constant A_OVF_COUNT        : integer := 16#108# / 4;
     constant A_AVG_N            : integer := 16#10C# / 4;
-    -- A_AVG_N + 1 = 0x110 AVG_FRAME_COUNT
-    constant A_AVG_IN_BEAT      : integer := 16#114# / 4;
-    constant A_AVG_OUT_BEAT     : integer := 16#118# / 4;
-    constant A_AVG_OUT_TLAST    : integer := 16#11C# / 4;
-    constant A_AVG_OUT_STALL    : integer := 16#120# / 4;
-    constant A_AVG_BAD_TLAST    : integer := 16#124# / 4;
+    -- avg.vhd status/diagnostic counters. Replaces the old AXI-stream-tap
+    -- design's beat/tlast/stall counters (in_beat_count, out_beat_count,
+    -- out_tlast_count, out_stall_count, bad_tlast_count) with the direct-
+    -- sample design's counter set -- see avg_summary.md.
+    constant A_AVG_FRAMES_IN    : integer := 16#110# / 4;
+    constant A_AVG_FRAMES_OUT   : integer := 16#114# / 4;
+    constant A_AVG_SAMPLES_IN   : integer := 16#118# / 4;
+    constant A_AVG_MISSED       : integer := 16#11C# / 4;
+    constant A_AVG_OUT_OF_ORDER : integer := 16#120# / 4;
+    constant A_AVG_BANK_OVERRUN : integer := 16#124# / 4;
+    constant A_AVG_DROPPED      : integer := 16#128# / 4;
+    constant A_AVG_OUT_STALL    : integer := 16#12C# / 4;
+    constant A_AVG_STATE_DBG    : integer := 16#130# / 4;
 
     -- =========================================================================
     -- AXI internal
@@ -565,12 +575,15 @@ begin
                         when A_PKT_COUNT        => axi_rdata <= std_logic_vector(pkt_count);
                         when A_OVF_COUNT        => axi_rdata <= x"0000" & std_logic_vector(ovf_count);
                         when A_AVG_N            => axi_rdata <= reg_avg_n;
-                        when A_AVG_N + 1        => axi_rdata <= std_logic_vector(avg_frame_count);
-                        when A_AVG_IN_BEAT      => axi_rdata <= std_logic_vector(avg_in_beat_count);
-                        when A_AVG_OUT_BEAT     => axi_rdata <= std_logic_vector(avg_out_beat_count);
-                        when A_AVG_OUT_TLAST    => axi_rdata <= std_logic_vector(avg_out_tlast_count);
-                        when A_AVG_OUT_STALL    => axi_rdata <= std_logic_vector(avg_out_stall_count);
-                        when A_AVG_BAD_TLAST    => axi_rdata <= std_logic_vector(avg_bad_tlast_count);
+                        when A_AVG_FRAMES_IN     => axi_rdata <= std_logic_vector(avg_frames_in_count);
+                        when A_AVG_FRAMES_OUT    => axi_rdata <= std_logic_vector(avg_frames_out_count);
+                        when A_AVG_SAMPLES_IN    => axi_rdata <= std_logic_vector(avg_samples_in_count);
+                        when A_AVG_MISSED        => axi_rdata <= std_logic_vector(avg_missed_sample_count);
+                        when A_AVG_OUT_OF_ORDER  => axi_rdata <= std_logic_vector(avg_out_of_order_count);
+                        when A_AVG_BANK_OVERRUN  => axi_rdata <= std_logic_vector(avg_bank_overrun_count);
+                        when A_AVG_DROPPED       => axi_rdata <= std_logic_vector(avg_dropped_sample_count);
+                        when A_AVG_OUT_STALL     => axi_rdata <= std_logic_vector(avg_out_stall_count);
+                        when A_AVG_STATE_DBG     => axi_rdata <= x"000000" & avg_state_dbg;
                         when others             => axi_rdata <= (others => '0');
                     end case;
                 elsif axi_rvalid = '1' and s_axi_rready = '1' then

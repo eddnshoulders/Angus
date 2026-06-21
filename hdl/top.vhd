@@ -138,7 +138,13 @@ entity top is
         ila_avg_tready               : out std_logic;
         ila_avg_tlast                : out std_logic;
         ila_avg_frame_count          : out std_logic_vector(7 downto 0);
-        ila_avg_out_state            : out std_logic_vector(2 downto 0)
+        -- Widened 3->8 bits: avg.vhd's direct-sample design packs
+        -- acc_state/out_state/acc_bank/out_bank into a full 8-bit
+        -- state_dbg (see avg.vhd's state_dbg concurrent assignment),
+        -- versus the old design's single 3-bit out_state_dbg. This is
+        -- an entity port width change -- the Vivado block design's ILA
+        -- probe connection for this signal will need updating to match.
+        ila_avg_out_state            : out std_logic_vector(7 downto 0)
     );
 end entity top;
 
@@ -309,17 +315,25 @@ architecture rtl of top is
     -- =========================================================================
     signal pkt_count       : unsigned(31 downto 0);
     signal ovf_count       : unsigned(15 downto 0);
-    -- avg block signals
-    signal avg_n           : unsigned(3 downto 0);
-    signal avg_frame_count : unsigned(31 downto 0);
 
-    signal avg_in_beat_count   : unsigned(31 downto 0);
-    signal avg_out_beat_count  : unsigned(31 downto 0);
-    signal avg_out_tlast_count : unsigned(31 downto 0);
-    signal avg_out_stall_count : unsigned(31 downto 0);
-    signal avg_bad_tlast_count : unsigned(31 downto 0);
-    signal avg_out_state_dbg   : std_logic_vector(2 downto 0);
-    -- pack→avg internal stream
+    -- avg block signals (direct-sample design, see avg_summary.md -- avg
+    -- taps tdc_deg/adc_ch0/di_ch directly, the same signals pack consumes,
+    -- rather than pack's own AXI-stream output)
+    signal avg_n               : unsigned(3 downto 0);
+    signal avg_sample_valid    : std_logic;
+    signal avg_sample_ready    : std_logic;
+
+    signal avg_frames_in_count      : unsigned(31 downto 0);
+    signal avg_frames_out_count     : unsigned(31 downto 0);
+    signal avg_samples_in_count     : unsigned(31 downto 0);
+    signal avg_missed_sample_count  : unsigned(31 downto 0);
+    signal avg_out_of_order_count   : unsigned(31 downto 0);
+    signal avg_bank_overrun_count   : unsigned(31 downto 0);
+    signal avg_dropped_sample_count : unsigned(31 downto 0);
+    signal avg_out_stall_count      : unsigned(31 downto 0);
+    signal avg_state_dbg            : std_logic_vector(7 downto 0);
+
+    -- pack→raw DMA stream (unchanged -- avg no longer taps this)
     signal pack_tdata      : std_logic_vector(31 downto 0);
     signal pack_tvalid     : std_logic;
     signal pack_tready     : std_logic;
@@ -466,13 +480,16 @@ begin
             pkt_count           => pkt_count,
             ovf_count           => ovf_count,
             avg_n               => avg_n,
-            avg_frame_count     => avg_frame_count,
 
-            avg_in_beat_count   => avg_in_beat_count,
-            avg_out_beat_count  => avg_out_beat_count,
-            avg_out_tlast_count => avg_out_tlast_count,
-            avg_out_stall_count => avg_out_stall_count,
-            avg_bad_tlast_count => avg_bad_tlast_count
+            avg_frames_in_count      => avg_frames_in_count,
+            avg_frames_out_count     => avg_frames_out_count,
+            avg_samples_in_count     => avg_samples_in_count,
+            avg_missed_sample_count  => avg_missed_sample_count,
+            avg_out_of_order_count   => avg_out_of_order_count,
+            avg_bank_overrun_count   => avg_bank_overrun_count,
+            avg_dropped_sample_count => avg_dropped_sample_count,
+            avg_out_stall_count      => avg_out_stall_count,
+            avg_state_dbg            => avg_state_dbg
         );
 
     -- =========================================================================
@@ -669,39 +686,74 @@ begin
                   m_axis_tvalid=>pack_tvalid, m_axis_tready=>pack_tready,
                   m_axis_tlast=>pack_tlast, pkt_count=>pkt_count, ovf_count=>ovf_count);
 
-    -- =========================================================================
-    -- Avg -- theta-P averaging accumulator
-    -- Consumes raw stream from pack, produces:
-    --   m_axis_*     : raw stream passthrough (to raw DMA FIFO)
-    --   m_avg_axis_* : averaged frames (to avg DMA FIFO)
-    -- =========================================================================
-    -- Raw stream tready: pack is driven directly by raw FIFO tready.
-    -- avg also taps the stream but must never stall pack -- its m_axis_tready
-    -- is tied high so the bypass path doesn't gate pack.
-    -- avg FIFO overflow is acceptable during heavy averaging (counted separately).
+    -- Raw stream tready: pack is driven directly by the raw FIFO's tready
+    -- (top's own m_axis_tready entity port). avg no longer taps pack's
+    -- AXI-stream output at all (see header note below), so there is no
+    -- "avg must not stall pack" concern to wire around any more.
     pack_tready <= m_axis_tready;
+
+    -- =========================================================================
+    -- Avg -- theta-P averaging accumulator (direct-sample design)
+    -- Taps tdc_deg/adc_ch0/di_ch directly -- the same signals pack.vhd
+    -- consumes -- rather than pack's own AXI-stream output. This sidesteps
+    -- the previous AXI-stream-tap design entirely (see avg_summary.md for
+    -- the full rationale: tdc_deg is ascending/wrap-detected directly,
+    -- there is no bypass path, DI is sampled from the most recent frame
+    -- rather than averaged).
+    --
+    -- sample_valid <= trig_pulse: pack.vhd's own header comment confirms
+    -- trig_pulse is "on each trig_pulse, packs one 2-word sample" -- the
+    -- canonical new-sample event in this design, so avg uses the same
+    -- event rather than waiting on pack's AXI-stream timing.
+    --
+    -- tdc_deg is resized from top's 16-bit signal down to avg's
+    -- ADDR_W=13-bit port (0-7199 fits in 13 bits; the top 3 bits are
+    -- always zero at this range so resize is lossless here).
+    --
+    -- avg_n is truncated from top's 4-bit signal (axi_lite_regs register
+    -- is unchanged, still 4 bits read from a 32-bit register) down to
+    -- avg's 2-bit port (max value 3 per the design spec) -- writing
+    -- avg_n=4..15 via the register silently truncates to avg_n mod 4.
+    -- Flagged here rather than changing the register width, since that
+    -- would be a software-visible change outside the scope of this
+    -- integration.
+    --
+    -- avg's sample_ready is a genuine signal that could in principle
+    -- deassert under real backpressure (unlike the old design's
+    -- s_axis_tready => open), but given the ~41-cycles-per-sample budget
+    -- at the rated 2.4 MS/s input rate, this should not happen in normal
+    -- operation -- dropped_sample_count is the visible safety net if it
+    -- ever does. Left unconnected to anything upstream since there is no
+    -- equivalent of pack's own backpressure to honour on this direct tap.
+    -- =========================================================================
+    avg_sample_valid <= trig_pulse;
 
     u_avg : entity work.avg
         port map (
             clk              => clk,
             rst              => rst,
-            s_axis_tdata     => pack_tdata,
-            s_axis_tvalid    => pack_tvalid,
-            s_axis_tready    => open,          -- avg must not stall pack
-            s_axis_tlast     => pack_tlast,
+
+            sample_valid     => avg_sample_valid,
+            sample_ready     => avg_sample_ready,
+            tdc_deg          => resize(tdc_deg, 13),
+            adc_ch0          => adc_ch0,
+            di_in            => di_ch,
+            avg_n            => avg_n(1 downto 0),
+
             m_axis_tdata     => avg_tdata_i,
             m_axis_tvalid    => avg_tvalid_i,
             m_axis_tready    => m_avg_axis_tready,
             m_axis_tlast     => avg_tlast_i,
-            avg_n            => avg_n,
-            frame_count      => avg_frame_count,
 
-            in_beat_count    => avg_in_beat_count,
-            out_beat_count   => avg_out_beat_count,
-            out_tlast_count  => avg_out_tlast_count,
-            out_stall_count  => avg_out_stall_count,
-            bad_tlast_count  => avg_bad_tlast_count,
-            out_state_dbg    => avg_out_state_dbg
+            frames_in_count      => avg_frames_in_count,
+            frames_out_count     => avg_frames_out_count,
+            samples_in_count     => avg_samples_in_count,
+            missed_sample_count  => avg_missed_sample_count,
+            out_of_order_count   => avg_out_of_order_count,
+            bank_overrun_count   => avg_bank_overrun_count,
+            dropped_sample_count => avg_dropped_sample_count,
+            out_stall_count      => avg_out_stall_count,
+            state_dbg            => avg_state_dbg
         );
 
     -- =========================================================================
@@ -845,7 +897,7 @@ begin
     ila_avg_tvalid              <= avg_tvalid_i;
     ila_avg_tready              <= m_avg_axis_tready;
     ila_avg_tlast               <= avg_tlast_i;
-    ila_avg_frame_count         <= std_logic_vector(avg_frame_count(7 downto 0));
-    ila_avg_out_state           <= avg_out_state_dbg;
+    ila_avg_frame_count         <= std_logic_vector(avg_frames_out_count(7 downto 0));
+    ila_avg_out_state           <= avg_state_dbg;
 
 end architecture rtl;
