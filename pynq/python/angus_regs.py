@@ -41,6 +41,7 @@ WRITE_REGS = {
     'PLL_PHASE_ERR_THRESH': (0x054, 31, 0,  'Max abs PLL phase error angfac before fault'),
     'TDC_OFFSET':           (0x058, 31, 0,  'TDC offset from Z edge (angfac)'),
     'DMA_BUFFER_SIZE':      (0x05C, 3,  0,  'Z-edge cycles per DMA buffer (default 2)'),
+    'AVG_N':                (0x10C, 3,  0,  'Averaging window: 2^n input frames (0-3, default 0)'),
 }
 
 # =============================================================================
@@ -87,20 +88,38 @@ READ_REGS = {
     'TDC_DEG':              (0x100, 15, 0,  'TDC-referenced engine angle (0-7199, 0.1 deg/LSB)'),
     'PKT_COUNT':            (0x104, 31, 0,  'DMA packet count'),
     'OVF_COUNT':            (0x108, 15, 0,  'DMA overflow count'),
+    # avg.vhd diagnostics (direct-sample design, see avg_summary.md).
+    # avg_n is a write register at 0x10C (see WRITE_REGS above).
+    'AVG_FRAMES_IN':        (0x110, 31, 0,  'Input frames received by avg accumulator'),
+    'AVG_FRAMES_OUT':       (0x114, 31, 0,  'Averaged output frames produced'),
+    'AVG_SAMPLES_IN':       (0x118, 31, 0,  'Total input samples accepted'),
+    'AVG_MISSED_SAMPLES':   (0x11C, 31, 0,  'Missed samples (gap in tdc_deg sequence)'),
+    'AVG_OUT_OF_ORDER':     (0x120, 31, 0,  'Out-of-order samples (tdc_deg decreased but != 0)'),
+    'AVG_BANK_OVERRUN':     (0x124, 31, 0,  'Bank overruns (window complete, other bank not empty)'),
+    'AVG_DROPPED_SAMPLES':  (0x128, 31, 0,  'Samples dropped (sample_valid asserted, sample_ready low)'),
+    'AVG_OUT_STALL':        (0x12C, 31, 0,  'Output stall cycles (m_axis_tvalid=1, m_axis_tready=0)'),
+    'AVG_STATE_DBG':        (0x130, 7,  0,  '[1:0]=acc_state [4:2]=out_state [5]=acc_bank [6]=out_bank'),
 }
 
 ALL_REGS = {**WRITE_REGS, **READ_REGS}
 
 # =============================================================================
-# DMA packet format (2 x 32-bit words per sample, packed by pack.vhd)
+# DMA packet formats (2 x 32-bit words per sample/bin)
 #
+# Raw stream (pack.vhd -> DMA0): 7200 samples per engine revolution.
 #   Word 0: [31:0]  tdc_deg (0-7199, 0.1 deg/LSB = 0.0-719.9 deg)
 #   Word 1: [31:24] DI[7:0]  [23:16] 0x00
 #            [15:4] pressure[11:0]  [3:0] 0x0
 #
-# RPM available via AXI-Lite: SPEED_RPM_SLOW, SPEED_RPM_FAST
+# Averaged stream (avg.vhd -> DMA1): 7200 bins per averaged frame.
+# Identical word layout to raw; DI is the value from the most recently
+# accumulated input frame for each bin (not averaged across the window).
+#   Word 0: [31:0]  bin index (= tdc_deg reference, 0-7199)
+#   Word 1: [31:24] DI[7:0]  [23:16] 0x00
+#            [15:4] averaged_pressure[11:0]  [3:0] 0x0
+#            where averaged_pressure = sum_over_window >> avg_n
 #
-# Python unpacking:
+# Python unpacking (same for both streams):
 #   tdc_deg  = buf[0] * 0.1          # degrees (0.0-719.9)
 #   di       = (buf[1] >> 24) & 0xFF
 #   pressure = (buf[1] >>  4) & 0xFFF
