@@ -74,7 +74,7 @@ entity avg is
         -- Additional ILA debug ports
         bank0_state_dbg     : out std_logic_vector(2 downto 0);
         bank1_state_dbg     : out std_logic_vector(2 downto 0);
-        out_bin_dbg         : out std_logic_vector(12 downto 0)
+        out_bin_dbg         : out std_logic_vector(ADDR_W - 1 downto 0)
     );
 end entity avg;
 
