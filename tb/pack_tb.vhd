@@ -70,12 +70,14 @@ begin
             adc_ch0         => adc0,
             z_edge          => z_edge,
             dma_buffer_size => buf_size,
+            raw_fifo_almost_full => '0',  -- not full: normal operation
             m_axis_tdata    => tdata,
             m_axis_tvalid   => tvalid,
             m_axis_tready   => tready,
             m_axis_tlast    => tlast,
             pkt_count       => pkt_cnt,
-            ovf_count       => ovf_cnt);
+            ovf_count       => ovf_cnt,
+            dropped_pkt_count => open);
 
     -- AXI stream receiver
     p_rx : process(clk)

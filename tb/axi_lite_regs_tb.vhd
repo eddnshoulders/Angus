@@ -299,9 +299,9 @@ begin
         test_num <= 2;
         report "T2: config_apply";
 
-        axi_write(16#02C#, x"00000028");  -- CRANK_N_TEETH=40
-        axi_write(16#030#, x"00000001");  -- CRANK_N_MISSING=1
-        axi_write(16#008#, x"00000010");  -- RST_CYCLES=16
+        axi_write(16#028#, x"00000028");  -- CRANK_N_TEETH=40     (0x028)
+        axi_write(16#02C#, x"00000001");  -- CRANK_N_MISSING=1    (0x02C)
+        axi_write(16#008#, x"00000010");  -- RST_CYCLES=16        (0x008)
 
         -- CONTROL bit layout per register map:
         -- [0]=crank_edge_sel [6]=ref_sel [7]=config_apply [8]=ang_sel
@@ -356,7 +356,7 @@ begin
         angle_nco_ab_inc_in <= to_unsigned(71582788, 32);
         wait for CLK_PERIOD;
 
-        axi_read(16#0CC#, rd);
+        axi_read(16#098#, rd);  -- A_ANGLE_NCO_AB = 0x098
         assert to_integer(unsigned(rd)) = 71582788
             report "FAIL T4: AXI readback of ANGLE_NCO_AB_INC wrong, got " &
                    integer'image(to_integer(unsigned(rd))) severity failure;
@@ -372,7 +372,7 @@ begin
         angle_nco_ab_inc_in <= to_unsigned(119304647, 32);
         wait for CLK_PERIOD;
 
-        axi_read(16#0CC#, rd);
+        axi_read(16#098#, rd);  -- A_ANGLE_NCO_AB = 0x098
         assert to_integer(unsigned(rd)) = 119304647
             report "FAIL T5: AXI readback of ANGLE_NCO_AB_INC wrong for ppr=36, got " &
                    integer'image(to_integer(unsigned(rd))) severity failure;
@@ -416,7 +416,7 @@ begin
         test_num <= 7;
         report "T7: runtime config direct outputs";
 
-        axi_write(16#014#, x"000001F4");  -- CAM_DBC=500
+        axi_write(16#010#, x"000001F4");  -- CAM_DBC=500  (0x010)
         wait for CLK_PERIOD;
         assert to_integer(cam_debounce) = 500 report "FAIL T7: cam_debounce" severity failure;
 
@@ -432,31 +432,32 @@ begin
         test_num <= 8;
         report "T8: status readback";
 
-        axi_read(16#070#, rd);
+        -- SYNC_STATE at 0x0B4 (stimulus initialised to "11")
+        axi_read(16#0B4#, rd);
         assert rd(1 downto 0) = "11" report "FAIL T8: SYNC_STATE" severity failure;
 
-        axi_read(16#078#, rd);
+        -- SPEED_RPM_SLOW at 0x0B8 (stimulus initialised to 3000)
+        axi_read(16#0B8#, rd);
         assert to_integer(unsigned(rd(15 downto 0))) = 3000
             report "FAIL T8: SPEED_RPM_SLOW" severity failure;
 
-        axi_read(16#080#, rd);
-        assert to_integer(unsigned(rd(15 downto 0))) = 1800
-            report "FAIL T8: ANGLE_DEG" severity failure;
-
-        axi_read(16#08C#, rd);
+        -- PHASE_REF_OK at 0x0AC (stimulus initialised to '1')
+        axi_read(16#0AC#, rd);
         assert rd(0) = '1' report "FAIL T8: PHASE_REF_OK" severity failure;
 
-        axi_read(16#0B4#, rd);
+        -- PLL_NCO_INC at 0x0DC (stimulus initialised to 0xAABBCCDD)
+        axi_read(16#0DC#, rd);
         assert rd = x"AABBCCDD" report "FAIL T8: PLL_NCO_INC" severity failure;
 
+        -- FAULT_FLAGS at 0x0E4 (stimulus initialised to 0x00000015)
         axi_read(16#0E4#, rd);
         assert rd = x"00000015" report "FAIL T8: FAULT_FLAGS" severity failure;
 
-        -- PKT_COUNT is at 0x104 (unchanged)
+        -- PKT_COUNT at 0x104 (stimulus initialised to 12345)
         axi_read(16#104#, rd);
         assert to_integer(unsigned(rd)) = 12345 report "FAIL T8: PKT_COUNT" severity failure;
 
-        -- RAW_DROPPED_PACKETS at 0x134 (new)
+        -- RAW_DROPPED_PACKETS at 0x134 (stimulus initialised to 99)
         axi_read(16#134#, rd);
         assert to_integer(unsigned(rd)) = 99
             report "FAIL T8: RAW_DROPPED_PACKETS readback wrong, got " &

@@ -28,10 +28,10 @@ architecture sim of mux_blocks_tb is
     signal peak_edge   : std_logic := '0';
     signal ref_edge_o  : std_logic;
     -- ang_sel
-    signal ang_sel_s   : std_logic := '0';
-    signal angle_deg   : unsigned(15 downto 0) := to_unsigned(1234, 16);
-    signal pll_hires   : unsigned(15 downto 0) := to_unsigned(5678, 16);
-    signal ang_deg_o   : unsigned(15 downto 0);
+    signal ang_sel_s      : std_logic := '0';
+    signal angle_angfac_s : unsigned(31 downto 0) := to_unsigned(12340000, 32);
+    signal pll_angfac_s   : unsigned(31 downto 0) := to_unsigned(56780000, 32);
+    signal ang_angfac_o   : unsigned(31 downto 0);
 begin
     u_src : entity work.src_sel port map(
         sel=>sel_s, crank_ab_edge=>crank_ab, crank_z_edge=>crank_z,
@@ -45,7 +45,8 @@ begin
         sel=>ref_sel_s, cam_edge=>cam_edge, peak_edge=>peak_edge, ref_edge=>ref_edge_o);
 
     u_ang : entity work.ang_sel port map(
-        sel=>ang_sel_s, angle_deg_in=>angle_deg, pll_ang_hires=>pll_hires, ang_deg=>ang_deg_o);
+        sel=>ang_sel_s, angle_angfac=>angle_angfac_s,
+        pll_angfac=>pll_angfac_s, ang_angfac=>ang_angfac_o);
 
     p_stim : process
     begin
@@ -78,9 +79,9 @@ begin
 
         -- ang_sel
         ang_sel_s <= '0'; wait for 10 ns;
-        assert ang_deg_o = to_unsigned(1234, 16) report "FAIL ang_sel sel=0" severity failure;
+        assert ang_angfac_o = to_unsigned(12340000, 32) report "FAIL ang_sel sel=0" severity failure;
         ang_sel_s <= '1'; wait for 10 ns;
-        assert ang_deg_o = to_unsigned(5678, 16) report "FAIL ang_sel sel=1" severity failure;
+        assert ang_angfac_o = to_unsigned(56780000, 32) report "FAIL ang_sel sel=1" severity failure;
         report "ang_sel: PASS";
 
         report "All mux block tests PASS";
