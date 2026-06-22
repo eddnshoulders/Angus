@@ -194,7 +194,10 @@ begin
             bank_overrun_count => bank_overrun_count,
             dropped_sample_count => dropped_sample_count,
             out_stall_count => out_stall_count,
-            state_dbg => state_dbg
+            state_dbg => state_dbg,
+            bank0_state_dbg => open,
+            bank1_state_dbg => open,
+            out_bin_dbg => open
         );
 
     stim : process

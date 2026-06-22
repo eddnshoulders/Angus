@@ -70,7 +70,11 @@ entity avg is
         bank_overrun_count  : out unsigned(31 downto 0);
         dropped_sample_count: out unsigned(31 downto 0);
         out_stall_count     : out unsigned(31 downto 0);
-        state_dbg           : out std_logic_vector(7 downto 0)
+        state_dbg           : out std_logic_vector(7 downto 0);
+        -- Additional ILA debug ports
+        bank0_state_dbg     : out std_logic_vector(2 downto 0);
+        bank1_state_dbg     : out std_logic_vector(2 downto 0);
+        out_bin_dbg         : out std_logic_vector(12 downto 0)
     );
 end entity avg;
 
@@ -227,6 +231,11 @@ begin
     state_dbg(5) <= acc_bank;
     state_dbg(6) <= out_bank;
     state_dbg(7) <= '0';
+
+    -- bank_state_t: EMPTY=0 ACCUM=1 FULL=2 STREAM=3 CLEAR=4 DONE=5
+    bank0_state_dbg <= std_logic_vector(to_unsigned(bank_state_t'pos(bank0_state), 3));
+    bank1_state_dbg <= std_logic_vector(to_unsigned(bank_state_t'pos(bank1_state), 3));
+    out_bin_dbg     <= std_logic_vector(out_bin);
 
     -- =========================================================================
     -- BRAM port muxing: each bank's single read+write port is driven by

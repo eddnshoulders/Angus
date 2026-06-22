@@ -141,13 +141,12 @@ entity top is
         ila_avg_tready               : out std_logic;
         ila_avg_tlast                : out std_logic;
         ila_avg_frame_count          : out std_logic_vector(7 downto 0);
-        -- Widened 3->8 bits: avg.vhd's direct-sample design packs
-        -- acc_state/out_state/acc_bank/out_bank into a full 8-bit
-        -- state_dbg (see avg.vhd's state_dbg concurrent assignment),
-        -- versus the old design's single 3-bit out_state_dbg. This is
-        -- an entity port width change -- the Vivado block design's ILA
-        -- probe connection for this signal will need updating to match.
-        ila_avg_out_state            : out std_logic_vector(7 downto 0)
+        ila_avg_out_state            : out std_logic_vector(7 downto 0);
+        ila_avg_sample_valid         : out std_logic;
+        ila_avg_sample_ready         : out std_logic;
+        ila_avg_bank0_state          : out std_logic_vector(2 downto 0);
+        ila_avg_bank1_state          : out std_logic_vector(2 downto 0);
+        ila_avg_out_bin              : out std_logic_vector(12 downto 0)
     );
 end entity top;
 
@@ -338,6 +337,9 @@ architecture rtl of top is
     signal avg_dropped_sample_count : unsigned(31 downto 0);
     signal avg_out_stall_count      : unsigned(31 downto 0);
     signal avg_state_dbg            : std_logic_vector(7 downto 0);
+    signal avg_bank0_state_dbg      : std_logic_vector(2 downto 0);
+    signal avg_bank1_state_dbg      : std_logic_vector(2 downto 0);
+    signal avg_out_bin_dbg          : std_logic_vector(12 downto 0);
 
     -- pack→raw DMA stream (unchanged -- avg no longer taps this)
     signal pack_tdata      : std_logic_vector(31 downto 0);
@@ -767,7 +769,10 @@ begin
             bank_overrun_count   => avg_bank_overrun_count,
             dropped_sample_count => avg_dropped_sample_count,
             out_stall_count      => avg_out_stall_count,
-            state_dbg            => avg_state_dbg
+            state_dbg            => avg_state_dbg,
+            bank0_state_dbg      => avg_bank0_state_dbg,
+            bank1_state_dbg      => avg_bank1_state_dbg,
+            out_bin_dbg          => avg_out_bin_dbg
         );
 
     -- =========================================================================
@@ -918,5 +923,10 @@ begin
     ila_avg_tlast               <= avg_tlast_i;
     ila_avg_frame_count         <= std_logic_vector(avg_frames_out_count(7 downto 0));
     ila_avg_out_state           <= avg_state_dbg;
+    ila_avg_sample_valid        <= avg_sample_valid;
+    ila_avg_sample_ready        <= avg_sample_ready;
+    ila_avg_bank0_state         <= avg_bank0_state_dbg;
+    ila_avg_bank1_state         <= avg_bank1_state_dbg;
+    ila_avg_out_bin             <= avg_out_bin_dbg;
 
 end architecture rtl;
