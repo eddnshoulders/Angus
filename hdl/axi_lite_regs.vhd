@@ -226,7 +226,7 @@ entity axi_lite_regs is
         avg_n              : out unsigned(3 downto 0);
 
         -- Raw DMA0 path control and diagnostics
-        raw_stream_reset      : out std_logic;
+        raw_stream_resetn     : out std_logic;
         raw_dropped_pkt_count : in  unsigned(31 downto 0);
 
         -- Avg diagnostics (direct-sample design, see avg_summary.md)
@@ -375,7 +375,7 @@ architecture rtl of axi_lite_regs is
     -- =========================================================================
     signal config_apply_int : std_logic := '0';
     signal fault_clear_int  : std_logic := '0';
-    signal raw_stream_reset_int : std_logic := '0';
+    signal raw_stream_resetn_int : std_logic := '1';
 
     -- =========================================================================
     -- Startup config latches
@@ -427,11 +427,11 @@ begin
                 aw_addr              <= (others => '0');
                 config_apply_int     <= '0';
                 fault_clear_int      <= '0';
-                raw_stream_reset_int <= '0';
+                raw_stream_resetn_int <= '1';
             else
                 config_apply_int     <= '0';
                 fault_clear_int      <= '0';
-                raw_stream_reset_int <= '0';
+                raw_stream_resetn_int <= '1';
 
                 if axi_awready = '0' and s_axi_awvalid = '1' then
                     axi_awready <= '1';
@@ -487,7 +487,7 @@ begin
                             -- Self-clearing: bit 0 fires a one-cycle pulse,
                             -- not stored in a register.
                             if s_axi_wdata(0) = '1' then
-                                raw_stream_reset_int <= '1';
+                                raw_stream_resetn_int <= '0';
                             end if;
                         when others => null;
                     end case;
@@ -688,7 +688,7 @@ begin
     avg_n            <= unsigned(reg_avg_n(3 downto 0));
     -- Runtime config (direct from registers)
     fault_clear          <= fault_clear_int;
-    raw_stream_reset     <= raw_stream_reset_int;
+    raw_stream_resetn    <= raw_stream_resetn_int;
     pll_corr_dir         <= reg_control_rt(1);
     phase_fault_drop     <= reg_control_rt(2);
     phase_ref_phase      <= reg_control_rt(3);

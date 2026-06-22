@@ -12,7 +12,8 @@ library std; use std.env.all;
 -- T5: pll_nco_ab_inc = 0xFFFFFFFF/36 = 119304647 (src_sel=1)
 -- T6: fault_clear self-clears after one cycle
 -- T7: runtime config outputs update immediately
--- T8: status register readback
+-- T8: status register readback (FAULT_FLAGS, PKT_COUNT, RAW_DROPPED_PACKETS)
+-- T9: RAW_STREAM_RESET self-clears; AVG_N write/readback
 -- =============================================================================
 entity axi_lite_regs_tb is end entity;
 
@@ -56,7 +57,6 @@ architecture sim of axi_lite_regs_tb is
     signal enc_ab_edge_sel  : unsigned(1 downto 0);
     signal enc_z_edge_sel   : std_logic;
     signal dma_buffer_size  : unsigned(3 downto 0);
-    signal pll_nco_ab_inc   : unsigned(31 downto 0);
     signal fault_clear      : std_logic;
     signal pll_corr_dir     : std_logic;
     signal phase_fault_drop : std_logic;
@@ -65,15 +65,16 @@ architecture sim of axi_lite_regs_tb is
     signal enc_a_debounce   : unsigned(15 downto 0);
     signal enc_b_debounce   : unsigned(15 downto 0);
     signal enc_z_debounce   : unsigned(15 downto 0);
-    signal phase_ref_ang    : unsigned(15 downto 0);
-    signal phase_ref_tol    : unsigned(15 downto 0);
-    signal tdc_offset       : unsigned(15 downto 0);
+    signal tdc_offset       : unsigned(31 downto 0);
     signal pll_phase_err_thresh : unsigned(31 downto 0);
     signal pll_kp           : unsigned(15 downto 0);
     signal pll_ki           : unsigned(15 downto 0);
     signal pll_corr_max     : unsigned(15 downto 0);
     signal trig_decimation  : unsigned(15 downto 0);
-    signal trig_pulse_width : unsigned(15 downto 0);
+    -- angle_nco_ab_inc is now an INPUT to axi_lite_regs (computed by the
+    -- divider in top.vhd). T4/T5 drive it as a stimulus input rather than
+    -- reading a DUT output, and test AXI readback of it instead.
+    signal angle_nco_ab_inc_in : unsigned(31 downto 0) := to_unsigned(71582788, 32);
 
     -- Status inputs
     signal sync_state_in       : unsigned(1 downto 0)  := "11";
@@ -121,6 +122,10 @@ architecture sim of axi_lite_regs_tb is
     signal pll_err_cnt_in      : unsigned(15 downto 0) := (others => '0');
     signal pkt_cnt_in          : unsigned(31 downto 0) := to_unsigned(12345, 32);
     signal ovf_cnt_in          : unsigned(15 downto 0) := (others => '0');
+    -- New ports from this integration
+    signal raw_stream_resetn     : std_logic;
+    signal raw_dropped_pkt_cnt : unsigned(31 downto 0) := to_unsigned(99, 32);
+    signal avg_n_out            : unsigned(3 downto 0);
 
 begin
 
@@ -162,7 +167,6 @@ begin
             enc_ab_edge_sel  => enc_ab_edge_sel,
             enc_z_edge_sel   => enc_z_edge_sel,
             dma_buffer_size  => dma_buffer_size,
-            pll_nco_ab_inc   => pll_nco_ab_inc,
             fault_clear      => fault_clear,
             pll_corr_dir     => pll_corr_dir,
             phase_fault_drop => phase_fault_drop,
@@ -171,54 +175,47 @@ begin
             enc_a_debounce   => enc_a_debounce,
             enc_b_debounce   => enc_b_debounce,
             enc_z_debounce   => enc_z_debounce,
-            phase_ref_ang    => phase_ref_ang,
-            phase_ref_tol    => phase_ref_tol,
+            phase_ref_min    => open,
+            phase_ref_max    => open,
+            phase_ref_phase  => open,
             tdc_offset       => tdc_offset,
             pll_phase_err_thresh => pll_phase_err_thresh,
             pll_kp           => pll_kp,
             pll_ki           => pll_ki,
             pll_corr_max     => pll_corr_max,
             trig_decimation  => trig_decimation,
-            trig_pulse_width => trig_pulse_width,
             max_rpm          => open,
             peak_hyst        => open,
-            peak_pulse_cycles => open,
             sync_state       => sync_state_in,
-            sync_fault_count => sync_fault_cnt_in,
             speed_rpm_slow   => speed_slow_in,
             speed_rpm_fast   => speed_fast_in,
-            angle_deg        => angle_deg_in,
-            phase_raw        => phase_raw_in,
+            angle_angfac     => (others => '0'),
+            angle_nco_clk_inc => (others => '0'),
+            angle_nco_ab_inc  => angle_nco_ab_inc_in,
             phase_ref_det    => phase_ref_det_in,
             phase_ref_ok     => phase_ref_ok_in,
             phase_ref_found  => phase_ref_found_in,
-            phase_inv        => phase_inv_in,
-            phase_inv_latch  => phase_inv_latch_in,
-            phase_ang_corr   => phase_ang_corr_in,
             phase_eng        => phase_eng_in,
-            phase_eng_ang    => phase_eng_ang_in,
+            phase_ref_angfac => (others => '0'),
             phase_ref_det_cnt => phase_ref_det_cnt_in,
-            pll_ang_hires    => pll_ang_hires_in,
+            pll_angfac       => (others => '0'),
             pll_div_valid    => pll_div_valid_in,
-            pll_nco_inc      => pll_nco_inc_in,
             pll_nco_accum    => pll_nco_accum_in,
-            pll_phase_err    => pll_phase_err_in,
+            pll_err_angfac   => pll_phase_err_in,
             pll_p_term       => pll_p_term_in,
             pll_i_term       => pll_i_term_in,
             pll_pi_corr      => pll_pi_corr_in,
-            pll_cycle_ab_count => pll_cycle_ab_cnt_in,
-            trig_pulse_count => trig_pulse_cnt_in,
+            pll_nco_inc      => pll_nco_inc_in,
+            trig_count       => trig_pulse_cnt_in,
+            tdc_deg          => (others => '0'),
             crank_tooth_period => crank_tooth_per_in,
-            crank_gap_period => crank_gap_per_in,
-            crank_tooth_count => crank_tooth_cnt_in,
-            crank_ab_count   => crank_ab_cnt_in,
-            crank_gap_det    => crank_gap_det_in,
-            cam_tooth_count  => cam_tooth_cnt_in,
-            ref_angle        => ref_angle_in,
-            enc_ab_count     => enc_ab_cnt_in,
-            enc_a_count      => enc_a_cnt_in,
-            enc_b_count      => enc_b_cnt_in,
-            enc_ab_period    => enc_ab_per_in,
+            crank_tooth_count  => crank_tooth_cnt_in,
+            crank_ab_count     => crank_ab_cnt_in,
+            cam_tooth_count    => cam_tooth_cnt_in,
+            enc_ab_period      => enc_ab_per_in,
+            enc_ab_count       => enc_ab_cnt_in,
+            enc_a_count        => enc_a_cnt_in,
+            enc_b_count        => enc_b_cnt_in,
             fault_flags      => fault_flags_in,
             cam_fault_count  => cam_fault_cnt_in,
             crank_fault_count => crank_fault_cnt_in,
@@ -227,7 +224,19 @@ begin
             speed_fault_count => speed_fault_cnt_in,
             pll_phase_err_count => pll_err_cnt_in,
             pkt_count        => pkt_cnt_in,
-            ovf_count        => ovf_cnt_in
+            ovf_count        => ovf_cnt_in,
+            avg_n            => avg_n_out,
+            raw_stream_resetn     => raw_stream_resetn,
+            raw_dropped_pkt_count => raw_dropped_pkt_cnt,
+            avg_frames_in_count      => (others => '0'),
+            avg_frames_out_count     => (others => '0'),
+            avg_samples_in_count     => (others => '0'),
+            avg_missed_sample_count  => (others => '0'),
+            avg_out_of_order_count   => (others => '0'),
+            avg_bank_overrun_count   => (others => '0'),
+            avg_dropped_sample_count => (others => '0'),
+            avg_out_stall_count      => (others => '0'),
+            avg_state_dbg            => (others => '0')
         );
 
     p_stim : process
@@ -270,17 +279,17 @@ begin
         test_num <= 1;
         report "T1: AXI write/read";
 
-        axi_write(16#014#, x"0000001E");  -- CAM_DBC=30
-        axi_read (16#014#, rd);
+        axi_write(16#010#, x"0000001E");  -- CAM_DBC=30  (0x010)
+        axi_read (16#010#, rd);
         assert rd = x"0000001E" report "FAIL T1: CAM_DBC" severity failure;
 
-        axi_write(16#054#, x"00000100");  -- PLL_KP=256
-        axi_read (16#054#, rd);
+        axi_write(16#040#, x"00000100");  -- PLL_KP=256  (0x040)
+        axi_read (16#040#, rd);
         assert rd = x"00000100" report "FAIL T1: PLL_KP" severity failure;
 
-        axi_write(16#050#, x"DEADBEEF");
-        axi_read (16#050#, rd);
-        assert rd = x"DEADBEEF" report "FAIL T1: PLL_PHASE_ERR_THRESH" severity failure;
+        axi_write(16#054#, x"DEADBEEF");  -- PLL_PHASE_THRESH  (0x054)
+        axi_read (16#054#, rd);
+        assert rd = x"DEADBEEF" report "FAIL T1: PLL_PHASE_THRESH" severity failure;
 
         report "T1: PASS";
 
@@ -294,13 +303,15 @@ begin
         axi_write(16#030#, x"00000001");  -- CRANK_N_MISSING=1
         axi_write(16#008#, x"00000010");  -- RST_CYCLES=16
 
-        -- CONTROL: [0]=crank_edge_sel=1, [2]=ref_sel=1, [3]=config_apply, [5]=ang_sel=1
-        -- = 0b00100101 | 0x08 = 0x2D
-        axi_write(16#000#, x"0000002D");
+        -- CONTROL bit layout per register map:
+        -- [0]=crank_edge_sel [6]=ref_sel [7]=config_apply [8]=ang_sel
+        -- Set: crank_edge_sel=1 (bit0), ref_sel=1 (bit6), ang_sel=1 (bit8), config_apply (bit7)
+        -- = 0b1_1110_0001 = 0x1E1
+        axi_write(16#000#, x"000001E1");
 
-        -- Verify CONTROL[3] self-cleared (bit 3 masked out in p_write)
+        -- Verify CONTROL[7] self-cleared (config_apply is bit 7)
         axi_read(16#000#, rd);
-        assert rd(3) = '0' report "FAIL T2: config_apply did not self-clear" severity failure;
+        assert rd(7) = '0' report "FAIL T2: config_apply did not self-clear" severity failure;
 
         -- Wait for rst to release
         wait for 30 * CLK_PERIOD;
@@ -320,7 +331,7 @@ begin
         report "T3: rst_out duration";
 
         axi_write(16#008#, x"00000020");  -- RST_CYCLES=32
-        axi_write(16#000#, x"00000008");  -- config_apply only
+        axi_write(16#000#, x"00000080");  -- config_apply only (bit 7)
 
         wait for CLK_PERIOD;
         assert rst_out = '1' report "FAIL T3: rst_out not high after apply" severity failure;
@@ -334,43 +345,37 @@ begin
         report "T3: PASS";
 
         -- ----------------------------------------------------------------
-        -- T4: pll_nco_ab_inc = 0xFFFFFFFF/60 = 71582788
+        -- T4: angle_nco_ab_inc AXI readback (value driven as input)
+        -- The divider that computes 0xFFFFFFFF/n_teeth now lives in
+        -- top.vhd and feeds back into axi_lite_regs as angle_nco_ab_inc.
+        -- Test that the value passes through correctly to the AXI read.
         -- ----------------------------------------------------------------
         test_num <= 4;
-        report "T4: pll_nco_ab_inc crank ppr=60";
+        report "T4: angle_nco_ab_inc readback (0xFFFFFFFF/60 = 71582788)";
 
-        axi_write(16#02C#, x"0000003C");  -- CRANK_N_TEETH=60
-        axi_write(16#008#, x"00000020");  -- RST_CYCLES=32
-        axi_write(16#000#, x"00000008");  -- config_apply, src_sel=0
-
-        -- Wait for rst + divider
-        wait for 80 * CLK_PERIOD;
-
-        assert to_integer(pll_nco_ab_inc) = 71582788
-            report "FAIL T4: pll_nco_ab_inc wrong for ppr=60, got " &
-                   integer'image(to_integer(pll_nco_ab_inc)) severity failure;
+        angle_nco_ab_inc_in <= to_unsigned(71582788, 32);
+        wait for CLK_PERIOD;
 
         axi_read(16#0CC#, rd);
         assert to_integer(unsigned(rd)) = 71582788
-            report "FAIL T4: AXI readback of PLL_NCO_AB_INC wrong" severity failure;
+            report "FAIL T4: AXI readback of ANGLE_NCO_AB_INC wrong, got " &
+                   integer'image(to_integer(unsigned(rd))) severity failure;
 
         report "T4: PASS";
 
         -- ----------------------------------------------------------------
-        -- T5: src_sel=1 uses enc_n_ppr, 0xFFFFFFFF/36 = 119304647
+        -- T5: angle_nco_ab_inc AXI readback changes when input changes
         -- ----------------------------------------------------------------
         test_num <= 5;
-        report "T5: pll_nco_ab_inc enc ppr=36";
+        report "T5: angle_nco_ab_inc readback (0xFFFFFFFF/36 = 119304647)";
 
-        axi_write(16#038#, x"00000024");  -- ENC_N_PPR=36
-        -- CONTROL: src_sel=1 (bit1), config_apply (bit3) = 0x0A
-        axi_write(16#000#, x"0000000A");
+        angle_nco_ab_inc_in <= to_unsigned(119304647, 32);
+        wait for CLK_PERIOD;
 
-        wait for 80 * CLK_PERIOD;
-
-        assert to_integer(pll_nco_ab_inc) = 119304647
-            report "FAIL T5: pll_nco_ab_inc wrong for enc ppr=36, got " &
-                   integer'image(to_integer(pll_nco_ab_inc)) severity failure;
+        axi_read(16#0CC#, rd);
+        assert to_integer(unsigned(rd)) = 119304647
+            report "FAIL T5: AXI readback of ANGLE_NCO_AB_INC wrong for ppr=36, got " &
+                   integer'image(to_integer(unsigned(rd))) severity failure;
 
         report "T5: PASS";
 
@@ -444,13 +449,45 @@ begin
         axi_read(16#0B4#, rd);
         assert rd = x"AABBCCDD" report "FAIL T8: PLL_NCO_INC" severity failure;
 
-        axi_read(16#104#, rd);
+        axi_read(16#0E4#, rd);
         assert rd = x"00000015" report "FAIL T8: FAULT_FLAGS" severity failure;
 
-        axi_read(16#120#, rd);
+        -- PKT_COUNT is at 0x104 (unchanged)
+        axi_read(16#104#, rd);
         assert to_integer(unsigned(rd)) = 12345 report "FAIL T8: PKT_COUNT" severity failure;
 
+        -- RAW_DROPPED_PACKETS at 0x134 (new)
+        axi_read(16#134#, rd);
+        assert to_integer(unsigned(rd)) = 99
+            report "FAIL T8: RAW_DROPPED_PACKETS readback wrong, got " &
+                   integer'image(to_integer(unsigned(rd))) severity failure;
+
         report "T8: PASS";
+
+        -- ----------------------------------------------------------------
+        -- T9: RAW_STREAM_RESET self-clears (same pattern as T6/fault_clear)
+        -- ----------------------------------------------------------------
+        test_num <= 9;
+        report "T9: RAW_STREAM_RESET self-clears";
+
+        axi_write(16#060#, x"00000001");
+        -- raw_stream_reset fired for one cycle during the write; should
+        -- be back to '0' by the time axi_write returns.
+        assert raw_stream_resetn = '1'
+            report "FAIL T9: raw_stream_resetn did not return high after pulse" severity failure;
+
+        -- Confirm it stays low
+        wait for 5 * CLK_PERIOD;
+        assert raw_stream_resetn = '1'
+            report "FAIL T9: raw_stream_resetn not high 5 clocks after pulse" severity failure;
+
+        -- AVG_N write and readback at 0x10C
+        axi_write(16#10C#, x"00000003");
+        axi_read(16#10C#, rd);
+        assert rd(3 downto 0) = "0011"
+            report "FAIL T9: AVG_N readback wrong" severity failure;
+
+        report "T9: PASS";
 
         wait for 20 * CLK_PERIOD;
         report "========================================";

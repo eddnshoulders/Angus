@@ -61,7 +61,7 @@ entity top is
         m_axis_tlast       : out std_logic;
         -- Raw DMA0 FIFO protection and reset
         raw_fifo_almost_full : in  std_logic;
-        raw_stream_reset     : out std_logic;
+        raw_stream_resetn    : out std_logic;
         -- Averaged stream output (to 2nd FIFO/DMA)
         m_avg_axis_tdata   : out std_logic_vector(31 downto 0);
         m_avg_axis_tvalid  : out std_logic;
@@ -318,7 +318,7 @@ architecture rtl of top is
     -- =========================================================================
     signal pkt_count       : unsigned(31 downto 0);
     signal ovf_count       : unsigned(15 downto 0);
-    signal raw_stream_reset_i    : std_logic;
+    signal raw_stream_resetn_i    : std_logic;
     signal raw_dropped_pkt_count : unsigned(31 downto 0);
 
     -- avg block signals (direct-sample design, see avg_summary.md -- avg
@@ -485,7 +485,7 @@ begin
             pkt_count           => pkt_count,
             ovf_count           => ovf_count,
             avg_n               => avg_n,
-            raw_stream_reset      => raw_stream_reset_i,
+            raw_stream_resetn     => raw_stream_resetn_i,
             raw_dropped_pkt_count => raw_dropped_pkt_count,
 
             avg_frames_in_count      => avg_frames_in_count,
@@ -896,10 +896,10 @@ begin
     ila_fault_pll_phase         <= fault_pll_phase;
     ila_fault_speed_calc        <= fault_speed_calc;
 
-    -- Raw stream reset: driven from AXI-Lite self-clearing register,
-    -- routed to BD reset-combining logic (peripheral_reset OR this
-    -- signal -> NOT -> FIFO aresetn).
-    raw_stream_reset <= raw_stream_reset_i;
+    -- Raw stream reset (active low): '0' for one cycle when AXI-Lite
+    -- RAW_STREAM_RESET is written, '1' normally. Combine with
+    -- proc_sys_reset_n in BD using an AND gate -> FIFO aresetn.
+    raw_stream_resetn <= raw_stream_resetn_i;
 
     -- avg stream port assignments
     m_avg_axis_tdata            <= avg_tdata_i;

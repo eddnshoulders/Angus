@@ -42,7 +42,7 @@ WRITE_REGS = {
     'TDC_OFFSET':           (0x058, 31, 0,  'TDC offset from Z edge (angfac)'),
     'DMA_BUFFER_SIZE':      (0x05C, 3,  0,  'Z-edge cycles per DMA buffer (default 2)'),
     'AVG_N':                (0x10C, 3,  0,  'Averaging window: 2^n input frames (0-3, default 0)'),
-    'RAW_STREAM_RESET':     (0x060, 0,  0,  'Self-clearing: write 1 to reset raw DMA0 FIFO and pack state'),
+    'RAW_STREAM_RESET':     (0x060, 0,  0,  'Self-clearing: write 1 pulses raw_stream_resetn low for one cycle (active-low reset)'),
 }
 
 # =============================================================================
