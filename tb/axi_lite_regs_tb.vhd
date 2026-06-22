@@ -13,7 +13,7 @@ library std; use std.env.all;
 -- T6: fault_clear self-clears after one cycle
 -- T7: runtime config outputs update immediately
 -- T8: status register readback (FAULT_FLAGS, PKT_COUNT, RAW_DROPPED_PACKETS)
--- T9: RAW_STREAM_RESET self-clears; AVG_N write/readback
+-- T10: AVG_RESET self-clears (avg_resetn active-low)
 -- =============================================================================
 entity axi_lite_regs_tb is end entity;
 
@@ -124,6 +124,7 @@ architecture sim of axi_lite_regs_tb is
     signal ovf_cnt_in          : unsigned(15 downto 0) := (others => '0');
     -- New ports from this integration
     signal raw_stream_resetn     : std_logic;
+    signal avg_resetn             : std_logic;
     signal raw_dropped_pkt_cnt : unsigned(31 downto 0) := to_unsigned(99, 32);
     signal avg_n_out            : unsigned(3 downto 0);
 
@@ -228,6 +229,7 @@ begin
             avg_n            => avg_n_out,
             raw_stream_resetn     => raw_stream_resetn,
             raw_dropped_pkt_count => raw_dropped_pkt_cnt,
+            avg_resetn            => avg_resetn,
             avg_frames_in_count      => (others => '0'),
             avg_frames_out_count     => (others => '0'),
             avg_samples_in_count     => (others => '0'),
@@ -489,6 +491,26 @@ begin
             report "FAIL T9: AVG_N readback wrong" severity failure;
 
         report "T9: PASS";
+
+        -- ----------------------------------------------------------------
+        -- T10: AVG_RESET self-clears (avg_resetn active-low)
+        -- ----------------------------------------------------------------
+        test_num <= 10;
+        report "T10: AVG_RESET self-clears";
+
+        assert avg_resetn = '1'
+            report "FAIL T10: avg_resetn not high before pulse" severity failure;
+
+        axi_write(16#064#, x"00000001");
+
+        assert avg_resetn = '1'
+            report "FAIL T10: avg_resetn did not return high after pulse" severity failure;
+
+        wait for 5 * CLK_PERIOD;
+        assert avg_resetn = '1'
+            report "FAIL T10: avg_resetn not high 5 clocks after pulse" severity failure;
+
+        report "T10: PASS";
 
         wait for 20 * CLK_PERIOD;
         report "========================================";

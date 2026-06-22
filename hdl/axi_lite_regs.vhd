@@ -229,6 +229,10 @@ entity axi_lite_regs is
         raw_stream_resetn     : out std_logic;
         raw_dropped_pkt_count : in  unsigned(31 downto 0);
 
+        -- Avg path software reset (active low). Assert to hold avg in
+        -- reset while arming DMA1; self-clearing like raw_stream_resetn.
+        avg_resetn            : out std_logic;
+
         -- Avg diagnostics (direct-sample design, see avg_summary.md)
         avg_frames_in_count     : in unsigned(31 downto 0);
         avg_frames_out_count    : in unsigned(31 downto 0);
@@ -273,6 +277,7 @@ architecture rtl of axi_lite_regs is
     constant A_TDC_OFFSET       : integer := 16#058# / 4;
     constant A_DMA_BUFFER_SIZE  : integer := 16#05C# / 4;
     constant A_RAW_STREAM_RESET : integer := 16#060# / 4;  -- [0] self-clearing pulse
+    constant A_AVG_RESET        : integer := 16#064# / 4;  -- [0] self-clearing pulse
     -- Read
     constant A_CAM_TOOTH_COUNT  : integer := 16#070# / 4;
     constant A_CRANK_TOOTH_PER  : integer := 16#074# / 4;
@@ -376,6 +381,7 @@ architecture rtl of axi_lite_regs is
     signal config_apply_int : std_logic := '0';
     signal fault_clear_int  : std_logic := '0';
     signal raw_stream_resetn_int : std_logic := '1';
+    signal avg_resetn_int        : std_logic := '1';
 
     -- =========================================================================
     -- Startup config latches
@@ -428,10 +434,12 @@ begin
                 config_apply_int     <= '0';
                 fault_clear_int      <= '0';
                 raw_stream_resetn_int <= '1';
+                avg_resetn_int        <= '1';
             else
                 config_apply_int     <= '0';
                 fault_clear_int      <= '0';
                 raw_stream_resetn_int <= '1';
+                avg_resetn_int        <= '1';
 
                 if axi_awready = '0' and s_axi_awvalid = '1' then
                     axi_awready <= '1';
@@ -484,10 +492,12 @@ begin
                         when A_DMA_BUFFER_SIZE  => reg_dma_buffer_size  <= s_axi_wdata;
                         when A_AVG_N            => reg_avg_n            <= s_axi_wdata;
                         when A_RAW_STREAM_RESET =>
-                            -- Self-clearing: bit 0 fires a one-cycle pulse,
-                            -- not stored in a register.
                             if s_axi_wdata(0) = '1' then
                                 raw_stream_resetn_int <= '0';
+                            end if;
+                        when A_AVG_RESET =>
+                            if s_axi_wdata(0) = '1' then
+                                avg_resetn_int <= '0';
                             end if;
                         when others => null;
                     end case;
@@ -689,6 +699,7 @@ begin
     -- Runtime config (direct from registers)
     fault_clear          <= fault_clear_int;
     raw_stream_resetn    <= raw_stream_resetn_int;
+    avg_resetn           <= avg_resetn_int;
     pll_corr_dir         <= reg_control_rt(1);
     phase_fault_drop     <= reg_control_rt(2);
     phase_ref_phase      <= reg_control_rt(3);

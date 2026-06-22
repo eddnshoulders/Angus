@@ -320,6 +320,7 @@ architecture rtl of top is
     signal ovf_count       : unsigned(15 downto 0);
     signal raw_stream_resetn_i    : std_logic;
     signal raw_dropped_pkt_count : unsigned(31 downto 0);
+    signal avg_resetn_i           : std_logic;
 
     -- avg block signals (direct-sample design, see avg_summary.md -- avg
     -- taps tdc_deg/adc_ch0/di_ch directly, the same signals pack consumes,
@@ -487,6 +488,7 @@ begin
             avg_n               => avg_n,
             raw_stream_resetn     => raw_stream_resetn_i,
             raw_dropped_pkt_count => raw_dropped_pkt_count,
+            avg_resetn            => avg_resetn_i,
 
             avg_frames_in_count      => avg_frames_in_count,
             avg_frames_out_count     => avg_frames_out_count,
@@ -743,6 +745,7 @@ begin
         port map (
             clk              => clk,
             rst              => rst,
+            avg_resetn       => avg_resetn_i,
 
             sample_valid     => avg_sample_valid,
             sample_ready     => avg_sample_ready,

@@ -43,6 +43,7 @@ WRITE_REGS = {
     'DMA_BUFFER_SIZE':      (0x05C, 3,  0,  'Z-edge cycles per DMA buffer (default 2)'),
     'AVG_N':                (0x10C, 3,  0,  'Averaging window: 2^n input frames (0-3, default 0)'),
     'RAW_STREAM_RESET':     (0x060, 0,  0,  'Self-clearing: write 1 pulses raw_stream_resetn low for one cycle (active-low reset)'),
+    'AVG_RESET':            (0x064, 0,  0,  'Self-clearing: write 1 pulses avg_resetn low for one cycle. Hold low during DMA1 arm, release when ready. Accumulation then waits for first clean frame boundary.'),
 }
 
 # =============================================================================

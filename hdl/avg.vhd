@@ -40,6 +40,13 @@ entity avg is
     port (
         clk : in std_logic;
         rst : in std_logic;
+        -- Software-controlled active-low reset. Assert (drive low) to
+        -- hold avg in reset while arming DMA1; release (drive high) once
+        -- DMA1 is ready to accept data. Combines with rst internally.
+        -- On release, accumulation waits for the first clean frame
+        -- boundary before writing any data, so the output always starts
+        -- at bin 0 of a complete engine cycle.
+        avg_resetn : in std_logic;
 
         sample_valid : in  std_logic;
         sample_ready : out std_logic;
@@ -130,6 +137,14 @@ architecture rtl of avg is
     signal prev_tdc      : addr_t := (others => '0');
     signal expected_bin  : addr_t := (others => '0');
     signal have_prev     : std_logic := '0';
+    -- wait_frame: set on reset, cleared on the first frame boundary
+    -- detected after reset release. While set, samples update prev_tdc/
+    -- expected_bin/have_prev for sequence tracking but are not written
+    -- to BRAM and do not count toward the accumulation window. This
+    -- ensures the first bank always starts accumulating from bin 0 of
+    -- a complete engine cycle regardless of where in the cycle reset
+    -- was released.
+    signal wait_frame    : std_logic := '1';
     signal frames_window : unsigned(3 downto 0) := (others => '0'); -- max 8
 
     type out_state_t is (OUT_IDLE, OUT_READ, OUT_READ2, OUT_SEND0, OUT_SEND1, OUT_CLEAR, OUT_DONE);
@@ -307,7 +322,7 @@ begin
         variable avg_p          : unsigned(31 downto 0);
     begin
         if rising_edge(clk) then
-            if rst = '1' then
+            if rst = '1' or avg_resetn = '0' then
                 bank0_state <= BANK_ACCUM;
                 bank1_state <= BANK_EMPTY;
                 acc_bank    <= '0';
@@ -323,6 +338,7 @@ begin
                 expected_bin <= (others => '0');
                 prev_tdc <= (others => '0');
                 have_prev <= '0';
+                wait_frame <= '1';
                 out_bin <= (others => '0');
                 clr_bin <= (others => '0');
                 m_valid <= '0';
@@ -360,6 +376,16 @@ begin
                             -- this sample for accumulation.
                             if have_prev = '1' and tdc_deg < prev_tdc then
                                 boundary := true;
+                            end if;
+
+                            -- If we're still waiting for the first clean
+                            -- frame start after reset, clear the flag on
+                            -- the first boundary but don't process it as
+                            -- an accumulation event -- just let the sample
+                            -- proceed as a normal first-bin write below.
+                            if boundary and wait_frame = '1' then
+                                wait_frame <= '0';
+                                boundary := false;
                             end if;
 
                             if boundary then
@@ -427,7 +453,13 @@ begin
                             expected_bin <= inc_bin(tdc_deg);
                             have_prev <= '1';
                             c_samples_in <= c_samples_in + 1;
-                            acc_state <= ACC_READ;
+                            -- Only proceed to BRAM read-modify-write once
+                            -- we have seen a clean frame boundary after
+                            -- reset (wait_frame cleared above). Before
+                            -- that, just track sequence without writing.
+                            if wait_frame = '0' then
+                                acc_state <= ACC_READ;
+                            end if;
                         end if;
 
                     when ACC_READ =>

@@ -171,6 +171,7 @@ begin
         port map (
             clk => clk,
             rst => rst,
+            avg_resetn => '1',  -- always released in testbench
             sample_valid => sample_valid,
             sample_ready => sample_ready,
             tdc_deg => tdc_deg,
