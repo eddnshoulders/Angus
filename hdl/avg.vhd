@@ -549,10 +549,39 @@ begin
                         end if;
 
                     when OUT_DONE =>
+                        -- Normal path: free the bank that just finished
+                        -- streaming and clearing.
+                        -- Recovery path: if the accumulator is stranded
+                        -- (acc_bank points at a BANK_FULL bank because
+                        -- the other bank was not EMPTY when the last
+                        -- window completed), claim the newly-freed bank
+                        -- for accumulation immediately rather than
+                        -- leaving it EMPTY and waiting for the next
+                        -- boundary event to find it -- which may never
+                        -- happen while the output side is still catching
+                        -- up from a DMA stall.
                         if out_bank = '0' then
-                            bank0_state <= BANK_EMPTY;
+                            if acc_bank = '0' and bank0_state = BANK_FULL then
+                                -- Recovery: redirect stranded accumulator
+                                -- to this bank instead of leaving EMPTY.
+                                bank0_state   <= BANK_ACCUM;
+                                acc_bank      <= '0';
+                                acc_shift     <= avg_n;
+                                bank0_shift   <= avg_n;
+                                frames_window <= (others => '0');
+                            else
+                                bank0_state <= BANK_EMPTY;
+                            end if;
                         else
-                            bank1_state <= BANK_EMPTY;
+                            if acc_bank = '1' and bank1_state = BANK_FULL then
+                                bank1_state   <= BANK_ACCUM;
+                                acc_bank      <= '1';
+                                acc_shift     <= avg_n;
+                                bank1_shift   <= avg_n;
+                                frames_window <= (others => '0');
+                            else
+                                bank1_state <= BANK_EMPTY;
+                            end if;
                         end if;
                         out_state <= OUT_IDLE;
                 end case;
