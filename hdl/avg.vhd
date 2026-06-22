@@ -47,6 +47,10 @@ entity avg is
         -- boundary before writing any data, so the output always starts
         -- at bin 0 of a complete engine cycle.
         avg_resetn : in std_logic;
+        -- When set, the output FSM skips streaming (OUT_SEND0/SEND1)
+        -- and goes directly from FULL to OUT_CLEAR, allowing the
+        -- accumulator to cycle freely without DMA1 being active.
+        drain_disable : in std_logic;
 
         sample_valid : in  std_logic;
         sample_ready : out std_logic;
@@ -511,13 +515,23 @@ begin
                             out_bank <= '0';
                             out_shift <= bank0_shift;
                             out_bin <= (others => '0');
-                            out_state <= OUT_READ;
+                            if drain_disable = '1' then
+                                clr_bin   <= (others => '0');
+                                out_state <= OUT_CLEAR;
+                            else
+                                out_state <= OUT_READ;
+                            end if;
                         elsif bank1_state = BANK_FULL then
                             bank1_state <= BANK_STREAM;
                             out_bank <= '1';
                             out_shift <= bank1_shift;
                             out_bin <= (others => '0');
-                            out_state <= OUT_READ;
+                            if drain_disable = '1' then
+                                clr_bin   <= (others => '0');
+                                out_state <= OUT_CLEAR;
+                            else
+                                out_state <= OUT_READ;
+                            end if;
                         end if;
 
                     when OUT_READ =>

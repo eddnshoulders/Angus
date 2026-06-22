@@ -232,6 +232,10 @@ entity axi_lite_regs is
         -- Avg path software reset (active low). Assert to hold avg in
         -- reset while arming DMA1; self-clearing like raw_stream_resetn.
         avg_resetn            : out std_logic;
+        -- [0] drain_disable: when set, avg output FSM skips streaming
+        -- and clears banks immediately, allowing accumulation to run
+        -- freely without needing DMA1 active.
+        avg_drain_disable     : out std_logic;
 
         -- Avg diagnostics (direct-sample design, see avg_summary.md)
         avg_frames_in_count     : in unsigned(31 downto 0);
@@ -278,6 +282,7 @@ architecture rtl of axi_lite_regs is
     constant A_DMA_BUFFER_SIZE  : integer := 16#05C# / 4;
     constant A_RAW_STREAM_RESET : integer := 16#060# / 4;  -- [0] self-clearing pulse
     constant A_AVG_RESET        : integer := 16#064# / 4;  -- [0] self-clearing pulse
+    constant A_AVG_MODE         : integer := 16#068# / 4;  -- [0] drain_disable
     -- Read
     constant A_CAM_TOOTH_COUNT  : integer := 16#070# / 4;
     constant A_CRANK_TOOTH_PER  : integer := 16#074# / 4;
@@ -382,6 +387,7 @@ architecture rtl of axi_lite_regs is
     signal fault_clear_int  : std_logic := '0';
     signal raw_stream_resetn_int : std_logic := '1';
     signal avg_resetn_int        : std_logic := '1';
+    signal reg_avg_mode          : std_logic_vector(31 downto 0) := (others => '0');
 
     -- =========================================================================
     -- Startup config latches
@@ -499,6 +505,8 @@ begin
                             if s_axi_wdata(0) = '1' then
                                 avg_resetn_int <= '0';
                             end if;
+                        when A_AVG_MODE =>
+                            reg_avg_mode <= s_axi_wdata;
                         when others => null;
                     end case;
                 end if;
@@ -610,6 +618,7 @@ begin
                         when A_AVG_OUT_STALL     => axi_rdata <= std_logic_vector(avg_out_stall_count);
                         when A_AVG_STATE_DBG     => axi_rdata <= x"000000" & avg_state_dbg;
                         when A_RAW_DROPPED_PKT   => axi_rdata <= std_logic_vector(raw_dropped_pkt_count);
+                        when A_AVG_MODE          => axi_rdata <= reg_avg_mode;
                         when others             => axi_rdata <= (others => '0');
                     end case;
                 elsif axi_rvalid = '1' and s_axi_rready = '1' then
@@ -700,6 +709,7 @@ begin
     fault_clear          <= fault_clear_int;
     raw_stream_resetn    <= raw_stream_resetn_int;
     avg_resetn           <= avg_resetn_int;
+    avg_drain_disable    <= reg_avg_mode(0);
     pll_corr_dir         <= reg_control_rt(1);
     phase_fault_drop     <= reg_control_rt(2);
     phase_ref_phase      <= reg_control_rt(3);
