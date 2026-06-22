@@ -137,14 +137,6 @@ architecture rtl of avg is
     signal prev_tdc      : addr_t := (others => '0');
     signal expected_bin  : addr_t := (others => '0');
     signal have_prev     : std_logic := '0';
-    -- wait_frame: set on reset, cleared on the first frame boundary
-    -- detected after reset release. While set, samples update prev_tdc/
-    -- expected_bin/have_prev for sequence tracking but are not written
-    -- to BRAM and do not count toward the accumulation window. This
-    -- ensures the first bank always starts accumulating from bin 0 of
-    -- a complete engine cycle regardless of where in the cycle reset
-    -- was released.
-    signal wait_frame    : std_logic := '1';
     signal frames_window : unsigned(3 downto 0) := (others => '0'); -- max 8
 
     type out_state_t is (OUT_IDLE, OUT_READ, OUT_READ2, OUT_SEND0, OUT_SEND1, OUT_CLEAR, OUT_DONE);
@@ -320,6 +312,12 @@ begin
         variable next_frames    : unsigned(3 downto 0);
         variable diff           : integer;
         variable avg_p          : unsigned(31 downto 0);
+        -- wait_frame as a variable so clearing it on the boundary
+        -- detection cycle is immediately visible to the BRAM-write
+        -- gate check later in the same process cycle. A signal would
+        -- only update next clock, causing bin 0 of the first real
+        -- frame to be incorrectly discarded.
+        variable wait_frame     : std_logic := '1';
     begin
         if rising_edge(clk) then
             if rst = '1' or avg_resetn = '0' then
@@ -338,7 +336,7 @@ begin
                 expected_bin <= (others => '0');
                 prev_tdc <= (others => '0');
                 have_prev <= '0';
-                wait_frame <= '1';
+                wait_frame := '1';
                 out_bin <= (others => '0');
                 clr_bin <= (others => '0');
                 m_valid <= '0';
@@ -384,7 +382,7 @@ begin
                             -- an accumulation event -- just let the sample
                             -- proceed as a normal first-bin write below.
                             if boundary and wait_frame = '1' then
-                                wait_frame <= '0';
+                                wait_frame := '0';
                                 boundary := false;
                             end if;
 

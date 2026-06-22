@@ -138,9 +138,13 @@ architecture tb of avg_tb is
             assert d = std_logic_vector(to_unsigned(b, 32))
                 report "bin word mismatch. got 0x" & to_hstring(d) & " expected bin " & integer'image(b)
                 severity failure;
-            assert l = '0'
-                report "tlast asserted on bin word"
-                severity failure;
+            -- tlast is pre-asserted on word 0 of the last bin (lookahead,
+            -- so it is registered and stable when word 1 is accepted).
+            if b < BINS_C - 1 then
+                assert l = '0'
+                    report "tlast asserted on bin word (not last bin)"
+                    severity failure;
+            end if;
 
             get_beat(clk_s, valid_s, ready_s, data_s, last_s, d, l);
             expected_word1 := std_logic_vector(to_unsigned(di_v, 8)) & x"00" &
