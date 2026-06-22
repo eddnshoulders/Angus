@@ -540,7 +540,17 @@ begin
                         if m_valid = '0' or m_axis_tready = '1' then
                             m_data  <= std_logic_vector(resize(out_bin, 32));
                             m_valid <= '1';
+                            -- Assert m_last here (word 0 of this bin) so
+                            -- it is registered and stable when the DMA
+                            -- accepts word 1 (the true last beat). If we
+                            -- wait until OUT_SEND1 to set m_last, it only
+                            -- takes effect the cycle *after* OUT_SEND1's
+                            -- condition fires, producing a spurious extra
+                            -- beat that triggers dma_internal_error.
                             m_last  <= '0';
+                            if at_last_bin(out_bin) then
+                                m_last <= '1';
+                            end if;
                             out_state <= OUT_SEND1;
                         end if;
 
@@ -550,7 +560,6 @@ begin
                             m_data  <= make_word1(out_di, avg_p(11 downto 0));
                             m_valid <= '1';
                             if at_last_bin(out_bin) then
-                                m_last <= '1';
                                 clr_bin <= (others => '0');
                                 out_state <= OUT_CLEAR;
                                 c_frames_out <= c_frames_out + 1;

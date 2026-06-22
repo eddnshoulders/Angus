@@ -203,6 +203,13 @@ begin
         rst <= '0';
         wait_clk(clk, 5);
 
+        -- After reset, avg discards samples until the first frame boundary
+        -- (tdc_deg decrease) so that accumulation always starts at bin 0
+        -- of a complete engine cycle. Send one dummy frame here to trigger
+        -- that boundary; its data is not accumulated (wait_frame='1' until
+        -- the wrap to bin 0 that starts the next frame).
+        send_frame(clk, sample_valid, sample_ready, tdc_deg, adc_ch0, di_in, 0, 16#00#);
+
         report "TEST 1: avg_n=0 uses binning path, one frame in gives one frame out";
         avg_n <= to_unsigned(0, 2);
         send_frame(clk, sample_valid, sample_ready, tdc_deg, adc_ch0, di_in, 100, 16#A5#);
