@@ -20,6 +20,11 @@ use ieee.numeric_std.all;
 --   pressure = (buf[1] >>  4) & 0xFFF
 --
 -- tlast is asserted on Word 1 every dma_buffer_size engine cycles (z_edges).
+--
+-- FIFO protection: if raw_fifo_almost_full is asserted when a new packet
+-- would start (IDLE->WORD0 transition), the entire packet is dropped and
+-- dropped_pkt_count increments. Partial-packet corruption is avoided by
+-- only making the drop decision at packet boundaries, never mid-packet.
 -- =============================================================================
 
 entity pack is
@@ -35,23 +40,33 @@ entity pack is
         -- DMA control
         z_edge          : in  std_logic;
         dma_buffer_size : in  unsigned(3 downto 0);
+        -- FIFO protection: asserted by the downstream AXI Stream FIFO
+        -- when it is nearly full. Pack will drop the next packet rather
+        -- than risk the FIFO overflowing mid-packet.
+        raw_fifo_almost_full : in std_logic;
         -- AXI-Stream master
         m_axis_tdata    : out std_logic_vector(31 downto 0);
         m_axis_tvalid   : out std_logic;
         m_axis_tready   : in  std_logic;
         m_axis_tlast    : out std_logic;
         -- Status
-        pkt_count       : out unsigned(31 downto 0);
-        ovf_count       : out unsigned(15 downto 0)
+        pkt_count           : out unsigned(31 downto 0);
+        ovf_count           : out unsigned(15 downto 0);
+        dropped_pkt_count   : out unsigned(31 downto 0)
     );
 end entity pack;
 
 architecture rtl of pack is
 
-    type t_state is (IDLE, WORD0, WORD1);
+    -- DROP state: packet is being silently discarded because the FIFO
+    -- was almost full at the moment it would have started. We wait for
+    -- tlast (last_sample) to ensure we discard a whole packet boundary-
+    -- aligned unit, then return to IDLE.
+    type t_state is (IDLE, WORD0, WORD1, DROP);
     signal state        : t_state := IDLE;
     signal pkt_cnt      : unsigned(31 downto 0) := (others => '0');
     signal ovf_cnt      : unsigned(15 downto 0) := (others => '0');
+    signal drop_cnt     : unsigned(31 downto 0) := (others => '0');
     signal tvalid_int   : std_logic := '0';
     signal tlast_int    : std_logic := '0';
     signal tdata_int    : std_logic_vector(31 downto 0) := (others => '0');
@@ -80,6 +95,7 @@ begin
                 tlast_int   <= '0';
                 pkt_cnt     <= (others => '0');
                 ovf_cnt     <= (others => '0');
+                drop_cnt    <= (others => '0');
                 last_sample <= '0';
             else
                 case state is
@@ -92,7 +108,15 @@ begin
                             s_tdc       <= tdc_deg;
                             s_di        <= di_ch;
                             s_adc0      <= adc_ch0;
-                            state       <= WORD0;
+                            if raw_fifo_almost_full = '1' then
+                                -- FIFO is nearly full: drop this packet to
+                                -- avoid a partial-write overflow. Count the
+                                -- drop and wait for the packet boundary.
+                                drop_cnt <= drop_cnt + 1;
+                                state    <= DROP;
+                            else
+                                state <= WORD0;
+                            end if;
                         end if;
 
                     when WORD0 =>
@@ -112,13 +136,34 @@ begin
                             state   <= IDLE;
                         end if;
 
+                    when DROP =>
+                        -- Silently discard samples until the packet
+                        -- boundary (last_sample), consuming trig_pulses
+                        -- without driving the AXI-Stream bus.
+                        tvalid_int <= '0';
+                        tlast_int  <= '0';
+                        if trig_pulse = '1' then
+                            if last_sample = '1' then
+                                -- Boundary: resume normal operation on
+                                -- the next packet.
+                                state <= IDLE;
+                            else
+                                last_sample <= next_is_last;
+                                s_tdc       <= tdc_deg;
+                                s_di        <= di_ch;
+                                s_adc0      <= adc_ch0;
+                            end if;
+                        end if;
+
                     when others =>
                         state <= IDLE;
 
                 end case;
 
-                -- Overflow: trig_pulse arrived while packet in progress
-                if trig_pulse = '1' and state /= IDLE then
+                -- Overflow: trig_pulse arrived while a packet is actively
+                -- being streamed (WORD0/WORD1). Does not fire during DROP
+                -- since dropping is intentional, not an overflow.
+                if trig_pulse = '1' and (state = WORD0 or state = WORD1) then
                     if ovf_cnt /= (ovf_cnt'range => '1') then
                         ovf_cnt <= ovf_cnt + 1;
                     end if;
@@ -157,10 +202,11 @@ begin
     -- =========================================================================
     -- Output assignments
     -- =========================================================================
-    m_axis_tdata  <= tdata_int;
-    m_axis_tvalid <= tvalid_int;
-    m_axis_tlast  <= tlast_int;
-    pkt_count     <= pkt_cnt;
-    ovf_count     <= ovf_cnt;
+    m_axis_tdata      <= tdata_int;
+    m_axis_tvalid     <= tvalid_int;
+    m_axis_tlast      <= tlast_int;
+    pkt_count         <= pkt_cnt;
+    ovf_count         <= ovf_cnt;
+    dropped_pkt_count <= drop_cnt;
 
 end architecture rtl;

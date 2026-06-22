@@ -42,6 +42,7 @@ WRITE_REGS = {
     'TDC_OFFSET':           (0x058, 31, 0,  'TDC offset from Z edge (angfac)'),
     'DMA_BUFFER_SIZE':      (0x05C, 3,  0,  'Z-edge cycles per DMA buffer (default 2)'),
     'AVG_N':                (0x10C, 3,  0,  'Averaging window: 2^n input frames (0-3, default 0)'),
+    'RAW_STREAM_RESET':     (0x060, 0,  0,  'Self-clearing: write 1 to reset raw DMA0 FIFO and pack state'),
 }
 
 # =============================================================================
@@ -99,6 +100,7 @@ READ_REGS = {
     'AVG_DROPPED_SAMPLES':  (0x128, 31, 0,  'Samples dropped (sample_valid asserted, sample_ready low)'),
     'AVG_OUT_STALL':        (0x12C, 31, 0,  'Output stall cycles (m_axis_tvalid=1, m_axis_tready=0)'),
     'AVG_STATE_DBG':        (0x130, 7,  0,  '[1:0]=acc_state [4:2]=out_state [5]=acc_bank [6]=out_bank'),
+    'RAW_DROPPED_PACKETS':  (0x134, 31, 0,  'Raw DMA0 packets dropped due to FIFO almost_full'),
 }
 
 ALL_REGS = {**WRITE_REGS, **READ_REGS}

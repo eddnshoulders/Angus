@@ -225,6 +225,10 @@ entity axi_lite_regs is
         ovf_count          : in unsigned(15 downto 0);
         avg_n              : out unsigned(3 downto 0);
 
+        -- Raw DMA0 path control and diagnostics
+        raw_stream_reset      : out std_logic;
+        raw_dropped_pkt_count : in  unsigned(31 downto 0);
+
         -- Avg diagnostics (direct-sample design, see avg_summary.md)
         avg_frames_in_count     : in unsigned(31 downto 0);
         avg_frames_out_count    : in unsigned(31 downto 0);
@@ -268,6 +272,7 @@ architecture rtl of axi_lite_regs is
     constant A_PLL_PHASE_THRESH : integer := 16#054# / 4;
     constant A_TDC_OFFSET       : integer := 16#058# / 4;
     constant A_DMA_BUFFER_SIZE  : integer := 16#05C# / 4;
+    constant A_RAW_STREAM_RESET : integer := 16#060# / 4;  -- [0] self-clearing pulse
     -- Read
     constant A_CAM_TOOTH_COUNT  : integer := 16#070# / 4;
     constant A_CRANK_TOOTH_PER  : integer := 16#074# / 4;
@@ -322,6 +327,7 @@ architecture rtl of axi_lite_regs is
     constant A_AVG_DROPPED      : integer := 16#128# / 4;
     constant A_AVG_OUT_STALL    : integer := 16#12C# / 4;
     constant A_AVG_STATE_DBG    : integer := 16#130# / 4;
+    constant A_RAW_DROPPED_PKT  : integer := 16#134# / 4;
 
     -- =========================================================================
     -- AXI internal
@@ -369,6 +375,7 @@ architecture rtl of axi_lite_regs is
     -- =========================================================================
     signal config_apply_int : std_logic := '0';
     signal fault_clear_int  : std_logic := '0';
+    signal raw_stream_reset_int : std_logic := '0';
 
     -- =========================================================================
     -- Startup config latches
@@ -414,15 +421,17 @@ begin
     begin
         if rising_edge(s_axi_aclk) then
             if s_axi_aresetn = '0' then
-                axi_awready      <= '0';
-                axi_wready       <= '0';
-                axi_bvalid       <= '0';
-                aw_addr          <= (others => '0');
-                config_apply_int <= '0';
-                fault_clear_int  <= '0';
+                axi_awready          <= '0';
+                axi_wready           <= '0';
+                axi_bvalid           <= '0';
+                aw_addr              <= (others => '0');
+                config_apply_int     <= '0';
+                fault_clear_int      <= '0';
+                raw_stream_reset_int <= '0';
             else
-                config_apply_int <= '0';
-                fault_clear_int  <= '0';
+                config_apply_int     <= '0';
+                fault_clear_int      <= '0';
+                raw_stream_reset_int <= '0';
 
                 if axi_awready = '0' and s_axi_awvalid = '1' then
                     axi_awready <= '1';
@@ -474,6 +483,12 @@ begin
                         when A_TDC_OFFSET       => reg_tdc_offset       <= s_axi_wdata;
                         when A_DMA_BUFFER_SIZE  => reg_dma_buffer_size  <= s_axi_wdata;
                         when A_AVG_N            => reg_avg_n            <= s_axi_wdata;
+                        when A_RAW_STREAM_RESET =>
+                            -- Self-clearing: bit 0 fires a one-cycle pulse,
+                            -- not stored in a register.
+                            if s_axi_wdata(0) = '1' then
+                                raw_stream_reset_int <= '1';
+                            end if;
                         when others => null;
                     end case;
                 end if;
@@ -584,6 +599,7 @@ begin
                         when A_AVG_DROPPED       => axi_rdata <= std_logic_vector(avg_dropped_sample_count);
                         when A_AVG_OUT_STALL     => axi_rdata <= std_logic_vector(avg_out_stall_count);
                         when A_AVG_STATE_DBG     => axi_rdata <= x"000000" & avg_state_dbg;
+                        when A_RAW_DROPPED_PKT   => axi_rdata <= std_logic_vector(raw_dropped_pkt_count);
                         when others             => axi_rdata <= (others => '0');
                     end case;
                 elsif axi_rvalid = '1' and s_axi_rready = '1' then
@@ -672,6 +688,7 @@ begin
     avg_n            <= unsigned(reg_avg_n(3 downto 0));
     -- Runtime config (direct from registers)
     fault_clear          <= fault_clear_int;
+    raw_stream_reset     <= raw_stream_reset_int;
     pll_corr_dir         <= reg_control_rt(1);
     phase_fault_drop     <= reg_control_rt(2);
     phase_ref_phase      <= reg_control_rt(3);
