@@ -651,4 +651,82 @@ begin
         end if;
     end process;
 
+    -- =========================================================================
+    -- DEBUG MONITOR (simulation only). Validates two hypotheses:
+    --  (A) AXIS protocol: tvalid/tdata/tlast must hold until handshake, and
+    --      each packet must be exactly 2*BINS beats with tlast only on the last.
+    --  (B) Bank overrun deadlock / dirty clear.
+    -- =========================================================================
+    -- synthesis translate_off
+    p_dbg_monitor : process(clk)
+        variable p_valid, p_ready, p_last : std_logic := '0';
+        variable p_data     : std_logic_vector(31 downto 0) := (others => '0');
+        variable beats      : natural := 0;
+        variable lost_cnt   : natural := 0;
+        variable dirty_rep  : boolean := false;
+        variable dead_rep   : boolean := false;
+        variable alias_rep  : boolean := false;
+    begin
+        if rising_edge(clk) then
+            if rst = '1' or avg_resetn = '0' then
+                p_valid := '0'; p_ready := '0'; beats := 0;
+                dirty_rep := false; dead_rep := false; alias_rep := false;
+            else
+                -- (A1) tvalid dropped / data changed while stalled
+                if p_valid = '1' and p_ready = '0' then
+                    if m_valid = '0' then
+                        lost_cnt := lost_cnt + 1;
+                        report "AVG_DBG(A): tvalid dropped without handshake, beat LOST data=0x"
+                               & to_hstring(p_data) & " tlast=" & std_logic'image(p_last)
+                               & " out_state=" & out_state_t'image(out_state)
+                               & " lost_total=" & integer'image(lost_cnt) severity warning;
+                    elsif m_data /= p_data or m_last /= p_last then
+                        report "AVG_DBG(A): tdata/tlast changed while stalled" severity warning;
+                    end if;
+                end if;
+                -- (A2) packet length / tlast placement
+                if m_valid = '1' and m_axis_tready = '1' then
+                    beats := beats + 1;
+                    if m_last = '1' then
+                        if beats /= 2 * BINS then
+                            report "AVG_DBG(A): tlast after " & integer'image(beats)
+                                   & " beats, expected " & integer'image(2 * BINS)
+                                   & " data=0x" & to_hstring(m_data) severity warning;
+                        else
+                            report "AVG_DBG: packet OK (" & integer'image(beats) & " beats)" severity note;
+                        end if;
+                        beats := 0;
+                    end if;
+                end if;
+                p_valid := m_valid; p_ready := m_axis_tready;
+                p_data  := m_data;  p_last  := m_last;
+
+                -- (B1) acc and out pointing at same bank
+                if acc_bank = out_bank and out_state /= OUT_IDLE and not alias_rep then
+                    alias_rep := true;
+                    report "AVG_DBG(B): acc_bank = out_bank = " & std_logic'image(acc_bank)
+                           & " while out_state=" & out_state_t'image(out_state) severity warning;
+                end if;
+                -- (B2) clear writing non-zero data
+                if out_state = OUT_CLEAR and lat_bank = out_bank and not dirty_rep then
+                    dirty_rep := true;
+                    report "AVG_DBG(B): OUT_CLEAR on bank " & std_logic'image(out_bank)
+                           & " with lat_bank matching -> writing new_sum=" & integer'image(to_integer(new_sum))
+                           & " instead of 0" severity warning;
+                end if;
+                -- (B3) deadlock: no ACCUM bank and nothing for output to do
+                if bank0_state /= BANK_ACCUM and bank1_state /= BANK_ACCUM and
+                   bank0_state /= BANK_FULL and bank1_state /= BANK_FULL and
+                   out_state = OUT_IDLE and not dead_rep then
+                    dead_rep := true;
+                    report "AVG_DBG(B): DEADLOCK - bank0=" & bank_state_t'image(bank0_state)
+                           & " bank1=" & bank_state_t'image(bank1_state)
+                           & " acc_bank=" & std_logic'image(acc_bank)
+                           & " sample_ready stuck low" severity warning;
+                end if;
+            end if;
+        end if;
+    end process p_dbg_monitor;
+    -- synthesis translate_on
+
 end architecture rtl;
