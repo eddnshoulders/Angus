@@ -1,0 +1,7 @@
+fastapi
+numpy
+PyQt5
+pyqtgraph
+requests
+uvicorn[standard]
+websocket-client

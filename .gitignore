@@ -35,3 +35,17 @@ vivado/*.srcs/sources_1/ip/*/
 # synth and impl reports
 vivado/reports/
 *.rpt
+
+# Local Python environments and build outputs
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+venv/
+
+# Browser GUI dependencies, build output, and local configuration
+/angus-gui/node_modules/
+/angus-gui/dist/
+/angus-gui/.env
+/angus-gui/.env.*
+!/angus-gui/.env.example
